@@ -1,0 +1,11 @@
+#coisas futeis
+node_modules
+
+.env
+.env.*
+!.env.example
+*.logs
+
+#arquivos de builds
+dist/
+build/
