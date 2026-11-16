@@ -8,6 +8,9 @@ cd web
 npm run dev
 npm run dev -- --host
 
+site de documentação [https://mantine.dev]
+ctrl + k para pesquisar o que quer
+
 ## Tecnologias e Stacks
 
 React + Express.
