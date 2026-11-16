@@ -7,6 +7,7 @@ Meu projeto Saas que unifica todo serviços externo em um ponto, facilitando par
 cd web
 npm run dev
 npm run dev -- --host
+npm audit --omit=dev
 
 site de documentação [https://mantine.dev]
 ctrl + k para pesquisar o que quer
