@@ -4,9 +4,13 @@ Meu projeto Saas que unifica todo serviços externo em um ponto, facilitando par
 
 ## Coisas Importantes
 
-cd web
+cd web(front)
 npm run dev
 npm run dev -- --host
+
+cd api(back)
+npm run dev
+
 npm audit --omit=dev
 
 site de documentação [https://mantine.dev]
@@ -30,7 +34,7 @@ Mensagens direta comigo, privada, segura com criptografia.
 Notificações no celular, sobre mensagens e atualização de status do projeto.
 Interace modular, lista/kaban, anexos, pagementos, orçamentos e futuro cadastro publico(atualmente apenas por convite).
 
-expansões futuras podem permitir multiplos desenvolvedores, como uma plataforma para encontrar clientes sem custar um absurdo, ou algo parecido, vai saber :)
+expansões futuras podem permitir multiplos desenvolvedores, como uma plataforma para encontrar clientes sem custar um absurdo, ou algo parecido, vai saber xD
 
 ## Marcos
 
