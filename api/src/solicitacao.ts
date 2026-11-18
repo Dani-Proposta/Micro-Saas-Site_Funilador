@@ -1,5 +1,5 @@
 //a tipagem de solicitações ficaram aqui
-export type StatusSolicitacao = "pendente" | "aprovado" | "recusado";
+export type StatusSolicitacao = "pendente" | "aprovado" | "recusada";
 
 
 //dados do pedido anotado no sistema
