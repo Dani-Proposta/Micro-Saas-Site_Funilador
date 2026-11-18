@@ -1,10 +1,10 @@
 //precisa pra se quer existir
 import express from "express";
-import { randomUUID } from 'node:crypto';
-
+import { randomUUID } from "node:crypto";
+import { pool } from "./db.ts";
 //funcionalidades importantes
-import type { Solicitacao } from './solicitacao.ts';
-import type { Cliente } from './cliente.ts';
+import type { Solicitacao } from "./solicitacao.ts";
+import type { Cliente } from "./cliente.ts";
 
 
 const app = express();
@@ -17,51 +17,112 @@ app.get("/api/health", (_req, res) =>{
     
 });
 
-app.get("/api/solicitacoes", (_req, res) =>{
-    res.json(solicitacoes);
+app.get("/api/solicitacoes", async (_req, res) =>{
+    try{
+        const resultado = await pool.query(
+            `SELECT 
+            id,
+            cliente_id AS "clienteId",
+            titulo,
+            descricao,
+            status,
+            criada_em AS "criadaEm"
+            FROM solicitacoes ORDER by criada_em DESC`
+        );
+
+        res.json(resultado.rows);
+    }catch(erro){
+        console.error("Erro ao buscar as solicitações:", erro);
+
+        res.status(500).json({erro:"Não foi possivel carregar as solicitações.",});
+    }
 });
 
-app.get('/api/clientes/:id', (req, res) => {
-    const cliente = clientes.find((numero) => numero.id === req.params.id);
-    if(!cliente){
-        res.status(404).json({erro: "tem niguem não zé"});
-        return;
+app.get('/api/clientes/:id', async (req, res) => {
+
+    try{
+        const resultado = await pool.query(
+            'SELECT id, nome, email FROM clientes WHERE id = $1', [req.params.id]
+        );
+
+        const cliente = resultado.rows[0];
+
+        if(!cliente){
+            res.status(404).json({erro: "esse caba n existe",});
+            return;
+        }
+        res.json(cliente);
     }
-    res.json(clientes);
+    catch(erro){
+        console.error("Erro no DB", erro);
+        res.status(500).json({erro: "Erro la no banco",});
+    }
 });
+
+app.get("/api/clientes/", async (_req, res) => {
+    try{
+        const resultado = await pool.query(
+            'SELECT id, nome, email FROM clientes'
+        );
+        res.json(resultado.rows);
+    }catch(erro){
+        console.error("Erro na DB:", erro);
+        res.status(500).json({erro: "Erro no banco de dados"});
+    }
+});
+
+
 
 //rotas de atualização ou pedido
-
-app.post("/api/solicitacoes", (req, res) =>{
+app.post("/api/solicitacoes", async (req, res) =>{
     const titulo = req.body?.titulo;
     const descricao = req.body?.descricao;
 
-    const clienteId = "cliente-011"
-
-    const clienteExiste = clientes.some((cliente) => cliente.id === clienteId);
-    if(!clienteExiste){
-        res.status(400).json({erro: "esse caba n existe",});
+    //se n tiver preenchido nem vai fodase
+    if( typeof titulo !== "string" || titulo.trim().length === 0 || typeof descricao !== "string" || descricao.trim().length === 0){
+        res.status(400).json({erro: "Titulo e descrição necessario, por favor ne!"});
         return;
     }
 
+    //teste local com cliente ficticio
+    const clienteId = 'e87b522c-d3c5-4930-aab0-3ad9ac07571f';
 
-    if(typeof titulo !== "string" || titulo.trim().length === 0 || typeof descricao !== "string" || descricao.trim().length === 0){
-        res.status(400).json({erro: "Titulo e descrição são obrigatórios por favor né!"});
-        return;
+    try{
+        const resultado = await pool.query(
+            `INSERT INTO solicitacoes (cliente_id, titulo, descricao)   
+            VALUES ($1, $2, $3) 
+            RETURNING 
+            id,
+            cliente_id AS "clienteId",
+            titulo,
+            descricao,
+            status,
+            criada_em AS "criadaEm"`,
+            [clienteId, titulo.trim(), descricao.trim()]
+        );
+        res.status(201).json(resultado.rows[0]);
+    }catch(erro) {
+        console.error("Erro ao criar solicitação:", erro);
+
+        res.status(500).json({erro:"Dessa vez não foi sua culpa"});
     }
-
-    const novaSolicitacao: Solicitacao = {
-        id: randomUUID(),
-        clienteId,
-        titulo: titulo.trim(),
-        descricao: descricao.trim(),
-        status: "pendente",
-        criadoEm: new Date().toISOString(),
-    };
-
-    solicitacoes.push(novaSolicitacao);
-    res.status(201).json(novaSolicitacao);
 });
+
+//banco de dados
+app.get("/api/db-teste", async (_req, res) => {
+    try{
+        const resultado = await pool.query(
+            'SELECT id, nome FROM clientes'
+        );
+
+        res.json(resultado.rows);
+    }catch(erro){
+        console.error("Erro no banco:", erro);
+
+        res.status(500).json({erro: "O banco de dados deu ruim",});
+    };
+});
+
 
 //acesso a API
 app.listen(3001, () =>{
