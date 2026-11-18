@@ -3,8 +3,7 @@ import { useState } from "react";
 
 export function Dashboard() {
     //manter constantes antes do return
-    const [statusApi, setStatusApi] = useState('Não verificado');
-
+    const [statusApi, setStatusApi] = useState("Não verificado");
 
     //funções assincronas
     async function verificarAPI(){
@@ -22,8 +21,6 @@ export function Dashboard() {
             setStatusApi("Deu ruim na API no final");
         }
     }
-
-
 
     return (
         <Stack gap="lg">
