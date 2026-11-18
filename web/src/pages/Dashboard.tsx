@@ -1,7 +1,30 @@
-import { Group, Text, Card, SimpleGrid, Badge, Stack, Title } from "@mantine/core";
-
+import { Group, Text, Card, SimpleGrid, Badge, Stack, Title, Button } from "@mantine/core";
+import { useState } from "react";
 
 export function Dashboard() {
+    //manter constantes antes do return
+    const [statusApi, setStatusApi] = useState('Não verificado');
+
+
+    //funções assincronas
+    async function verificarAPI(){
+        setStatusApi("Verificando...");
+        try{
+            const resposta = await fetch("/api/health")
+
+            if(!resposta.ok){
+                throw new Error("Deu ruim na API");
+            }
+
+            const dados = await resposta.json();
+            setStatusApi(dados.status);
+        } catch{
+            setStatusApi("Deu ruim na API no final");
+        }
+    }
+
+
+
     return (
         <Stack gap="lg">
             <Stack gap="xs">
@@ -50,8 +73,9 @@ export function Dashboard() {
                 </Text>
             </Card>
 
+            <Button onClick={verificarAPI}>Verificar API</Button>
+            <Text>Resposta da API: {statusApi}</Text>
         </Stack>
-
 
     );
 }
