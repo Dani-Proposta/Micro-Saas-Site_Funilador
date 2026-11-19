@@ -1,9 +1,10 @@
 import { useState, useEffect, } from "react";
-import { Card, Text, Badge, Loader, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title} from "@mantine/core";
+import { Card, Text, Badge, Loader, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
 import type { SubmitEvent, } from 'react';
 
 type Solicitacao = {
     id: string;
+    clienteNome: string;
     titulo: string;
     descricao: string;
     status: "pendente" | "aprovada" | "recusada";
@@ -27,6 +28,7 @@ export function Solicitacoes(){
     
     
     const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+    
     const [titulo, setTitulo] = useState('');
     const [descricao, setDescricao] = useState('');
     
@@ -34,6 +36,7 @@ export function Solicitacoes(){
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [clienteId, setClienteId] = useState<string | null>(null);
 
+    //carregar solicitações
     useEffect(() => {
         const controller = new AbortController();
 
@@ -67,9 +70,42 @@ export function Solicitacoes(){
         return () => controller.abort();
     }, []);
 
+    
+    useEffect(() => {
+        const controller = new AbortController();
+
+        async function carregarClientes() {
+            try{
+                const resposta = await fetch("/api/clientes",{
+                    signal: controller.signal,
+                });
+
+                if(!resposta.ok){
+                    throw new Error("falha ao carregar clientes");
+                }
+
+                const dados: Cliente[] = await resposta.json();
+                setClientes(dados);
+            }catch(erro){
+                if (!controller.signal.aborted){
+                    console.error("erro ao buscar clientes:", erro);
+                }
+            }
+        }
+        void carregarClientes();
+
+        return () => controller.abort();
+    }, []);
+
+
+
+    //criar solicição e mandar pro DB
     async function criarSolicitacao(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        
+        if (!clienteId) {
+            setErroEnvio('Selecione um cliente.');
+            return;
+        }
         setEnviando(true);
         setErroEnvio(null);
         try{
@@ -77,6 +113,7 @@ export function Solicitacoes(){
                 method: "POST",
                 headers:{ "Content-Type": "application/json",},
                 body: JSON.stringify({
+                    clienteId,
                     titulo,
                     descricao,
                 }),
@@ -88,11 +125,17 @@ export function Solicitacoes(){
         }
 
         const novaSolicitacao: Solicitacao = await resposta.json();
+        const clienteSelecionado = clientes.find(
+        (cliente) => cliente.id === clienteId
+        );
 
-        setSolicitacoes((anteriores) => [
-            novaSolicitacao,
+        setSolicitacoes((anteriores) => [{
+
+            ...novaSolicitacao, clienteNome:clienteSelecionado?.nome ?? "Cliente não indentificado"
+        },
             ...anteriores,
         ]);
+        setClienteId(null);
         setTitulo("");
         setDescricao("");
         setModalAberto(false);
@@ -122,13 +165,22 @@ export function Solicitacoes(){
             )}
             <Modal 
             opened={modalAberto}
-            onClose={() => setModalAberto(false)}
+            onClose={() => {setModalAberto(false); setClienteId(null); setTitulo("");setDescricao("");setErroEnvio(null);}}
             title= "Nova solicitação"
             centered
             size={"md"}>
 
             <form onSubmit={criarSolicitacao}>
                 <Stack gap={"sm"}>
+                    <Select label="Cliente"
+                    placeholder="Selecione um cliente"
+                    searchable
+                    required
+                    nothingFoundMessage="Achei foi ninguem"
+                    data={clientes.map((cliente) => ({value : cliente.id, label: cliente.nome}))}
+                    value={clienteId}
+                    onChange={setClienteId}/>
+
                     <TextInput label="Titulo"
                     placeholder = "Nome da solicitação(Ex: Desenvolvimento de X, Edição de video)"
                     required
@@ -152,9 +204,17 @@ export function Solicitacoes(){
 
             {!carregando && !erro && solicitacoes.map((solicitacao) => (
                 <Card key={solicitacao.id} withBorder padding="lg" mt="lg">
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                    <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                     <Text fw={700}>{solicitacao.titulo}</Text>
                     <Text size="sm">{solicitacao.descricao}</Text>
+                    </Stack>
+
+                    <Stack align="flex-end" style={{maxWidth: "40%"}}>
                     <Badge>{solicitacao.status}</Badge>
+                    <Text size="sm" c="dimmed" ta="right">Cliente: {solicitacao.clienteNome}</Text>
+                    </Stack>
+                    </Group>
                 </Card>
             ))}
         </div>
