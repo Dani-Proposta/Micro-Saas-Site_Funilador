@@ -36,6 +36,8 @@ export function Solicitacoes(){
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [clienteId, setClienteId] = useState<string | null>(null);
 
+    const [atualizandoId, setAtualizandoId] = useState<string | null>(null);
+
     //carregar solicitações
     useEffect(() => {
         const controller = new AbortController();
@@ -46,7 +48,7 @@ export function Solicitacoes(){
             setErro(null);
 
             try{
-                const resposta = await fetch("/api/solicitacoes", { signal: controller.signal});
+                const resposta = await fetch(`/api/solicitacoes`, { signal: controller.signal});
 
                 if(!resposta.ok){
                     throw new Error("Falha ao buscar solicitações");
@@ -76,7 +78,7 @@ export function Solicitacoes(){
 
         async function carregarClientes() {
             try{
-                const resposta = await fetch("/api/clientes",{
+                const resposta = await fetch(`/api/clientes`,{
                     signal: controller.signal,
                 });
 
@@ -109,7 +111,7 @@ export function Solicitacoes(){
         setEnviando(true);
         setErroEnvio(null);
         try{
-            const resposta = await fetch("/api/solicitacoes", {
+            const resposta = await fetch(`/api/solicitacoes`, {
                 method: "POST",
                 headers:{ "Content-Type": "application/json",},
                 body: JSON.stringify({
@@ -148,6 +150,40 @@ export function Solicitacoes(){
 
     }
 
+    async function atualizarStatus(id:string, novoStatus: "aprovada" |"recusada") {
+        
+        setAtualizandoId(id)
+        
+        try{
+            const resposta = await fetch(`/api/solicitacoes/${id}/status`,{ 
+                method: "PATCH",
+                headers:{
+                    "Content-Type": "application/json",
+                },body:JSON.stringify({status:novoStatus}),
+
+            });
+
+            if(!resposta.ok){
+                throw new Error("Falha ao atualizar Status");
+            }
+
+            const dados: {
+                id: string;
+                status: Solicitacao["status"];
+            } = await resposta.json();
+
+            setSolicitacoes((anteriores) =>
+                anteriores.map((solicitacao) => solicitacao.id === dados.id ? {...solicitacao, status:dados.status} : solicitacao));
+        }catch(erro){
+            console.error("Erro ao alterar os status da solicitação", erro);
+            alert("Não foi possivel atualizar a solicitação");
+        }finally{
+            setAtualizandoId(null);
+        }
+    }
+
+
+    //aparencia da pagina
     return(
         <div>
             <Group justify="space-between" mb={"md"}>
@@ -213,8 +249,15 @@ export function Solicitacoes(){
                     <Stack align="flex-end" style={{maxWidth: "40%"}}>
                     <Badge>{solicitacao.status}</Badge>
                     <Text size="sm" c="dimmed" ta="right">Cliente: {solicitacao.clienteNome}</Text>
+
                     </Stack>
                     </Group>
+                    {solicitacao.status === "pendente" && (
+                        <Group justify="flex-end" mt="sm">
+                            <Button size="xs" color="red" variant="outline" disabled={atualizandoId === solicitacao.id} onClick={()=> atualizarStatus(solicitacao.id, "recusada")}>Recusar</Button>
+                            <Button size="xs" color="green" disabled={atualizandoId === solicitacao.id} onClick={() => atualizarStatus(solicitacao.id, "aprovada")}>Aprovar</Button>
+                        </Group>
+                    )}
                 </Card>
             ))}
         </div>

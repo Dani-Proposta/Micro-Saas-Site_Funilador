@@ -79,6 +79,7 @@ app.get("/api/clientes/", async (_req, res) => {
 
 
 //rotas de atualização ou pedido
+
 app.post("/api/solicitacoes", async (req, res) =>{
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
@@ -90,7 +91,6 @@ app.post("/api/solicitacoes", async (req, res) =>{
         res.status(400).json({erro: "Titulo e descrição necessario, por favor ne!"});
         return;
     }
-    //teste local com cliente ficticio
 
     try{
         const resultado = await pool.query(
@@ -113,6 +113,7 @@ app.post("/api/solicitacoes", async (req, res) =>{
     }
 });
 
+//semi atualização confirmar outros metodos
 
 app.patch("/api/solicitacoes/:id/status", async (req, res) => {
     const id = req.params.id;
@@ -152,7 +153,7 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
 
 
 
-
+//atualização de pedido das rotas
 
 
 
