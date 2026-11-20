@@ -1,8 +1,8 @@
 //import externos
-import { NavLink as MantineNavLink } from '@mantine/core';
-import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation } from 'react-router';
+import { NavLink as MantineNavLink, Stack } from '@mantine/core';
+import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 // imports importantes sksksksksskksk
-import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader} from "@mantine/core";
+import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, Login } from './pages';
 import { authClient } from "./lib/auth-client";
@@ -14,7 +14,7 @@ function App() {
   const [opened, { toggle }] = useDisclosure(false);
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
-
+  const navigate = useNavigate();
 
   if (isPending) {
     return (<Center h="100vh"><Loader /></Center>);
@@ -41,6 +41,22 @@ function App() {
     return <Text>Você não tem acesso ao painel administrativo.</Text>;
   }
 
+  async function sair(){
+    try{
+      const { error } = await authClient.signOut();
+
+      if(error){
+        console.error("Falha ao sair:", error);
+        return;
+      }
+
+      navigate("/login", {replace:true});
+    }catch(erro){
+      console.error("Erro ao encerrar sessão", erro);
+    }
+  }
+
+
   return (
     <AppShell
       //cabeçalho
@@ -65,7 +81,22 @@ function App() {
             aria-label="Barra lateral"
           />
           <Text fw={1000}>Organizador</Text>
-          <Button variant="light" onClick={() => toggleColorScheme()}>Trocar tema</Button>
+
+          <Stack justify='flex-end'>
+          <Menu shadow="md" width={200} position="bottom-end">
+            <Menu.Target>
+              <Button variant='subtle'>
+                ☰
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>Preferências</Menu.Label>
+                <Menu.Item variant="light" onClick={() => toggleColorScheme()}>Trocar tema</Menu.Item>
+                <Menu.Item disabled>Minha conta</Menu.Item>
+                <Menu.Item variant="" color='red' onClick={() => void sair()}>Sair</Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+          </Stack>
         </Group>
 
       </AppShell.Header>

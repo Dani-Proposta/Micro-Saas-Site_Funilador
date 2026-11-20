@@ -19,6 +19,8 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 
+
+//função de proteção de dados para q só admin acesse algumas coisas
 async function exigirAdmin(req: Request, res: Response, next: NextFunction){
     try{
         const sessao = await auth.api.getSession({
@@ -44,6 +46,7 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction){
     }
 }
 
+//aqui eu protego oq só adm pode solicitar
 
 app.use(
   ["/api/clientes", "/api/solicitacoes"],
@@ -168,34 +171,62 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
     const status = req.body?.status;
 
 
-    if(
-        status !== "pendente" &&
-        status !== "aprovada" &&
-        status !== "recusada"
-    ){
+    if(status !== "aprovada" && status !== "recusada"){
         res.status(400).json({erro:"tem coisa errada nesses status ai",});
         return;
     }
 
-    try{
-        const resultado = await pool.query(
-            `UPDATE solicitacoes
-            SET status = $1
-            WHERE id = $2
-            RETURNING id, status`,
-            [status,id]
-        );
+    const client = await pool.connect();
 
-        if(resultado.rows.length === 0){
-            res.status(404).json({erro:"Solicitação não encontrada bixo"});
+    try{
+        await client.query("BEGIN");
+
+        const resultado = await client.query(
+            `SELECT id, cliente_id, titulo, descricao, status
+            FROM solicitacoes
+            WHERE id = $1
+            FOR UPDATE`,
+            [id]
+        );
+        const solicitacao = resultado.rows[0];
+        
+        if (!solicitacao) {
+            await client.query("ROLLBACK");
+            res.status(404).json({ erro: "Solicitação não encontrada." });
+            return;
+        }
+        
+        if(solicitacao.status !== "pendente"){
+            await client.query("ROLLBACK");
+            res.status(409).json({
+                erro: "Esta solicitação já foi decidida.",
+            });
             return;
         }
 
-        res.json(resultado.rows[0]);
-    }catch(erro){
-        console.error("Não deu pra atualizar a solicitação",erro);
-        res.status(500).json({erro:"Falha na atu da solicitação"})
-    }
+        await client.query(
+            `UPDATE solicitacoes
+            SET status = $1
+            WHERE id = $2`,
+            [status,id]
+        );
+        if(status === "aprovada"){
+            await client.query(`INSERT INTO projetos
+                (cliente_id, solicitacao_id, titulo, descricao)
+                VALUES ($1,$2,$3,$4)`,
+                [solicitacao.cliente_id, solicitacao.id, solicitacao.titulo, solicitacao.descricao],
+            );
+        }
+        await client.query("COMMIT");
+        
+        res.json({id, status});
+        }catch(erro){
+            await client.query("ROLLBACK");
+            console.error("Não deu pra decidir o pedido",erro);
+            res.status(500).json({erro:"Falha na atu da solicitação",});
+        }finally{
+            client.release();
+        }
 
 });
 
