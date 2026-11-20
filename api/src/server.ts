@@ -2,12 +2,17 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { pool } from "./db.ts";
+
 //funcionalidades importantes
 import type { Solicitacao } from "./solicitacao.ts";
 import type { Cliente } from "./cliente.ts";
-
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./auth.ts";
 
 const app = express();
+
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 app.use(express.json());
 
 
