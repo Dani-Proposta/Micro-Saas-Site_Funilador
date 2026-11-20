@@ -3,17 +3,54 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { pool } from "./db.ts";
 
+import { fromNodeHeaders } from "better-auth/node";
+import type { Request, Response, NextFunction } from "express";
+
 //funcionalidades importantes
 import type { Solicitacao } from "./solicitacao.ts";
 import type { Cliente } from "./cliente.ts";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth.ts";
+import { error } from "node:console";
 
 const app = express();
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
+
+async function exigirAdmin(req: Request, res: Response, next: NextFunction){
+    try{
+        const sessao = await auth.api.getSession({
+            headers: fromNodeHeaders(req.headers),
+        });
+
+        if(!sessao){
+            res.status(401).json({erro:"Você precisa fazer login"});
+            return;
+        }
+
+        const papeis = sessao.user.role?.split(",") ?? [];
+
+        if(!papeis.includes("admin")){
+            res.status(403).json({erro:"Acesso restrito"});
+            return;
+        }
+
+        next();
+    }catch(erro){
+        console.error("Erro ao verificar acesso:", erro);
+        res.status(500).json({erro: "Falha ao verificar autenticação"});
+    }
+}
+
+
+app.use(
+  ["/api/clientes", "/api/solicitacoes"],
+  exigirAdmin
+);
+
+
 
 
 //rotas de solicitação

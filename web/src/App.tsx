@@ -1,16 +1,46 @@
 //import externos
 import { NavLink as MantineNavLink } from '@mantine/core';
-import { NavLink as RouterNavLink, Routes, Route } from 'react-router';
+import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation } from 'react-router';
 // imports importantes sksksksksskksk
-import { AppShell, Group, Text, Button, Burger, useMantineColorScheme} from "@mantine/core";
+import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, Login } from './pages';
+import { authClient } from "./lib/auth-client";
 
 function App() {
   //constantes importantes lmao
 
   const { toggleColorScheme } = useMantineColorScheme();
   const [opened, { toggle }] = useDisclosure(false);
+  const { data: sessao, isPending, error } = authClient.useSession();
+  const local = useLocation();
+
+
+  if (isPending) {
+    return (<Center h="100vh"><Loader /></Center>);
+  }
+
+  if (error) {
+    return <Text>Não foi possível verificar sua sessão.</Text>;
+  }
+
+
+
+    // Tela pública de login
+  if (local.pathname === "/login") {
+    return sessao ? <Navigate to="/" replace /> : <Login/>;
+  }
+
+  if (!sessao) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const papeis = sessao.user.role?.split(",") ?? [];
+
+  if (!papeis.includes("admin")) {
+    return <Text>Você não tem acesso ao painel administrativo.</Text>;
+  }
+
   return (
     <AppShell
       //cabeçalho
