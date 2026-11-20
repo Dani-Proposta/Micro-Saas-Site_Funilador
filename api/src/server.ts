@@ -12,11 +12,13 @@ app.use(express.json());
 
 
 //rotas de solicitação
+//verificar conexão com api
 app.get("/api/health", (_req, res) =>{
     res.json({status: "ok"});
     
 });
 
+//solicitar pedidos do DB
 app.get("/api/solicitacoes", async (_req, res) =>{
     try{
         const resultado = await pool.query(
@@ -43,6 +45,20 @@ app.get("/api/solicitacoes", async (_req, res) =>{
     }
 });
 
+//solicitar clienteS no plural, a lista de todos eles
+app.get("/api/clientes/", async (_req, res) => {
+    try{
+        const resultado = await pool.query(
+            'SELECT id, nome, email FROM clientes'
+        );
+        res.json(resultado.rows);
+    }catch(erro){
+        console.error("Erro na DB:", erro);
+        res.status(500).json({erro: "Erro no banco de dados"});
+    }
+});
+
+//solicitar clientes do DB por id especifico
 app.get('/api/clientes/:id', async (req, res) => {
 
     try{
@@ -64,22 +80,13 @@ app.get('/api/clientes/:id', async (req, res) => {
     }
 });
 
-app.get("/api/clientes/", async (_req, res) => {
-    try{
-        const resultado = await pool.query(
-            'SELECT id, nome, email FROM clientes'
-        );
-        res.json(resultado.rows);
-    }catch(erro){
-        console.error("Erro na DB:", erro);
-        res.status(500).json({erro: "Erro no banco de dados"});
-    }
-});
 
 
 
-//rotas de atualização ou pedido
+//rotas de atualização ou pedido ou criação
 
+
+// criar solicitação
 app.post("/api/solicitacoes", async (req, res) =>{
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
@@ -113,8 +120,7 @@ app.post("/api/solicitacoes", async (req, res) =>{
     }
 });
 
-//semi atualização confirmar outros metodos
-
+//atualizar status do pedido da solicitação
 app.patch("/api/solicitacoes/:id/status", async (req, res) => {
     const id = req.params.id;
     const status = req.body?.status;
@@ -151,11 +157,78 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
 
 });
 
+//atualizar cliente
+app.post("/api/clientes", async(req, res) =>{
+    const nome = req.body?.nome;
+    const email = req.body?.email;
+
+    if(typeof nome !== "string" || nome.trim().length === 0){
+        res.status(400).json({erro: "Nome é obrigatório"});
+        return;
+    }
+
+    if(email != null && typeof email !== "string"){
+        res.status(400).json({erro:"E-mail invalido"});
+        return;
+    }
+
+    const emailTratado = typeof email === "string" && email.trim() ? email.trim() : null;
+
+    try{
+        const resultado = await pool.query(
+            `INSERT INTO clientes (nome,email)
+            VALUES ($1, $2)
+            RETURNING id, nome, email`,
+            [nome.trim(), emailTratado]
+        );
+
+        res.status(201).json(resultado.rows[0]);
+    }catch(erro){
+        console.error("Erro ao cadastrar cliente", erro);
+        res.status(500).json({erro: "Falha ao cadastrar cliente"});
+    }
+});
+
+app.patch("/api/clientes/:id", async (req,res) => {
+    const id = req.params.id;
+    const nome = req.body?.nome;
+    const email = req.body?.email;
+
+    if (typeof nome !== "string" || nome.trim().length === 0){
+        res.status(400).json({erro: "Nome obrigatorio"});
+        return;
+    }
+
+    if(email != null && typeof email !== "string"){
+        res.status(400).json({erro: "Email invalido"});
+        return;
+    }
+    
+    const emailTratado = typeof email === "string" && email.trim() ? email.trim() : null;
+
+    try{
+        const resultado = await pool.query(
+            `UPDATE clientes
+            SET nome = $1, email = $2
+            WHERE id = $3
+            Returning id, nome, email`,
+            [nome.trim(), emailTratado, id]
+        );
+
+        if(resultado.rows.length === 0){
+            res.status(404).json({erro:"Clientes não encontra"});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
 
 
-//atualização de pedido das rotas
+    }catch(erro){
+        console.error("Erro ao editar cliente:", erro);
+        res.status(500).json({erro: "Falha ao editar cliente"});
+    }
 
-
+});
 
 
 

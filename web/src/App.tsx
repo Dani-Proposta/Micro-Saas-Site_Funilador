@@ -4,8 +4,7 @@ import { NavLink as RouterNavLink, Routes, Route } from 'react-router';
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard } from './pages/Dashboard';
-import { Solicitacoes } from './pages/Solicitacoes';
+import { Dashboard, Solicitacoes, Clientes } from './pages';
 
 function App() {
   //constantes importantes lmao
@@ -53,7 +52,7 @@ function App() {
       <AppShell.Main>
         <Routes>
           <Route path="/" element={<Dashboard/>} />
-          <Route path="/clientes" element={<Text>Area de clientes</Text>}/>
+          <Route path="/clientes" element={<Clientes/>}/>
           <Route path="/projetos" element={<Text>Area de Projetos</Text>}/>
           <Route path="/solicitacoes" element={<Solicitacoes/>}/>
           <Route path="/mensagens" element={<Text>Area das mensagens</Text>}/>
