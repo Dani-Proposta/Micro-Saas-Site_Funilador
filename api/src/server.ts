@@ -49,7 +49,7 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction){
 //aqui eu protego oq só adm pode solicitar
 
 app.use(
-  ["/api/clientes", "/api/solicitacoes"],
+  ["/api/clientes", "/api/solicitacoes", "/api/projetos"],
   exigirAdmin
 );
 
@@ -125,7 +125,34 @@ app.get('/api/clientes/:id', async (req, res) => {
     }
 });
 
+//solicitar os projetos do db 
+app.get("/api/projetos", async(req, res) => {
 
+    try{
+        const resultado = await pool.query(
+        `SELECT
+            p.id,
+            p.cliente_id AS "clienteId",
+            c.nome AS "clienteNome",
+            p.solicitacao_id AS "solicitacaoId",
+            p.titulo,
+            p.descricao,
+            p.status,
+            p.criada_em AS "criadaEm",
+            p.atualizada_em AS "atualizadaEm"
+            FROM projetos AS p
+            INNER JOIN clientes AS c
+            ON c.id = p.cliente_id
+            WHERE p.arquivada_em IS NULL
+            ORDER BY p.criada_em DESC
+
+        `);
+        res.json(resultado.rows)
+    }catch(erro){
+        console.error("Erro ao procurar os projetos", erro);
+        res.status(500).json({erro:"Não foi possivel carregas os projetos"});
+    }
+});
 
 
 //rotas de atualização ou pedido ou criação
@@ -304,7 +331,43 @@ app.patch("/api/clientes/:id", async (req,res) => {
 });
 
 
+app.post("/api/projetos", async (req, res) => {
+    const clienteId = req.body?.clienteId;
+    const titulo = req.body?.titulo;
+    const descricao = req.body?.descricao;
 
+    if (
+        typeof clienteId !== "string" || clienteId.trim().length === 0 ||
+        typeof titulo !== "string" || titulo.trim().length === 0 ||
+        typeof descricao !== "string" || descricao.trim().length === 0
+    )   {
+        res.status(400).json({
+        erro: "Cliente, título e descrição são obrigatórios.",
+    });
+        return;
+    }
+    try{
+        const resultado = await pool.query(
+            `INSERT INTO projetos (cliente_id, titulo, descricao)
+            VALUES ($1, $2, $3)
+            RETURNING
+            id,
+            cliente_id AS "clienteId",
+            solicitacao_id AS "solicitacaoId",
+            titulo,
+            descricao,
+            status,
+            criada_em AS "criadaEm",
+            atualizada_em AS "atualizadaEm"`,
+            [clienteId,titulo.trim(), descricao.trim()]
+        );
+
+        res.status(201).json(resultado.rows[0]);
+    }catch(erro){
+        console.error("Deu ruim ao criar o projeto", erro);
+        res.status(500).json({erro: "Não deu pra criar o projeto",});
+    }
+});
 
 
 

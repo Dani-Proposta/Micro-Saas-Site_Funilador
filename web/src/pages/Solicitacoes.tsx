@@ -243,7 +243,7 @@ export function Solicitacoes(){
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
                     <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                     <Text fw={700}>{solicitacao.titulo}</Text>
-                    <Text size="sm">{solicitacao.descricao}</Text>
+                    <Text size="sm" lineClamp={4}>{solicitacao.descricao}</Text>
                     </Stack>
 
                     <Stack align="flex-end" style={{maxWidth: "40%"}}>

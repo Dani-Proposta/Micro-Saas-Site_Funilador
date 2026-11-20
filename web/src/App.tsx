@@ -4,7 +4,7 @@ import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavi
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard, Solicitacoes, Clientes, Login } from './pages';
+import { Dashboard, Solicitacoes, Clientes, Login, Projetos } from './pages';
 import { authClient } from "./lib/auth-client";
 
 function App() {
@@ -115,7 +115,7 @@ function App() {
           <Route path="/" element={<Dashboard/>} />
           <Route path="/login" element={<Login />} />
           <Route path="/clientes" element={<Clientes/>}/>
-          <Route path="/projetos" element={<Text>Area de Projetos</Text>}/>
+          <Route path="/projetos" element={<Projetos />}/>
           <Route path="/solicitacoes" element={<Solicitacoes/>}/>
           <Route path="/mensagens" element={<Text>Area das mensagens</Text>}/>
         </Routes>
