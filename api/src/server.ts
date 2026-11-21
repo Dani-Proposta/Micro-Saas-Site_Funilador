@@ -369,7 +369,48 @@ app.post("/api/projetos", async (req, res) => {
     }
 });
 
+app.patch("/api/projetos/:id/status", async (req, res) => {
+    const id = req.params.id;
+    const status = req.body?.status;
+    
+    const statusPermitidos = [
+        "planejado",
+        "em_andamento",
+        "concluido",
+    ];
 
+    if (!statusPermitidos.includes(status)) {
+        res.status(400).json({
+            erro: "Status de projeto inválido.",
+        });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE projetos
+            SET status = $1,
+            atualizada_em = NOW()
+            WHERE id = $2
+            AND arquivada_em IS NULL
+            RETURNING
+            id,
+            status,
+            atualizada_em AS "atualizadaEm"`,
+            [status, id]
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Projeto não encontrado.",});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+        }catch (erro) {
+            console.error("Erro ao atualizar projeto:", erro);
+            res.status(500).json({erro: "Não foi possível atualizar o projeto.",});
+        }
+    });
 
 
 //acesso a API
@@ -377,16 +418,3 @@ app.listen(3001, () =>{
     console.log("api disponivel na porta: http://localhost:3001");
     
 })
-
-
-
-//referente aos pedidos de clientes e informações importantes
-const solicitacoes: Solicitacao[] = [
-];
-
-const clientes: Cliente[] = [
-  {
-    id: 'cliente-001',
-    nome: 'Cliente de teste',
-  },
-];

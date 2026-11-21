@@ -7,7 +7,7 @@ export const auth = betterAuth({
     
     baseURL: "http://localhost:5173",
 
-    trustedOrigins: ["http://localhost:5173/",],
+    trustedOrigins: ["http://localhost:5173/","http://192.168.15.14:5173"],
 
     emailAndPassword: {enabled:true, disableSignUp:true,},
     plugins: [admin()],
