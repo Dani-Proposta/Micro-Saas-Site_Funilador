@@ -12,11 +12,11 @@ npm run dev -- --host
 
 React + Express.
 
-Interface - React + Vite
-Linguagem - Typescript
-Componentes visuais - Mantine UI
-Backend e API - Node.js + Express
-Banco - PostgreSQL
+- Interface: React + Vite
+- Linguagem: Typescript
+- Componentes visuais: Mantine UI
+- Backend e API: Node.js + Express
+- Banco: PostgreSQL
 
 ## Plano do MVP
 
