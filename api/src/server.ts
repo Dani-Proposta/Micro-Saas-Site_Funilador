@@ -415,6 +415,7 @@ app.patch("/api/projetos/:id/status", async (req, res) => {
         "planejado",
         "em_andamento",
         "concluido",
+        "cancelado",
     ];
 
     if (!statusPermitidos.includes(status)) {

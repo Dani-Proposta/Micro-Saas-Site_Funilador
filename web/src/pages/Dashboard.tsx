@@ -12,7 +12,7 @@ type ProjetoRecente = {
   id: string;
   titulo: string;
   clienteNome: string;
-  status: "planejado" | "em_andamento" | "concluido";
+  status: "planejado" | "em_andamento" | "concluido" | "cancelado";
 };
 
 export function Dashboard() {
@@ -147,7 +147,7 @@ export function Dashboard() {
                                 <Text fw={500} lineClamp={1}>{projeto.titulo}</Text>
                                 <Text c="dimmed" size="xs" lineClamp={1}>{projeto.clienteNome}</Text>
                             </Stack>
-                        <Badge style={{ flexShrink: 0 }}  color={ projeto.status === "concluido"  ? "green" : projeto.status === "em_andamento" ? "blue" : "red" }> {projeto.status === "em_andamento" ? "Em andamento" : projeto.status === "concluido" ? "Concluído" : "Planejado"}</Badge>
+                        <Badge style={{ flexShrink: 0 }}  color={ projeto.status === "concluido"  ? "green" : projeto.status === "em_andamento" ? "blue" : projeto.status === "cancelado" ? "red" : "violet" }> {projeto.status === "em_andamento" ? "Em andamento" : projeto.status === "concluido" ? "Concluído" : projeto.status === "cancelado" ? "Cancelado" :  "Planejado"}</Badge>
                     </Group>))}
                 </Stack>
             </Card>

@@ -9,7 +9,7 @@ type Projeto = {
     solicitacaoId: string | null;
     titulo: string;
     descricao: string;
-    status: "planejado" | "em_andamento" | "concluido";
+    status: "planejado" | "em_andamento" | "concluido" | "cancelado";
     criadaEm: string;
     atualizadaEm: string;
 };
@@ -192,7 +192,7 @@ export function Projetos(){
                     <Stack gap="xs">
                         <Group justify="space-between" wrap="nowrap">
                             <Text fw={700} lineClamp={1} style={{minWidth:0, overflowWrap:"anywhere"}}>{projeto.titulo}</Text>
-                            <Select size="xs" w={165} chevronColor="#000000"styles={{input:{backgroundColor: projeto.status === "concluido" ? "var(--mantine-color-green-filled)" : projeto.status === "em_andamento" ? "var(--mantine-color-blue-filled)" : "var(--mantine-color-red-filled)", color: "black", fontWeight: 600, border: "1px solid #000000",},}}value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={[ {value: "planejado", label: "Planejado"}, {value: "em_andamento", label: "Em andamento"},{ value: "concluido", label: "Concluído"},]} onChange={(novoStatus) => {if(novoStatus === "planejado" || novoStatus === "em_andamento" || novoStatus === "concluido"){void alterarStatus(projeto.id, novoStatus);}}}/>
+                            <Select size="xs" w={165} chevronColor="#000000"styles={{input:{backgroundColor: projeto.status === "concluido" ? "var(--mantine-color-green-filled)" : projeto.status === "em_andamento" ? "var(--mantine-color-blue-filled)" : projeto.status === "cancelado" ? "var(--mantine-color-red-filled)" : "var(--mantine-color-violet-filled)" , color: "black", fontWeight: 600, border: "1px solid #000000",},}}value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={[ {value: "planejado", label: "Planejado"}, {value: "em_andamento", label: "Em andamento"},{ value: "concluido", label: "Concluído"},{value : "cancelado", label: "Cancelado"}]} onChange={(novoStatus) => {if(novoStatus === "planejado" || novoStatus === "em_andamento" || novoStatus === "concluido"|| novoStatus === "cancelado"){void alterarStatus(projeto.id, novoStatus);}}}/>
                         </Group>
                         <Text size="sm" lineClamp={2} style={{overflowWrap:"anywhere"}}>{projeto.descricao}</Text>
                         <Text size="xs" c="dimmed" lineClamp={1}>Cliente: {projeto.clienteNome}</Text>
