@@ -78,9 +78,7 @@ export function Solicitacoes(){
 
         async function carregarClientes() {
             try{
-                const resposta = await fetch(`/api/clientes`,{
-                    signal: controller.signal,
-                });
+                const resposta = await fetch(`/api/clientes`,{signal: controller.signal,});
 
                 if(!resposta.ok){
                     throw new Error("falha ao carregar clientes");
