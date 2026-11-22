@@ -49,7 +49,7 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction){
 //aqui eu protego oq só adm pode solicitar
 
 app.use(
-  ["/api/clientes", "/api/solicitacoes", "/api/projetos"],
+  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard"],
   exigirAdmin
 );
 
@@ -63,7 +63,43 @@ app.get("/api/health", (_req, res) =>{
     
 });
 
+
+
 //solicitar pedidos do DB
+
+//solicitação do dashboard para pegar os numeros das tabelas, o total, e outras coisas relacionadas
+app.get("/api/dashboard", async (req, res) =>{
+    try{
+        const resultado = await pool.query(
+            `SELECT
+            (SELECT COUNT(*) :: int
+            FROM clientes) AS "totalClientes",
+            
+            (SELECT COUNT(*)::int
+            FROM projetos
+            WHERE status = 'em_andamento'
+            AND arquivada_em IS NULL) AS "projetosEmAndamento",
+            
+            (SELECT COUNT(*)::int
+            FROM solicitacoes
+            WHERE status = 'pendente') AS "solicitacoesPendentes",
+            
+            (SELECT COUNT(*)::int
+            FROM projetos
+            WHERE status = 'concluido'
+            AND arquivada_em IS NULL) AS "projetosConcluidos"`
+        );
+
+        res.json(resultado.rows[0]);
+    }catch(erro){
+        console.error("não foi possivel pegar os dados pro dashboard",erro)
+
+        res.status(500).json({erro: "não foi possivel carregar os dados do dashboard",});
+    }
+});
+
+
+//Pedir pro DB as solicitações mais recentes com info de cada cliente
 app.get("/api/solicitacoes", async (_req, res) =>{
     try{
         const resultado = await pool.query(
@@ -257,7 +293,7 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
 
 });
 
-//atualizar cliente
+//cadastrar cliente
 app.post("/api/clientes", async(req, res) =>{
     const nome = req.body?.nome;
     const email = req.body?.email;
@@ -289,6 +325,7 @@ app.post("/api/clientes", async(req, res) =>{
     }
 });
 
+//atualizar dados do cliente
 app.patch("/api/clientes/:id", async (req,res) => {
     const id = req.params.id;
     const nome = req.body?.nome;
@@ -330,7 +367,7 @@ app.patch("/api/clientes/:id", async (req,res) => {
 
 });
 
-
+//criar projeto direto
 app.post("/api/projetos", async (req, res) => {
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
@@ -369,6 +406,7 @@ app.post("/api/projetos", async (req, res) => {
     }
 });
 
+//atualizar projetos
 app.patch("/api/projetos/:id/status", async (req, res) => {
     const id = req.params.id;
     const status = req.body?.status;
