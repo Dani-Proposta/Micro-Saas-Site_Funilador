@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { Alert, Card, Group, Loader, Stack, Select, Text, Title, Button, Modal, TextInput, Textarea  } from "@mantine/core";
 import type { SubmitEvent } from "react";
@@ -21,6 +22,7 @@ type Cliente ={
 
 
 export function Projetos(){
+
     const [clientes, setClientes] = useState<Cliente[]>([]);
 
     const [modalAberto, setModalAberto] = useState(false);
@@ -37,6 +39,9 @@ export function Projetos(){
     const [projetos, setProjetos] = useState<Projeto[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+
+    const navigate = useNavigate();
+
 
     useEffect(() =>{
         const controller = new AbortController();
@@ -191,10 +196,16 @@ export function Projetos(){
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between" wrap="nowrap">
-                            <Text fw={700} lineClamp={1} style={{minWidth:0, overflowWrap:"anywhere"}}>{projeto.titulo}</Text>
-                            <Select size="xs" w={165} chevronColor="#000000"styles={{input:{backgroundColor: projeto.status === "concluido" ? "var(--mantine-color-green-filled)" : projeto.status === "em_andamento" ? "var(--mantine-color-blue-filled)" : projeto.status === "cancelado" ? "var(--mantine-color-red-filled)" : "var(--mantine-color-violet-filled)" , color: "black", fontWeight: 600, border: "1px solid #000000",},}}value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={[ {value: "planejado", label: "Planejado"}, {value: "em_andamento", label: "Em andamento"},{ value: "concluido", label: "Concluído"},{value : "cancelado", label: "Cancelado"}]} onChange={(novoStatus) => {if(novoStatus === "planejado" || novoStatus === "em_andamento" || novoStatus === "concluido"|| novoStatus === "cancelado"){void alterarStatus(projeto.id, novoStatus);}}}/>
+                            <Stack justify="flex-start">
+                                <Text fw={700} lineClamp={1} style={{minWidth:0, overflowWrap:"anywhere"}}>{projeto.titulo}</Text>
+                                <Text size="sm" lineClamp={2} style={{overflowWrap:"anywhere"}}>{projeto.descricao}</Text>
+                            </Stack>
+                            
+                            <Stack justify="flex-end">
+                                <Select size="xs" w={165} chevronColor="#000000"styles={{input:{backgroundColor: projeto.status === "concluido" ? "var(--mantine-color-green-filled)" : projeto.status === "em_andamento" ? "var(--mantine-color-blue-filled)" : projeto.status === "cancelado" ? "var(--mantine-color-red-filled)" : "var(--mantine-color-violet-filled)" , color: "black", fontWeight: 600, border: "1px solid #000000",},}}value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={[ {value: "planejado", label: "Planejado"}, {value: "em_andamento", label: "Em andamento"},{ value: "concluido", label: "Concluído"},{value : "cancelado", label: "Cancelado"}]} onChange={(novoStatus) => {if(novoStatus === "planejado" || novoStatus === "em_andamento" || novoStatus === "concluido"|| novoStatus === "cancelado"){void alterarStatus(projeto.id, novoStatus);}}}/>
+                                <Button variant="subtle" size="xs" onClick={() => navigate(`/projetos/${projeto.id}`)}>Ver detalhes</Button>
+                            </Stack>
                         </Group>
-                        <Text size="sm" lineClamp={2} style={{overflowWrap:"anywhere"}}>{projeto.descricao}</Text>
                         <Text size="xs" c="dimmed" lineClamp={1}>Cliente: {projeto.clienteNome}</Text>
                     </Stack>
                 </Card>

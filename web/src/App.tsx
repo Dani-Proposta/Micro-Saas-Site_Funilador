@@ -1,10 +1,11 @@
 //import externos
 import { NavLink as MantineNavLink, Stack } from '@mantine/core';
 import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
+
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard, Solicitacoes, Clientes, Login, Projetos } from './pages';
+import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes } from './pages';
 import { authClient } from "./lib/auth-client";
 
 function App() {
@@ -115,7 +116,9 @@ function App() {
           <Route path="/" element={<Dashboard/>} />
           <Route path="/login" element={<Login />} />
           <Route path="/clientes" element={<Clientes/>}/>
+          <Route path="/clientes/:id" element={<ClienteDetalhes />}/>
           <Route path="/projetos" element={<Projetos />}/>
+          <Route path="/projetos/:id" element={<ProjetoDetalhes />}/>
           <Route path="/solicitacoes" element={<Solicitacoes/>}/>
           <Route path="/mensagens" element={<Text>Area das mensagens</Text>}/>
         </Routes>

@@ -1,5 +1,6 @@
 import { useEffect, useState, } from "react";
 import type { SubmitEvent } from "react";
+import { useNavigate } from "react-router";
 import {Alert,Button,Card,Group,Loader, Modal, Stack, Text, TextInput, Title} from "@mantine/core"
 
 
@@ -26,6 +27,8 @@ export function Clientes() {
     //editar cliente
 
     const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
+
+    const navigate = useNavigate();
 
     useEffect(() =>{
         const controller  = new AbortController();
@@ -119,11 +122,15 @@ export function Clientes() {
             {!carregando && !erro && clientes.map((cliente) => (
                 <Card key={cliente.id} withBorder padding="md">
                     <Group justify="space-between">
-                    <Stack gap={2}>
-                    <Text fw={700}>{cliente.nome}</Text>
-                    <Text size="sm" c="dimmed">{cliente.email ?? "E-mail não cadastrado"}</Text>
-                    </Stack>
-                    <Button size="xs" variant="light" onClick={() => {setClienteEditando(cliente); setNome(cliente.nome); setEmail(cliente.email ?? ""); setModalAberto(true);}}>Editar</Button>
+                        <Stack gap={2}>
+                            <Text fw={700}>{cliente.nome}</Text>
+                            <Text size="sm" c="dimmed">{cliente.email ?? "E-mail não cadastrado"}</Text>
+                        </Stack>
+
+                        <Stack justify="flex-end">
+                            <Button size="xs" variant="light" onClick={() => {setClienteEditando(cliente); setNome(cliente.nome); setEmail(cliente.email ?? ""); setModalAberto(true);}}>Editar</Button>
+                            <Button variant="subtle" size="xs" onClick={() => navigate(`/clientes/${cliente.id}`)}>Ver detalhes</Button>
+                        </Stack>
                     </Group>
                 </Card>
             ))}

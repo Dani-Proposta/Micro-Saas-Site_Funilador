@@ -239,16 +239,15 @@ export function Solicitacoes(){
             {!carregando && !erro && solicitacoes.map((solicitacao) => (
                 <Card key={solicitacao.id} withBorder padding="lg" mt="lg">
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
-                    <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                    <Text fw={700}>{solicitacao.titulo}</Text>
-                    <Text size="sm" lineClamp={4}>{solicitacao.descricao}</Text>
-                    </Stack>
+                        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                            <Text fw={700}>{solicitacao.titulo}</Text>
+                            <Text size="sm" lineClamp={4}>{solicitacao.descricao}</Text>
+                        </Stack>
 
-                    <Stack align="flex-end" style={{maxWidth: "40%"}}>
-                    <Badge>{solicitacao.status}</Badge>
-                    <Text size="sm" c="dimmed" ta="right">Cliente: {solicitacao.clienteNome}</Text>
-
-                    </Stack>
+                        <Stack align="flex-end" style={{maxWidth: "40%"}}>
+                            <Badge>{solicitacao.status}</Badge>
+                            <Text size="sm" c="dimmed" ta="right">Cliente: {solicitacao.clienteNome}</Text>
+                        </Stack>
                     </Group>
                     {solicitacao.status === "pendente" && (
                         <Group justify="flex-end" mt="sm">

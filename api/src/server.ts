@@ -140,26 +140,62 @@ app.get("/api/clientes/", async (_req, res) => {
 });
 
 //solicitar clientes do DB por id especifico
-app.get('/api/clientes/:id', async (req, res) => {
+app.get("/api/clientes/:id", async (req, res) => {
+    const id = req.params.id;
 
-    try{
-        const resultado = await pool.query(
-            'SELECT id, nome, email FROM clientes WHERE id = $1', [req.params.id]
-        );
+    try {
+        const resultadoCliente = await pool.query(
+        `SELECT
+        id,
+        nome,
+        email,
+        criado_em AS "criadoEm"
+        FROM clientes
+        WHERE id = $1`,
+        [id]
+    );
 
-        const cliente = resultado.rows[0];
-
-        if(!cliente){
-            res.status(404).json({erro: "esse caba n existe",});
+        if (resultadoCliente.rows.length === 0) {
+            res.status(404).json({erro: "Cliente não encontrado.",});
             return;
         }
-        res.json(cliente);
-    }
-    catch(erro){
-        console.error("Erro no DB", erro);
-        res.status(500).json({erro: "Erro la no banco",});
+
+        const [resultadoProjetos, resultadoSolicitacoes] = await Promise.all([ pool.query(
+            `SELECT
+            id,
+            titulo,
+            status,
+            arquivada_em AS "arquivadaEm"
+            FROM projetos
+            WHERE cliente_id = $1
+            ORDER BY criada_em DESC`,
+            [id]
+        ),
+
+        pool.query(
+            `SELECT
+            id,
+            titulo,
+            status
+            FROM solicitacoes
+            WHERE cliente_id = $1
+            ORDER BY criada_em DESC`,
+            [id]
+        ),
+    ]);
+
+        res.json({
+            ...resultadoCliente.rows[0],
+            projetos: resultadoProjetos.rows,
+            solicitacoes: resultadoSolicitacoes.rows,
+        });
+    }catch (erro) {
+        console.error("Erro ao buscar cliente:", erro);
+
+        res.status(500).json({erro: "Não foi possível carregar o cliente.",});
     }
 });
+
 
 //solicitar os projetos do db 
 app.get("/api/projetos", async(req, res) => {
@@ -187,6 +223,41 @@ app.get("/api/projetos", async(req, res) => {
     }catch(erro){
         console.error("Erro ao procurar os projetos", erro);
         res.status(500).json({erro:"Não foi possivel carregas os projetos"});
+    }
+});
+
+//painel individual dos projetos
+app.get("/api/projetos/:id", async(req, res) => {
+    const id = req.params.id;
+
+    try{
+        const resultado = await pool.query(
+            `SELECT
+            p.id,
+            p.cliente_id AS "clienteId",
+            c.nome AS "clienteNome",
+            p.solicitacao_id AS "solicitacaoId",
+            p.titulo,
+            p.descricao,
+            p.status,
+            p.criada_em AS "criadaEM",
+            p.atualizada_em AS "atualizadaEm"
+            FROM projetos AS p
+            INNER JOIN clientes AS c
+            ON c.id = p.cliente_id
+            WHERE p.id = $1`,
+            [id]
+        );
+
+        if(resultado.rows.length === 0){
+            res.status(404).json({erro: "projeto não encontrado", });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    }catch(erro){
+        console.error("Erro ao buscar projeto:", erro);
+        res.status(500).json({erro: "Não foi possível carregar o projeto.",});
     }
 });
 
