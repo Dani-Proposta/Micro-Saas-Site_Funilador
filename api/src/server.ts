@@ -199,6 +199,7 @@ app.get("/api/clientes/:id", async (req, res) => {
 
 //solicitar os projetos do db 
 app.get("/api/projetos", async(req, res) => {
+    const arquivados = req.query.arquivados === "true";
 
     try{
         const resultado = await pool.query(
@@ -215,10 +216,10 @@ app.get("/api/projetos", async(req, res) => {
             FROM projetos AS p
             INNER JOIN clientes AS c
             ON c.id = p.cliente_id
-            WHERE p.arquivada_em IS NULL
+            WHERE (p.arquivada_em IS NOT NULL) = $1
             ORDER BY p.criada_em DESC
-
-        `);
+            
+            `,[arquivados]);
         res.json(resultado.rows)
     }catch(erro){
         console.error("Erro ao procurar os projetos", erro);
@@ -241,7 +242,8 @@ app.get("/api/projetos/:id", async(req, res) => {
             p.descricao,
             p.status,
             p.criada_em AS "criadaEM",
-            p.atualizada_em AS "atualizadaEm"
+            p.atualizada_em AS "atualizadaEm",
+            p.arquivada_em AS "arquivadaEm"
             FROM projetos AS p
             INNER JOIN clientes AS c
             ON c.id = p.cliente_id
@@ -521,6 +523,113 @@ app.patch("/api/projetos/:id/status", async (req, res) => {
             res.status(500).json({erro: "Não foi possível atualizar o projeto.",});
         }
     });
+
+//atualizar projeto por completo
+app.patch("/api/projetos/:id", async (req, res) => {
+    const id = req.params.id;
+    const titulo = req.body?.titulo;
+    const descricao = req.body?.descricao;
+
+    if (typeof titulo !== "string" || titulo.trim().length === 0 ||typeof descricao !== "string" || descricao.trim().length === 0) {
+        res.status(400).json({erro: "Título e descrição são obrigatórios",});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+        `UPDATE projetos
+        SET
+        titulo = $1,
+        descricao = $2,
+        atualizada_em = NOW()
+        WHERE id = $3
+        AND arquivada_em IS NULL
+        RETURNING
+        id,
+        titulo,
+        descricao,
+        atualizada_em AS "atualizadaEm"`,
+        [titulo.trim(), descricao.trim(), id]
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Projeto não encontrado ou arquivado",});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    }catch (erro) {
+        console.error("Erro ao editar projeto", erro);
+
+        res.status(500).json({erro: "Não foi possível editar o projeto",});
+    }
+});
+
+//arquivamento de projetos
+app.patch("/api/projetos/:id/arquivar", async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const resultado = await pool.query(
+        `UPDATE projetos
+        SET arquivada_em = NOW(),
+        atualizada_em = NOW()
+        WHERE id = $1
+        AND arquivada_em IS NULL
+        RETURNING
+        id,
+        status,
+        arquivada_em AS "arquivadaEm",
+        atualizada_em AS "atualizadaEm"`,
+        [id]
+    );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Projeto não encontrado ou já arquivado",});
+            return; 
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao arquivar projeto", erro);
+
+        res.status(500).json({erro: "Não foi possível arquivar o projeto",});
+    }
+});
+
+//restaurar projeto arquivado
+app.patch("/api/projetos/:id/restaurar", async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const resultado = await pool.query(
+        `UPDATE projetos
+        SET arquivada_em = NULL,
+        atualizada_em = NOW()
+        WHERE id = $1
+        AND arquivada_em IS NOT NULL
+        RETURNING
+        id,
+        status,
+        arquivada_em AS "arquivadaEm",
+        atualizada_em AS "atualizadaEm"`,
+        [id]
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Projeto não encontrado ou não está arquivado.",});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    }catch (erro) {
+        console.error("Erro ao restaurar projeto:", erro);
+
+        res.status(500).json({erro: "Não foi possível restaurar o projeto.",});
+    }
+});
+
+
 
 
 //acesso a API
