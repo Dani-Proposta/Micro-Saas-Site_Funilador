@@ -5,3 +5,5 @@ export { Login } from "./Login";
 export { Projetos} from "./Projetos"
 export { ProjetoDetalhes } from "./ProjetoDetalhes";
 export { ClienteDetalhes } from "./ClienteDetalhes";
+export { Convites } from "./Convites";
+export { AceitarConvite } from "./AceitarConvite";

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Alert, Badge, Button, Card, Divider, Group, Loader, Stack, Text, Title} from "@mantine/core";
+import { Alert, Badge, Button, Card, Divider, Group, Loader, Stack, Text, Title, Modal, TextInput } from "@mantine/core";
 
 type ProjetoRelacionado = {
   id: string;
@@ -32,6 +32,12 @@ export function ClienteDetalhes() {
   const [cliente, setCliente] = useState<ClienteDetalhado | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [editando, setEditando] = useState(false);
+  const [nomeEdicao, setNomeEdicao] = useState("");
+  const [emailEdicao, setEmailEdicao] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,6 +78,53 @@ export function ClienteDetalhes() {
     return () => controller.abort();
   }, [id]);
 
+  function abrirEdicao() {
+      if (!cliente) return;
+
+      setNomeEdicao(cliente.nome);
+      setEmailEdicao(cliente.email ?? "");
+      setErroEdicao(null);
+      setEditando(true);
+  }
+
+  async function salvarEdicao() {
+      if (!cliente || salvando) return;
+
+      if (!nomeEdicao.trim()) {
+          setErroEdicao("O nome do cliente é obrigatório");
+          return;
+      }
+
+      setSalvando(true);
+      setErroEdicao(null);
+
+      try {
+          const resposta = await fetch(`/api/clientes/${cliente.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nome: nomeEdicao.trim(), email: emailEdicao.trim() }),
+          });
+
+          if (!resposta.ok) {
+              throw new Error("Erro ao editar cliente");
+          }
+
+          const dados: Pick<ClienteDetalhado, "id" | "nome" | "email"> = await resposta.json();
+
+          setCliente((anterior) => anterior ? { ...anterior, nome: dados.nome, email: dados.email } : anterior);
+          setEditando(false);
+
+      } catch (erro) {
+          console.error(erro);
+          setErroEdicao("Não foi possível salvar as alterações");
+      } finally {
+          setSalvando(false);
+      }
+  }
+
+
+
+
   if (carregando) {
     return <Loader size="sm" />;
   }
@@ -80,7 +133,7 @@ export function ClienteDetalhes() {
     return (
       <Stack>
         <Alert color="red">
-          {erro ?? "Cliente não encontrado."}
+          {erro ?? "Cliente não encontrado"}
         </Alert>
         <Button variant="light" onClick={() => navigate("/clientes")}>
           Voltar aos clientes
@@ -91,20 +144,30 @@ export function ClienteDetalhes() {
 
   return (
     <Stack gap="lg">
+
+      <Modal opened={editando} onClose={() => {if (!salvando) setEditando(false);}} title="Editar cliente" centered closeOnEscape={!salvando} closeOnClickOutside={!salvando} withCloseButton={!salvando}>
+          <form onSubmit={(event) => {event.preventDefault(); void salvarEdicao();}}>
+              <Stack gap="sm">
+                  <TextInput label="Nome" required value={nomeEdicao} onChange={(event) => setNomeEdicao(event.currentTarget.value)}/>
+                  <TextInput label="E-mail" type="email" value={emailEdicao} onChange={(event) => setEmailEdicao(event.currentTarget.value)}/>
+                  {erroEdicao && <Alert color="red">{erroEdicao}</Alert>}
+                  <Group justify="flex-end">
+                      <Button variant="default" disabled={salvando} onClick={() => setEditando(false)}>Cancelar</Button>
+                      <Button type="submit" loading={salvando}>Salvar alterações</Button>
+                  </Group>
+              </Stack>
+          </form>
+      </Modal>
+
       <Stack gap="xs">
         <Group>
-          <Button
-            variant="subtle"
-            size="xs"
-            onClick={() => navigate("/clientes")}
-          >
-            ← Voltar aos clientes
-          </Button>
+          <Button variant="subtle" size="xs"onClick={() => navigate("/clientes")}> ← Voltar aos clientes</Button>
         </Group>
 
-        <Title order={2} style={{ overflowWrap: "anywhere" }}>
-          {cliente.nome}
-        </Title>
+        <Group justify="space-between" align="center">
+            <Title order={2} style={{ overflowWrap: "anywhere" }}>{cliente.nome}</Title>
+            <Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button>
+        </Group>
 
         <Text c="dimmed" size="sm">
           Ficha individual do cliente
@@ -114,6 +177,11 @@ export function ClienteDetalhes() {
       <Card withBorder padding="lg">
         <Stack gap="sm">
           <Title order={4}>Cadastro</Title>
+
+          <Text>
+            <Text span c="dimmed">Nome: </Text>
+            {cliente.nome}
+          </Text>
 
           <Text>
             <Text span c="dimmed">E-mail: </Text>

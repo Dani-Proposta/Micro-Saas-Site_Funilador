@@ -2,6 +2,7 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { pool } from "./db.ts";
+import { randomBytes } from "node:crypto";
 
 import { fromNodeHeaders } from "better-auth/node";
 import type { Request, Response, NextFunction } from "express";
@@ -49,7 +50,7 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction){
 //aqui eu protego oq só adm pode solicitar
 
 app.use(
-  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard"],
+  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard","/api/convites",],
   exigirAdmin
 );
 
@@ -127,10 +128,10 @@ app.get("/api/solicitacoes", async (_req, res) =>{
 });
 
 //solicitar clienteS no plural, a lista de todos eles
-app.get("/api/clientes/", async (_req, res) => {
+app.get("/api/clientes", async (_req, res) => {
     try{
         const resultado = await pool.query(
-            'SELECT id, nome, email FROM clientes'
+            'SELECT id, usuario_id AS "usuarioId", nome, email FROM clientes'
         );
         res.json(resultado.rows);
     }catch(erro){
@@ -262,6 +263,99 @@ app.get("/api/projetos/:id", async(req, res) => {
         res.status(500).json({erro: "Não foi possível carregar o projeto.",});
     }
 });
+
+//solicitar convites do DB
+app.get("/api/convites", async (req, res) => {
+    try {
+        const resultado = await pool.query(`
+            SELECT
+            v.id,
+            v.token,
+            v.cliente_id AS "clienteId",
+            c.nome AS "clienteNome",
+            v.criado_em AS "criadoEm",
+            v.expira_em AS "expiraEm",
+            v.usado_em AS "usadoEm",
+            v.revogado_em AS "revogadoEm",
+
+            CASE
+            WHEN v.usado_em IS NOT NULL THEN 'utilizado'
+            WHEN v.revogado_em IS NOT NULL THEN 'revogado'
+            WHEN v.expira_em <= NOW() THEN 'expirado'
+            ELSE 'pendente'
+            END AS "estado"
+
+            FROM convites AS v
+            LEFT JOIN clientes AS c ON c.id = v.cliente_id
+            ORDER BY v.criado_em DESC
+        `);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar convites:", erro);
+        res.status(500).json({ erro: "Não foi possível carregar os convites." });
+    }
+});
+
+//ler convite
+app.get("/api/convite/:token", async (req, res) => {
+    const token = req.params.token;
+
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+        res.status(404).json({ erro: "Convite não encontrado." });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            SELECT
+            v.cliente_id AS "clienteId",
+            c.nome AS "clienteNome",
+            c.usuario_id AS "usuarioId",
+            v.expira_em AS "expiraEm",
+
+            CASE
+            WHEN v.usado_em IS NOT NULL THEN 'utilizado'
+            WHEN v.revogado_em IS NOT NULL THEN 'revogado'
+            WHEN v.expira_em <= NOW() THEN 'expirado'
+            ELSE 'pendente'
+            END AS "estado"
+
+            FROM convites AS v
+            LEFT JOIN clientes AS c ON c.id = v.cliente_id
+            WHERE v.token = $1
+        `, [token]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Convite não encontrado" });
+            return;
+        }
+
+        const convite = resultado.rows[0];
+
+        if (convite.estado !== "pendente") {
+            res.status(410).json({ erro: `Este convite está ${convite.estado}.` });
+            return;
+        }
+
+        if (convite.clienteId && convite.usuarioId !== null) {
+            res.status(410).json({ erro: "Este cliente já possui acesso" });
+            return;
+        }
+
+        res.json({
+            tipo: convite.clienteId ? "vinculado" : "livre",
+            clienteNome: convite.clienteNome,
+            expiraEm: convite.expiraEm,
+        });
+
+    } catch (erro) {
+        console.error("Erro ao validar convite:", erro);
+        res.status(500).json({ erro: "Não foi possível validar o convite." });
+    }
+});
+
 
 
 //rotas de atualização ou pedido ou criação
@@ -629,7 +723,126 @@ app.patch("/api/projetos/:id/restaurar", async (req, res) => {
     }
 });
 
+//criar convites
+app.post("/api/convites", async (req, res) => {
+    const clienteId = req.body?.clienteId ?? null;
 
+    const validadeHoras = req.body?.validadeHoras ?? 48;
+
+    if (![24, 48, 168].includes(validadeHoras)) {
+        res.status(400).json({erro: "Prazo de validade inválido."});
+        return;
+    }
+
+    if (clienteId !== null && (typeof clienteId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId))) {
+        res.status(400).json({ erro: "ID do cliente inválido." });
+        return;
+    }
+
+    try {
+        if (clienteId !== null) {
+            const cliente = await pool.query(
+                `SELECT id, usuario_id
+                FROM clientes
+                WHERE id = $1`,
+                [clienteId]
+            );
+
+            if (cliente.rows.length === 0) {
+                res.status(404).json({ erro: "Cliente não encontrado." });
+                return;
+            }
+
+            if (cliente.rows[0].usuario_id !== null) {
+                res.status(409).json({ erro: "Este cliente já possui uma conta vinculada." });
+                return;
+            }
+        }
+
+        const token = randomBytes(32).toString("base64url");
+
+        const resultado = await pool.query(
+            `INSERT INTO convites (cliente_id, token, expira_em)
+            VALUES ($1, $2, NOW() + ($3::int * INTERVAL '1 hour'))
+            RETURNING
+            id,
+            cliente_id AS "clienteId",
+            criado_em AS "criadoEm",
+            expira_em AS "expiraEm"`,
+            [clienteId, token, validadeHoras]
+        );
+
+        res.status(201).json({ ...resultado.rows[0], token });
+
+    } catch (erro) {
+        console.error("Erro ao gerar convite", erro);
+        res.status(500).json({ erro: "Não foi possível gerar o convite" });
+    }
+});
+
+//revogar convite
+app.patch("/api/convites/:id/revogar", async (req, res) => {
+    const id = req.params.id;
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        res.status(400).json({ erro: "ID do convite inválido." });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            UPDATE convites
+            SET revogado_em = NOW()
+            WHERE id = $1
+                AND usado_em IS NULL
+                AND revogado_em IS NULL
+                AND expira_em > NOW()
+
+            RETURNING
+                id,
+                revogado_em AS "revogadoEm"
+        `, [id]);
+
+        if (resultado.rows.length === 0) {
+            res.status(409).json({ erro: "Convite não encontrado ou indisponível para revogação." });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao revogar convite:", erro);
+        res.status(500).json({ erro: "Não foi possível revogar o convite." });
+    }
+});
+
+//deletar convites
+app.delete("/api/convites/:id", async (req, res) => {
+    const id = req.params.id;
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        res.status(400).json({ erro: "ID do convite inválido" });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `DELETE FROM convites WHERE id = $1 RETURNING id`,
+            [id]
+        );
+
+        if (resultado.rowCount === 0) {
+            res.status(404).json({ erro: "Convite não encontrado" });
+            return;
+        }
+
+        res.status(204).end();
+
+    } catch (erro) {
+        console.error("Erro ao excluir convite:", erro);
+        res.status(500).json({ erro: "Não foi possível excluir o convite" });
+    }
+});
 
 
 //acesso a API
