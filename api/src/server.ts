@@ -1,16 +1,14 @@
 //precisa pra se quer existir
 import express from "express";
-import { randomUUID } from "node:crypto";
 import { pool } from "./db.ts";
-import { randomBytes } from "node:crypto";
-
-import { fromNodeHeaders } from "better-auth/node";
+import { randomUUID, randomBytes } from "node:crypto";
+import { Kysely, PostgresDialect, sql } from "kysely";
+import { betterAuth } from "better-auth";
+import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import type { Request, Response, NextFunction } from "express";
 
-//funcionalidades importantes
 import type { Solicitacao } from "./solicitacao.ts";
 import type { Cliente } from "./cliente.ts";
-import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth.ts";
 import { error } from "node:console";
 
@@ -54,9 +52,14 @@ app.use(
   exigirAdmin
 );
 
-
-
-
+const dbCadastro = new Kysely({
+    dialect: new PostgresDialect({pool}),
+});
+class ErroCadastro extends Error {
+    constructor(public status: number, mensagem: string) {
+        super(mensagem);
+    }
+}
 //rotas de solicitação
 //verificar conexão com api
 app.get("/api/health", (_req, res) =>{
@@ -64,10 +67,7 @@ app.get("/api/health", (_req, res) =>{
     
 });
 
-
-
 //solicitar pedidos do DB
-
 //solicitação do dashboard para pegar os numeros das tabelas, o total, e outras coisas relacionadas
 app.get("/api/dashboard", async (req, res) =>{
     try{
@@ -242,7 +242,7 @@ app.get("/api/projetos/:id", async(req, res) => {
             p.titulo,
             p.descricao,
             p.status,
-            p.criada_em AS "criadaEM",
+            p.criada_em AS "criadaEm",
             p.atualizada_em AS "atualizadaEm",
             p.arquivada_em AS "arquivadaEm"
             FROM projetos AS p
@@ -367,9 +367,10 @@ app.post("/api/solicitacoes", async (req, res) =>{
     const titulo = req.body?.titulo;
     const descricao = req.body?.descricao;
     //se n tiver preenchido nem vai fodase
-    if( typeof typeof   typeof clienteId !== 'string' || clienteId.trim().length === 0 || 
-                        typeof titulo !== "string" || titulo.trim().length === 0 ||  
-                        typeof descricao !== "string" || descricao.trim().length === 0){
+    if( typeof clienteId !== 'string' || clienteId.trim().length === 0 || 
+        typeof titulo !== "string" || titulo.trim().length === 0 ||  
+        typeof descricao !== "string" || descricao.trim().length === 0
+    ){
         res.status(400).json({erro: "Titulo e descrição necessario, por favor ne!"});
         return;
     }
@@ -841,6 +842,146 @@ app.delete("/api/convites/:id", async (req, res) => {
     } catch (erro) {
         console.error("Erro ao excluir convite:", erro);
         res.status(500).json({ erro: "Não foi possível excluir o convite" });
+    }
+});
+
+//aceitar convite
+app.post("/api/convite/:token/aceitar", async (req, res) => {
+    const token = req.params.token;
+    const { nome, email, senha } = req.body ?? {};
+
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+        res.status(404).json({erro: "Convite não encontrado."});
+        return;
+    }
+
+    if (typeof nome !== "string" || !nome.trim() || nome.length > 150) {
+        res.status(400).json({erro: "Informe um nome válido."});
+        return;
+    }
+
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 254) {
+        res.status(400).json({erro: "Informe um e-mail válido."});
+        return;
+    }
+
+    if (typeof senha !== "string" || senha.length < 8 || senha.length > 128) {
+        res.status(400).json({erro: "A senha deve possuir entre 8 e 128 caracteres."});
+        return;
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+
+    try {
+        await dbCadastro.transaction().execute(async (trx) => {
+
+            const resultado = await sql<{id: string; cliente_id: string | null}>`
+                SELECT id, cliente_id
+                FROM convites
+                WHERE token = ${token}
+                AND usado_em IS NULL
+                AND revogado_em IS NULL
+                AND expira_em > clock_timestamp()
+                FOR UPDATE
+            `.execute(trx);
+
+            const convite = resultado.rows[0];
+
+            if (!convite) throw new ErroCadastro(410, "Convite indisponível.");
+
+            let clienteId = convite.cliente_id;
+            let nomeUsuario = nome.trim();
+
+            if (clienteId) {
+                const resultadoCliente = await sql<{nome: string; usuario_id: string | null}>`
+                    SELECT nome, usuario_id
+                    FROM clientes
+                    WHERE id = ${clienteId}
+                    FOR UPDATE
+                `.execute(trx);
+
+                const cliente = resultadoCliente.rows[0];
+
+                if (!cliente) throw new ErroCadastro(404, "Cliente não encontrado.");
+                if (cliente.usuario_id !== null) throw new ErroCadastro(409, "Este cliente já possui acesso.");
+
+                nomeUsuario = cliente.nome;
+            }
+
+            const emailExistente = await sql`
+                SELECT id
+                FROM "user"
+                WHERE LOWER(email) = ${emailNormalizado}
+            `.execute(trx);
+
+            if (emailExistente.rows.length > 0) {
+                throw new ErroCadastro(409, "Este e-mail já está associado a uma conta.");
+            }
+
+            const authCadastro = betterAuth({
+                ...auth.options,
+                database: {db: trx, type: "postgres", transaction: false},
+            });
+
+            const { user } = await authCadastro.api.createUser({
+                body: {
+                    name: nomeUsuario,
+                    email: emailNormalizado,
+                    password: senha,
+                    role: "user",
+                },
+            });
+
+            if (clienteId) {
+                await sql`
+                    UPDATE clientes
+                    SET usuario_id = ${user.id},
+                        email = ${emailNormalizado}
+                    WHERE id = ${clienteId}
+                `.execute(trx);
+
+            } else {
+                const novoCliente = await sql<{id: string}>`
+                    INSERT INTO clientes (nome, email, usuario_id)
+                    VALUES (${nomeUsuario}, ${emailNormalizado}, ${user.id})
+                    RETURNING id
+                `.execute(trx);
+
+                clienteId = novoCliente.rows[0].id;
+            }
+
+            const consumido = await sql`
+                UPDATE convites
+                SET usado_em = clock_timestamp(),
+                cliente_aceitou_id = ${clienteId},
+                usado_por_email = ${emailNormalizado}
+                WHERE id = ${convite.id}
+                AND usado_em IS NULL
+                AND revogado_em IS NULL
+                AND expira_em > clock_timestamp()
+                RETURNING id
+            `.execute(trx);
+
+            if (consumido.rows.length === 0) {
+                throw new ErroCadastro(410, "Convite indisponível.");
+            }
+        });
+
+        res.status(201).json({mensagem: "Conta criada com sucesso."});
+
+    } catch (erro) {
+        if (erro instanceof ErroCadastro) {
+            res.status(erro.status).json({erro: erro.message});
+            return;
+        }
+
+        if (typeof erro === "object" && erro !== null && "code" in erro && erro.code === "23505") {
+            res.status(409).json({erro: "Já existe um cadastro conflitante."});
+            return;
+        }
+
+        console.error("Falha na aceitação do convite.");
+        res.status(500).json({erro: "Não foi possível concluir o cadastro."});
     }
 });
 
