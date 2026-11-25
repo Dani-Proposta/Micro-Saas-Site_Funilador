@@ -4,8 +4,11 @@ import { AppShell, Alert, Burger, Button, Card, Center, Group, Loader, Menu, Nav
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
+
+//por dps em um index proprio
 import { MeusProjetos } from "./MeusProjetos";
 import { MinhasSolicitacoes } from "./MinhasSolicitacoes";
+import { DashboardCliente } from "./DashboardCliente";
 
 type Cliente = {
     id: string;
@@ -122,30 +125,14 @@ function PortalCliente() {
                     {carregando && <Loader size="sm"/>}
                     {erro && <Alert color="red">{erro}</Alert>}
 
-
-                    {cliente && (
-                        <Routes>
-                            <Route index element={
-                                <Stack gap="md">
-                                    <Title order={2}>Olá, {cliente.nome}!</Title>
-                                    <Text c="dimmed">Bem-vindo ao seu espaço de acompanhamento.</Text>
-
-                                    <Card withBorder padding="lg">
-                                        <Stack gap="xs">
-                                            <Title order={4}>Minha conta</Title>
-                                            <Text size="sm">Nome: {cliente.nome}</Text>
-                                            <Text size="sm">E-mail: {cliente.email ?? "Não informado"}</Text>
-                                        </Stack>
-                                    </Card>
-                                </Stack>
-                            }/>
-
-                            <Route path="projetos" element={<MeusProjetos/>}/>
-                            <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
-                            <Route path="*" element={<Navigate to="/portal" replace/>}/>
-                        </Routes>
-                    )}
-
+                {cliente && (
+                    <Routes>
+                        <Route index element={<DashboardCliente cliente={cliente}/>}/>
+                        <Route path="projetos" element={<MeusProjetos/>}/>
+                        <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
+                        <Route path="*" element={<Navigate to="/portal" replace/>}/>
+                    </Routes>
+                )}
                 </Stack>
             </AppShell.Main>
 

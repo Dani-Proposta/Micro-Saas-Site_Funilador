@@ -149,6 +149,44 @@ app.get("/api/dashboard", async (req, res) =>{
     }
 });
 
+//dashboard do cliente
+app.get("/api/me/dashboard", async (_req, res) => {
+    const clienteId = res.locals.cliente.id;
+
+    try {
+        const resultado = await pool.query(`
+            SELECT
+                (SELECT COUNT(*)::int
+                FROM projetos
+                WHERE cliente_id = $1
+                    AND status = 'planejado'
+                    AND arquivada_em IS NULL) AS "projetosPlanejados",
+
+                (SELECT COUNT(*)::int
+                FROM projetos
+                WHERE cliente_id = $1
+                    AND status = 'em_andamento'
+                    AND arquivada_em IS NULL) AS "projetosEmAndamento",
+
+                (SELECT COUNT(*)::int
+                FROM projetos
+                WHERE cliente_id = $1
+                    AND status = 'concluido'
+                    AND arquivada_em IS NULL) AS "projetosConcluidos",
+
+                (SELECT COUNT(*)::int
+                FROM solicitacoes
+                WHERE cliente_id = $1
+                    AND status = 'pendente') AS "solicitacoesPendentes"
+        `, [clienteId]);
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao carregar dashboard do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar a visão geral."});
+    }
+});
 
 //Pedir pro DB as solicitações mais recentes com info de cada cliente
 app.get("/api/solicitacoes", async (_req, res) =>{
