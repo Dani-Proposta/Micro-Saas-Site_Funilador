@@ -45,12 +45,55 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction){
     }
 }
 
-//aqui eu protego oq só adm pode solicitar
+//precisa ser clientep para acessar essa area
+async function exigirCliente(req: Request, res: Response, next: NextFunction) {
+    try {
+        const sessao = await auth.api.getSession({
+            headers: fromNodeHeaders(req.headers),
+        });
 
+        if (!sessao) {
+            res.status(401).json({erro: "Você precisa fazer login"});
+            return;
+        }
+
+        const papeis = sessao.user.role?.split(",") ?? [];
+
+        if (!papeis.includes("user") || papeis.includes("admin")) {
+            res.status(403).json({erro: "Acesso restrito aos clientes"});
+            return;
+        }
+
+        const resultado = await pool.query(`
+            SELECT id, nome, email
+            FROM clientes
+            WHERE usuario_id = $1
+        `, [sessao.user.id]);
+
+        if (resultado.rows.length === 0) {
+            res.status(403).json({erro: "Nenhum cliente vinculado à conta"});
+            return;
+        }
+
+        res.locals.cliente = resultado.rows[0];
+
+        next();
+
+    } catch (erro) {
+        console.error("Erro ao verificar cliente:", erro);
+        res.status(500).json({erro: "Falha ao verificar autenticação"});
+    }
+}
+
+//aqui eu protego oq só adm pode solicitar ou acessar
 app.use(
   ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard","/api/convites",],
   exigirAdmin
 );
+
+//apenas cliente logado ve
+app.use("/api/me", exigirCliente);
+
 
 const dbCadastro = new Kysely({
     dialect: new PostgresDialect({pool}),
@@ -71,6 +114,9 @@ app.get("/api/health", (_req, res) =>{
     
 });
 
+app.get("/api/me", (_req, res) => {
+    res.json(res.locals.cliente);
+});
 //solicitar pedidos do DB
 //solicitação do dashboard para pegar os numeros das tabelas, o total, e outras coisas relacionadas
 app.get("/api/dashboard", async (req, res) =>{
