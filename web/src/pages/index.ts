@@ -13,4 +13,7 @@ export { AceitarConvite } from "./AceitarConvite";
 
 //cliente side
 export { PainelCliente } from "./PainelCliente";
+/*
+export { MinhasSolicitacoes } from "./MinhasSolicitacoes";
 export { MeusProjetos } from "./MeusProjetos";
+*/

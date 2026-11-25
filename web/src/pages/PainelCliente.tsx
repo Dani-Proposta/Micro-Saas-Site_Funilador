@@ -5,6 +5,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
 import { MeusProjetos } from "./MeusProjetos";
+import { MinhasSolicitacoes } from "./MinhasSolicitacoes";
 
 type Cliente = {
     id: string;
@@ -110,7 +111,7 @@ function PortalCliente() {
                 <Text size="sm" c="dimmed">Menu</Text>
                 <NavLink label="Visão geral" renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
                 <NavLink label="Meus projetos" renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
-                <NavLink label="Minhas solicitações" disabled/>
+                <NavLink label="Minhas solicitações" renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
                 <NavLink label="Mensagens" disabled/>
             </AppShell.Navbar>
 
@@ -140,6 +141,7 @@ function PortalCliente() {
                             }/>
 
                             <Route path="projetos" element={<MeusProjetos/>}/>
+                            <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
                             <Route path="*" element={<Navigate to="/portal" replace/>}/>
                         </Routes>
                     )}

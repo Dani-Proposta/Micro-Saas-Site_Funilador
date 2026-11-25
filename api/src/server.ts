@@ -566,6 +566,41 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
 
 });
 
+//solciitação do cliente
+app.post("/api/me/solicitacoes", async (req, res) => {
+    const clienteId = res.locals.cliente.id;
+    const { titulo, descricao } = req.body ?? {};
+
+    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150) {
+        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+        return;
+    }
+
+    if (typeof descricao !== "string" || !descricao.trim() || descricao.trim().length > 5000) {
+        res.status(400).json({erro: "Informe uma descrição válida de até 5000 caracteres."});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            INSERT INTO solicitacoes (cliente_id, titulo, descricao, status)
+            VALUES ($1, $2, $3, 'pendente')
+            RETURNING
+                id,
+                titulo,
+                descricao,
+                status,
+                criada_em AS "criadaEm"
+        `, [clienteId, titulo.trim(), descricao.trim()]);
+
+        res.status(201).json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao criar solicitação do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível criar sua solicitação."});
+    }
+});
+
 //cadastrar cliente
 app.post("/api/clientes", async(req, res) =>{
     const nome = req.body?.nome;
