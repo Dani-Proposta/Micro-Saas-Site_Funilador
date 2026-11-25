@@ -12,6 +12,9 @@ type Convite = {
     usadoEm: string | null;
     revogadoEm: string | null;
     estado: "pendente" | "utilizado" | "revogado" | "expirado";
+    clienteAceitouId: string | null;
+    clienteAceitouNome: string | null;
+    usadoPorEmail: string | null;
 };
 
 type Cliente = {
@@ -274,7 +277,10 @@ export function Convites() {
 
                         <Group justify="space-between" align="start">
                             <Stack gap={4} style={{minWidth: 0}}>
-                                <Text fw={600}>{convite.clienteNome ?? "Convite livre — novo cliente"}</Text>
+                                <Text fw={600}>{convite.clienteAceitouNome ?? convite.clienteNome ?? "Convite livre — novo cliente"}</Text>
+                                {convite.usadoEm && <Text size="xs" c="dimmed">Utilizado em: {new Date(convite.usadoEm).toLocaleString("pt-BR")}</Text>}
+                                {convite.usadoPorEmail && <Text size="xs" c="dimmed">E-mail utilizado: {convite.usadoPorEmail}</Text>}
+                                {convite.revogadoEm && <Text size="xs" c="dimmed">Revogado em: {new Date(convite.revogadoEm).toLocaleString("pt-BR")}</Text>}
                                 <Text size="xs" c="dimmed">Criado em: {new Date(convite.criadoEm).toLocaleString("pt-BR")}</Text>
                                 <Text size="xs" c="dimmed">Expira em: {new Date(convite.expiraEm).toLocaleString("pt-BR")}</Text>
                             </Stack>

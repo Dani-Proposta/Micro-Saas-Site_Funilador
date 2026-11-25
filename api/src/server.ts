@@ -55,9 +55,13 @@ app.use(
 const dbCadastro = new Kysely({
     dialect: new PostgresDialect({pool}),
 });
+
 class ErroCadastro extends Error {
-    constructor(public status: number, mensagem: string) {
+    public status: number;
+
+    constructor(status: number, mensagem: string) {
         super(mensagem);
+        this.status = status;
     }
 }
 //rotas de solicitação
@@ -277,7 +281,9 @@ app.get("/api/convites", async (req, res) => {
             v.expira_em AS "expiraEm",
             v.usado_em AS "usadoEm",
             v.revogado_em AS "revogadoEm",
-
+            v.cliente_aceitou_id AS "clienteAceitouId",
+            v.usado_por_email AS "usadoPorEmail",
+            ca.nome AS "clienteAceitouNome",
             CASE
             WHEN v.usado_em IS NOT NULL THEN 'utilizado'
             WHEN v.revogado_em IS NOT NULL THEN 'revogado'
@@ -287,6 +293,7 @@ app.get("/api/convites", async (req, res) => {
 
             FROM convites AS v
             LEFT JOIN clientes AS c ON c.id = v.cliente_id
+            LEFT JOIN clientes AS ca ON ca.id = v.cliente_aceitou_id
             ORDER BY v.criado_em DESC
         `);
 
@@ -921,6 +928,11 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
             const authCadastro = betterAuth({
                 ...auth.options,
                 database: {db: trx, type: "postgres", transaction: false},
+                advanced: {
+                    database: {
+                        validateSchema: false,
+                    },
+                },
             });
 
             const { user } = await authCadastro.api.createUser({
@@ -980,7 +992,7 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
             return;
         }
 
-        console.error("Falha na aceitação do convite.");
+        console.error("Falha na aceitação do convite.", erro);
         res.status(500).json({erro: "Não foi possível concluir o cadastro."});
     }
 });

@@ -12,6 +12,7 @@ cd api(back)
 npm run dev
 
 npm audit --omit=dev
+npx tsc --noEmit //validar se ta escrito de forma q de para compilar
 
 site de documentação [https://mantine.dev]
 ctrl + k para pesquisar o que quer

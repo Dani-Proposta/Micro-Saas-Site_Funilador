@@ -1,7 +1,7 @@
-
+import type { FormEvent } from "react";
+import { useParams, useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { Alert, Button, Container, Loader, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
-import { useParams } from "react-router";
 
 type ConvitePublico = {
     tipo: "livre" | "vinculado";
@@ -23,6 +23,12 @@ export function AceitarConvite() {
     const convite = resultado?.token === token ? resultado?.convite : null;
     const erro = !token ? "Convite inválido." : resultado?.token === token ? resultado?.erro : null;
 
+    const navigate = useNavigate();
+
+    const [cadastrando, setCadastrando] = useState(false);
+    const [erroCadastro, setErroCadastro] = useState<string | null>(null);
+    const [cadastroConcluido, setCadastroConcluido] = useState(false);
+    
     useEffect(() => {
         if (!token) return;
 
@@ -52,6 +58,41 @@ export function AceitarConvite() {
         return () => controller.abort();
     }, [token]);
 
+
+    async function concluirCadastro(evento: FormEvent<HTMLFormElement>) {
+        evento.preventDefault();
+
+        if (!token || !convite || cadastrando || cadastroConcluido) return;
+
+        const formulario = new FormData(evento.currentTarget);
+
+        const nome = convite.tipo === "vinculado" ? convite.clienteNome : formulario.get("nome");
+        const email = formulario.get("email");
+        const senha = formulario.get("senha");
+
+        setCadastrando(true);
+        setErroCadastro(null);
+
+        try {
+            const resposta = await fetch(`/api/convite/${encodeURIComponent(token)}/aceitar`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({nome, email, senha}),
+            });
+
+            const dados = await resposta.json();
+
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível concluir o cadastro.");
+
+            setCadastroConcluido(true);
+
+        } catch (erroRecebido) {
+            setErroCadastro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao concluir cadastro.");
+        } finally {
+            setCadastrando(false);
+        }
+    }
+
     return (
         <Container size={460} py="xl">
             <Paper withBorder radius="md" p="xl">
@@ -64,25 +105,29 @@ export function AceitarConvite() {
 
                     {!carregando && erro && <Alert color="red" title="Convite indisponível">{erro}</Alert>}
 
-                    {!carregando && convite && (
+                    {!carregando && convite && !cadastroConcluido && (
                         <>
-                            <Alert color="green" title="Convite válido">
-                                {convite.tipo === "vinculado"
-                                    ? `Você foi convidado para acessar o cadastro de ${convite.clienteNome}.`
-                                    : "Você foi convidado para criar sua conta no Funilador."}
-                            </Alert>
+                            
+                        <form onSubmit={concluirCadastro}>
+                            <Stack gap="md">
+                                <TextInput name="nome" label="Nome" placeholder="Seu nome" defaultValue={convite.tipo === "vinculado" ? convite.clienteNome ?? "" : ""} disabled={convite.tipo === "vinculado" || cadastrando} maxLength={150} required/>
+                                <TextInput name="email" label="E-mail" placeholder="seu@email.com" type="email" autoComplete="email" disabled={cadastrando} maxLength={254} required/>
+                                <PasswordInput name="senha" label="Senha" placeholder="Crie sua senha" description="Mínimo de 8 caracteres" autoComplete="new-password" minLength={8} maxLength={128} disabled={cadastrando} required/>
 
-                            <Text size="xs" c="dimmed">Válido até {new Date(convite.expiraEm).toLocaleString("pt-BR")}.</Text>
+                                {erroCadastro && <Alert color="red">{erroCadastro}</Alert>}
 
-                            <TextInput label="Nome" placeholder="Seu nome" defaultValue={convite.tipo === "vinculado" ? convite.clienteNome ?? "" : ""} disabled={convite.tipo === "vinculado"} required/>
-                            <TextInput label="E-mail" placeholder="seu@email.com" type="email" required/>
-                            <PasswordInput label="Senha" placeholder="Crie sua senha" required/>
+                                <Button type="submit" loading={cadastrando}>Concluir cadastro</Button>
+                            </Stack>
+                        </form>
 
-                            <Button disabled>Concluir cadastro</Button>
-                            <Text size="xs" c="dimmed" ta="center">O formulário será ativado quando conectarmos a criação da conta.</Text>
                         </>
                     )}
-
+                {cadastroConcluido && (
+                    <>
+                        <Alert color="green" title="Cadastro concluído!">Sua conta foi criada com sucesso. Você já pode realizar o login.</Alert>
+                        <Button onClick={() => navigate("/login", {replace: true})}>Ir para o login</Button>
+                    </>
+                )}
                 </Stack>
             </Paper>
         </Container>
