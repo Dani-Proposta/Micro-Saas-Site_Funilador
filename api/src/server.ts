@@ -177,6 +177,31 @@ app.get("/api/solicitacoes", async (_req, res) =>{
     }
 });
 
+//solicitação do client side
+app.get("/api/me/solicitacoes", async (_req, res) => {
+    const clienteId = res.locals.cliente.id;
+
+    try {
+        const resultado = await pool.query(`
+            SELECT
+                id,
+                titulo,
+                descricao,
+                status,
+                criada_em AS "criadaEm"
+            FROM solicitacoes
+            WHERE cliente_id = $1
+            ORDER BY criada_em DESC
+        `, [clienteId]);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar solicitações do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar suas solicitações."});
+    }
+});
+
 //solicitar clienteS no plural, a lista de todos eles
 app.get("/api/clientes", async (_req, res) => {
     try{
@@ -311,6 +336,33 @@ app.get("/api/projetos/:id", async(req, res) => {
     }catch(erro){
         console.error("Erro ao buscar projeto:", erro);
         res.status(500).json({erro: "Não foi possível carregar o projeto.",});
+    }
+});
+
+//solicitar projeto do cliente
+app.get("/api/me/projetos", async (_req, res) => {
+    const clienteId = res.locals.cliente.id;
+
+    try {
+        const resultado = await pool.query(`
+            SELECT
+            id,
+            titulo,
+            descricao,
+            status,
+            criada_em AS "criadaEm",
+            atualizada_em AS "atualizadaEm"
+            FROM projetos
+            WHERE cliente_id = $1
+            AND arquivada_em IS NULL
+            ORDER BY criada_em DESC
+        `, [clienteId]);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar projetos do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar seus projetos."});
     }
 });
 

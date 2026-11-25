@@ -5,7 +5,7 @@ import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavi
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite } from './pages';
+import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente } from './pages';
 import { authClient } from "./lib/auth-client";
 
 function PainelAdmin() {
@@ -38,9 +38,11 @@ function PainelAdmin() {
 
   const papeis = sessao.user.role?.split(",") ?? [];
 
-  if (!papeis.includes("admin")) {
-    return <Text>Você não tem acesso ao painel administrativo.</Text>;
-  }
+    if (!papeis.includes("admin")) {
+        if (papeis.includes("user")) return <Navigate to="/portal" replace/>;
+
+        return <Text>Você não tem acesso ao painel administrativo.</Text>;
+    }
 
   async function sair(){
     try{
@@ -133,6 +135,7 @@ function App() {
     return (
         <Routes>
             <Route path="/convite/:token" element={<AceitarConvite/>}/>
+            <Route path="/portal/*" element={<PainelCliente/>}/>
             <Route path="/*" element={<PainelAdmin/>}/>
         </Routes>
     );
