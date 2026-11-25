@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { AppShell, Alert, Burger, Button, Card, Center, Group, Loader, Menu, NavLink, Stack, Text, Title, useMantineColorScheme } from "@mantine/core";
+import { AppShell, Alert, Burger, Button, Center, Group, Loader, Menu, NavLink, Stack, Text, useMantineColorScheme } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";

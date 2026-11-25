@@ -87,7 +87,7 @@ async function exigirCliente(req: Request, res: Response, next: NextFunction) {
 
 //aqui eu protego oq só adm pode solicitar ou acessar
 app.use(
-  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard","/api/convites",],
+  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard","/api/convites","/api/conversas"],
   exigirAdmin
 );
 
