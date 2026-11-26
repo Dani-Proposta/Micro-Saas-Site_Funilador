@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import classes from "../styles/Estrutura.module.css";
 import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
-import { caminhoPagamento } from "../lib/pendenciasProjeto";
+import { selecionarPendencias, caminhoPendencia } from "../lib/selecionarPendencias";
 
 const categorias = [
     {id: "pagamento_atrasado", nome: "Pagamentos atrasados", cor: "red", ajuda: "Saldos com vencimento ultrapassado."},
@@ -22,13 +24,16 @@ type Categoria = typeof categorias[number]["id"];
 type Pendencia = {categoria: Categoria; titulo: string; subtitulo: string; projetoId: string | null; marcoId: string | null; conversaId: string | null; data: string | null; valor: string | null; detalhe: string; total: number; totalValor: string | null};
 const categoriasCliente: Categoria[] = ["pagamento_atrasado", "pagamento_pendente", "validacao_pendente", "proposta_pendente"];
 
-export function PendenciasDashboard({lado}: {lado: "admin" | "cliente"}) {
+export function PendenciasDashboard({lado, children, mostrarZerados: externo, onMostrarZerados, outrosZerados = false}: {lado: "admin" | "cliente"; children?: ReactNode; mostrarZerados?: boolean; onMostrarZerados?: (valor: boolean) => void; outrosZerados?: boolean}) {
     const navigate = useNavigate();
     const [dados, setDados] = useState<Pendencia[] | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [filtro, setFiltro] = useState<Categoria | "todos">("todos");
     const [limite, setLimite] = useState(6);
-    const [mostrarZerados, setMostrarZerados] = useState(false);
+    const [interno, setInterno] = useState(false);
+    const mostrarZerados = externo ?? interno;
+    const setMostrarZerados = onMostrarZerados ?? setInterno;
+    const detalhesRef = useRef<HTMLDivElement>(null);
     const carregar = useCallback(async (signal: AbortSignal) => {
         try {
             const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal, cache: "no-store"});
@@ -43,19 +48,18 @@ export function PendenciasDashboard({lado}: {lado: "admin" | "cliente"}) {
     const disponiveis = categorias.filter(c => lado === "admin" || categoriasCliente.includes(c.id));
     const quantidade = (id: Categoria) => dados?.find(p => p.categoria === id)?.total ?? 0;
     const selecionados = disponiveis.filter(c => filtro === "todos" || filtro === c.id);
-    const visiveis = selecionados.flatMap(c => (dados ?? []).filter(p => p.categoria === c.id));
-    const selecionar = (id: Categoria | "todos") => {setFiltro(id); setLimite(6);};
+    const visiveis = selecionarPendencias(selecionados.flatMap(c => (dados ?? []).filter(p => p.categoria === c.id)), filtro);
+    const selecionar = (id: Categoria | "todos") => {
+        setFiltro(id); setLimite(6);
+        if (id !== "todos") {
+            detalhesRef.current?.focus({preventScroll:true});
+            detalhesRef.current?.scrollIntoView({block:"start", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+        }
+    };
 
     function abrir(item: Pendencia) {
-        const origem = lado === "admin" ? "/" : "/portal";
-        if (item.conversaId) {
-            navigate(`${lado === "admin" ? "/mensagens" : "/portal/mensagens"}?conversa=${encodeURIComponent(item.conversaId)}`, {state: {voltarPara: origem}});
-        } else if (item.projetoId) {
-            const id = encodeURIComponent(item.projetoId);
-            if (lado === "admin") navigate(`/projetos/${id}${item.marcoId ? `?marco=${encodeURIComponent(item.marcoId)}` : ""}`, {state: {voltarPara: origem}});
-            else if (item.categoria === "pagamento_atrasado" || item.categoria === "pagamento_pendente") navigate(caminhoPagamento(item.projetoId,item.marcoId), {state:{voltarPara:origem}});
-            else navigate(`/portal/projetos?projeto=${id}${item.categoria === "validacao_pendente" ? `&validar=1${item.marcoId ? `&marco=${encodeURIComponent(item.marcoId)}` : ""}` : ""}`, {state: {voltarPara: origem}});
-        }
+        const caminho = caminhoPendencia(lado, item);
+        if (caminho) navigate(caminho, {state: {voltarPara: lado === "admin" ? "/" : "/portal"}});
     }
 
     return <Stack gap="sm">
@@ -67,24 +71,27 @@ export function PendenciasDashboard({lado}: {lado: "admin" | "cliente"}) {
         {!dados && !erro && <Text c="dimmed" size="sm">Carregando pendências...</Text>}
         {dados && <>
             <SimpleGrid cols={{base: 1, xs: 2, lg: 3}} spacing="xs">
-                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || (lado === "admin" && mostrarZerados)).map(c => <Card key={c.id} withBorder padding="sm">
+                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="md" className={classes.metric}>
                     <Group justify="space-between" wrap="nowrap"><Text size="sm" fw={500}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
-                    <Group justify="space-between" align="center"><Stack gap={0}><Text size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
+                    <Group justify="space-between" align="center"><Stack gap={0}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
                 </Card>)}
             </SimpleGrid>
-            {lado === "admin" && disponiveis.some(c => quantidade(c.id) === 0) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(v => !v)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
-            <Group justify="space-between"><Text fw={600} size="sm">{filtro === "todos" ? "Pendências" : disponiveis.find(c => c.id === filtro)?.nome}</Text>{filtro !== "todos" && <Button size="compact-xs" variant="subtle" onClick={() => selecionar("todos")}>Mostrar todas</Button>}</Group>
+            {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
+        </>}
+        {children}
+        {dados && <Stack gap="sm" mt="md" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
+            <Group justify="space-between"><Title order={4}>{filtro === "todos" ? "Pendências detalhadas" : disponiveis.find(c => c.id === filtro)?.nome}</Title>{filtro !== "todos" && <Button size="compact-xs" variant="subtle" onClick={() => selecionar("todos")}>Mostrar todas</Button>}</Group>
             {visiveis.length === 0 && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
             {visiveis.slice(0, limite).map((item, i) => {
                 const cat = disponiveis.find(c => c.id === item.categoria);
                 return <Card key={`${item.categoria}-${item.projetoId}-${item.marcoId}-${item.conversaId}-${i}`} withBorder padding="sm"><Group justify="space-between" align="center" wrap="wrap">
                     <Stack gap={3} style={{flex: 1, minWidth: 0}}><Text fw={600} style={{overflowWrap: "anywhere"}}>{item.titulo}</Text><Text size="xs" c="dimmed" style={{overflowWrap: "anywhere"}}>{item.subtitulo}</Text><Group gap={5} wrap="wrap"><Badge size="sm" variant="light" color={cat?.cor}>{cat?.nome}</Badge><Text size="xs" c="dimmed">{item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</Text></Group>{item.valor !== null && <Text fw={600}>{formatarValor(item.valor)}</Text>}</Stack>
-                    <Button size="xs" variant="light" onClick={() => abrir(item)}>{item.conversaId ? "Abrir conversa" : lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : lado === "cliente" && item.categoria.startsWith("pagamento_") ? "Ver pagamento" : "Abrir projeto"}</Button>
+                    <Button size="xs" variant="light" disabled={!caminhoPendencia(lado,item)} onClick={() => abrir(item)}>{lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : lado === "cliente" && item.categoria.startsWith("pagamento_") ? "Ver pagamento" : item.conversaId ? "Abrir conversa" : "Abrir projeto"}</Button>
                 </Group></Card>;
             })}
             {visiveis.length > limite && <Button size="xs" variant="subtle" onClick={() => setLimite(n => n + 10)}>Mostrar mais ({visiveis.length - limite})</Button>}
             {selecionados.some(c => quantidade(c.id) > 100) && <Text size="xs" c="dimmed">Exibindo até 100 registros por categoria. Os indicadores contabilizam todos.</Text>}
             {lado === "admin" && quantidade("pagamento_atrasado") > 0 && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => navigate("/financeiro?categoria=atrasado")}>Ver cobranças atrasadas no financeiro</Button>}
-        </>}
+        </Stack>}
     </Stack>;
 }

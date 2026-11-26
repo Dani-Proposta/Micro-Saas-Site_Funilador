@@ -1,9 +1,11 @@
 
 import { useEffect, useState } from "react";
-import { AppShell, Alert, Badge, Burger, Button, Center, Group, Loader, Menu, NavLink, Stack, Text, useMantineColorScheme } from "@mantine/core";
+import { AppShell, Alert, Badge, Burger, Center, Group, Loader, NavLink, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
+import { IconePainel, MarcaPainel, MenuConta } from "../components/MenuConta";
+import classes from "../styles/Estrutura.module.css";
 import { CentralNotificacoes } from "../components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
 
@@ -40,8 +42,7 @@ export function PainelCliente() {
 
 function PortalCliente() {
 
-    const { toggleColorScheme } = useMantineColorScheme();
-    const [opened, { toggle }] = useDisclosure(false);
+    const [opened, { toggle, close }] = useDisclosure(false);
     const navigate = useNavigate();
 
     const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -92,40 +93,29 @@ function PortalCliente() {
     }
 
     return (
-        <AppShell header={{height: 64}} padding="md" navbar={{width: 200, breakpoint: "sm", collapsed: {mobile: !opened}}}>
+        <AppShell className={classes.shell} header={{height: 64}} padding="md" navbar={{width: 224, breakpoint: "sm", collapsed: {mobile: !opened}}}>
 
-            <AppShell.Header>
-                <Group h="100%" px="md" justify="space-between">
-                    <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Barra lateral"/>
-                    <Text fw={1000}>Portal do cliente</Text>
-
-                    <Group gap="xs" wrap="nowrap">
-                    {cliente && <CentralNotificacoes lado="cliente"/>}
-                    <Menu shadow="md" width={200} position="bottom-end">
-                        <Menu.Target>
-                            <Button variant="subtle">☰</Button>
-                        </Menu.Target>
-
-                        <Menu.Dropdown>
-                            <Menu.Label>Preferências</Menu.Label>
-                            <Menu.Item onClick={() => toggleColorScheme()}>Trocar tema</Menu.Item>
-                            <Menu.Item disabled>Minha conta</Menu.Item>
-                            <Menu.Item color="red" disabled={saindo} onClick={() => void sair()}>Sair</Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
+            <AppShell.Header className={classes.header}>
+                <div className={classes.headerInner}>
+                    <Group gap="xs" wrap="nowrap" style={{minWidth:0}}>
+                        <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
+                        <MarcaPainel lado="cliente"/>
                     </Group>
-                </Group>
+                    <Group gap="xs" wrap="nowrap">
+                        {cliente && <CentralNotificacoes lado="cliente"/>}
+                        <MenuConta nome={cliente?.nome} email={cliente?.email} sair={() => void sair()} saindo={saindo}/>
+                    </Group>
+                </div>
             </AppShell.Header>
-
-            <AppShell.Navbar p="md">
-                <Text size="sm" c="dimmed">Menu</Text>
-                <NavLink label="Visão geral" renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
-                <NavLink label="Meus projetos" renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
-                <NavLink label="Minhas solicitações" renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
-                <NavLink label="Mensagens" rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
+            <AppShell.Navbar className={classes.navbar}>
+                <Text size="xs" c="dimmed" fw={600} className={classes.navLabel}>Navegação</Text>
+                <NavLink className={classes.navLink} label="Visão geral" leftSection={<IconePainel nome="painel"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
+                <NavLink className={classes.navLink} label="Meus projetos" leftSection={<IconePainel nome="projetos"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
+                <NavLink className={classes.navLink} label="Minhas solicitações" leftSection={<IconePainel nome="solicitacoes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
+                <NavLink className={classes.navLink} label="Mensagens" leftSection={<IconePainel nome="mensagens"/>} rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
             </AppShell.Navbar>
 
-            <AppShell.Main>
+            <AppShell.Main className={classes.main}>
                 <Stack gap="md">
 
                     {erroSaida && <Alert color="red">{erroSaida}</Alert>}

@@ -3,19 +3,20 @@ import { NavLink as MantineNavLink, Badge } from '@mantine/core';
 import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 
 // imports importantes sksksksksskksk
-import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
+import { AppShell, Group, Text, Burger, Center, Loader} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
 import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
+import { IconePainel, MarcaPainel, MenuConta } from "./components/MenuConta";
+import classes from "./styles/Estrutura.module.css";
 import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
 
 function PainelAdmin() {
   //constantes importantes lmao
 
-  const { toggleColorScheme } = useMantineColorScheme();
-  const [opened, { toggle }] = useDisclosure(false);
+  const [opened, { toggle, close }] = useDisclosure(false);
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
   const navigate = useNavigate();
@@ -66,62 +67,42 @@ function PainelAdmin() {
 
 
   return (
-    <AppShell
+    <AppShell className={classes.shell}
       //cabeçalho
       header={{ height: 64 }}
       padding="md"
 
       //barra da navegação
       navbar={{
-        width: 200,
+        width: 224,
         breakpoint: "sm",
         collapsed: { mobile: !opened },
       }}>
 
-      <AppShell.Header>
-        {/*cabeçalho*/}
-        <Group h="100%" px="md" justify="space-between">
-          <Burger
-            opened={opened}
-            onClick={toggle}
-            hiddenFrom="sm"
-            size="sm"
-            aria-label="Barra lateral"
-          />
-          <Text fw={1000}>Organizador</Text>
-
-          <Group gap="xs" wrap="nowrap">
-          <CentralNotificacoes key={sessao.user.id} lado="admin"/>
-          <Menu shadow="md" width={200} position="bottom-end">
-            <Menu.Target>
-              <Button variant='subtle'>
-                ☰
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Label>Preferências</Menu.Label>
-                <Menu.Item variant="light" onClick={() => toggleColorScheme()}>Trocar tema</Menu.Item>
-                <Menu.Item disabled>Minha conta</Menu.Item>
-                <Menu.Item variant="" color='red' onClick={() => void sair()}>Sair</Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+      <AppShell.Header className={classes.header}>
+        <div className={classes.headerInner}>
+          <Group gap="xs" wrap="nowrap" style={{minWidth:0}}>
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
+            <MarcaPainel lado="admin"/>
           </Group>
-        </Group>
-
+          <Group gap="xs" wrap="nowrap">
+            <CentralNotificacoes key={sessao.user.id} lado="admin"/>
+            <MenuConta nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()}/>
+          </Group>
+        </div>
       </AppShell.Header>
-      <AppShell.Navbar p="md">
-        Menu
-        <MantineNavLink label="Visão geral" renderRoot={(props)=>(<RouterNavLink to="/" end {...props}/>)} />
-        <MantineNavLink label="Clientes" renderRoot={(props)=>(<RouterNavLink to="/clientes" end {...props}/>)} />
-        <MantineNavLink label="Solicitações"  renderRoot={(props)=>(<RouterNavLink to="/solicitacoes" end {...props}/>)}/>
-        <MantineNavLink label="Projetos" renderRoot={(props)=>(<RouterNavLink to="/projetos" end {...props}/>)} />
-        <MantineNavLink label="Financeiro" renderRoot={(props)=>(<RouterNavLink to="/financeiro" end {...props}/>)} />
-        <MantineNavLink label="Convites" renderRoot={(props)=>(<RouterNavLink to="/convites" end {...props}/>)} />
-        <MantineNavLink label="Mensagens" rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} renderRoot={(props)=>(<RouterNavLink to="/mensagens" end {...props}/>)} />
-
+      <AppShell.Navbar className={classes.navbar}>
+        <Text size="xs" c="dimmed" fw={600} className={classes.navLabel}>Área de trabalho</Text>
+        <MantineNavLink className={classes.navLink} label="Visão geral" leftSection={<IconePainel nome="painel"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/" end {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Clientes" leftSection={<IconePainel nome="clientes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/clientes" {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Solicitações" leftSection={<IconePainel nome="solicitacoes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/solicitacoes" {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Projetos" leftSection={<IconePainel nome="projetos"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/projetos" {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Financeiro" leftSection={<IconePainel nome="financeiro"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/financeiro" {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Mensagens" leftSection={<IconePainel nome="mensagens"/>} rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/mensagens" {...props}/>)}/>
+        <MantineNavLink className={classes.navLink} label="Convites" leftSection={<IconePainel nome="convites"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/convites" {...props}/>)}/>
       </AppShell.Navbar>
 
-      <AppShell.Main>
+      <AppShell.Main className={classes.main}>
         <Routes>
           <Route path="/" element={<Dashboard mensagensNaoLidas={mensagensNaoLidas}/> } />
           <Route path="/login" element={<Login />} />

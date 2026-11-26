@@ -1,4 +1,5 @@
 import { PendenciasDashboard } from "../components/PendenciasDashboard";
+import estrutura from "../styles/Estrutura.module.css";
 import classes from "../styles/Usabilidade.module.css";
 
 import { useEffect, useState } from "react";
@@ -24,6 +25,8 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
     const [resumo, setResumo] = useState<Resumo | null>(null);
     const [erro, setErro] = useState<string | null>(null);
 
+    const [mostrarZerados, setMostrarZerados] = useState(false);
+    const outrosZerados = mensagensNaoLidas === 0 || !!resumo && Object.values(resumo).some(v => v === 0);
     const carregando = resumo === null && erro === null;
 
     useEffect(() => {
@@ -48,56 +51,49 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
     }, []);
 
     return (
-        <Stack gap="md">
+        <Stack gap="xl" className={estrutura.dashboard}>
 
-            <Title order={2}>Olá, {cliente.nome}!</Title>
-            <Text c="dimmed">Acompanhe seus projetos e solicitações.</Text>
+            <Stack gap={4}><Title order={2} className={estrutura.heading}>Olá, {cliente.nome}!</Title>
+            <Text c="dimmed">Acompanhe seus projetos e solicitações.</Text></Stack>
 
-            <PendenciasDashboard lado="cliente"/>
+            <PendenciasDashboard lado="cliente" mostrarZerados={mostrarZerados} onMostrarZerados={setMostrarZerados} outrosZerados={outrosZerados}/>
 
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
 
-            {resumo && (
+            {resumo && (mostrarZerados || Object.values(resumo).some(v => v !== 0) || mensagensNaoLidas !== 0) && (
                 <SimpleGrid cols={{base: 1, xs: 2, lg: 4}}>
 
-                    <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=planejado")} style={{textAlign: "left", cursor: "pointer"}}>
+                    {(mostrarZerados || resumo.projetosPlanejados !== 0) && <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=planejado")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Projetos planejados</Text>
                         <Title order={2} c="violet">{resumo.projetosPlanejados}</Title>
-                    </Card>
+                    </Card>}
 
-                    <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
+                    {(mostrarZerados || resumo.projetosEmAndamento !== 0) && <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Em andamento</Text>
                         <Title order={2} c="blue">{resumo.projetosEmAndamento}</Title>
-                    </Card>
+                    </Card>}
 
-                    <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
+                    {(mostrarZerados || resumo.projetosConcluidos !== 0) && <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Projetos concluídos</Text>
                         <Title order={2} c="green">{resumo.projetosConcluidos}</Title>
-                    </Card>
+                    </Card>}
 
-                    <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
+                    {(mostrarZerados || resumo.solicitacoesPendentes !== 0) && <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Solicitações pendentes</Text>
                         <Title order={2} c="yellow">{resumo.solicitacoesPendentes}</Title>
-                    </Card>
+                    </Card>}
 
-                    <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
+                    {(mostrarZerados || mensagensNaoLidas !== 0) && <Card withBorder padding="lg" className={classes.interativo} component="button" type="button" onClick={() => navigate("/portal/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Mensagens não lidas</Text>
                         <Title order={2} c={mensagensNaoLidas ? "red" : undefined}>{mensagensNaoLidas ?? "—"}</Title>
                         <Text size="xs" c="dimmed">Abrir mensagens</Text>
-                    </Card>
+                    </Card>}
                 </SimpleGrid>
             )}
 
 
-            <Card withBorder padding="lg">
-                <Stack gap="xs">
-                    <Title order={4}>Minha conta</Title>
-                    <Text size="sm">Nome: {cliente.nome}</Text>
-                    <Text size="sm">E-mail: {cliente.email ?? "Não informado"}</Text>
-                </Stack>
-            </Card>
-            
+            {resumo && !mostrarZerados && !Object.values(resumo).some(v => v > 0) && mensagensNaoLidas === 0 && <Text size="sm" c="dimmed">Nenhum indicador geral com movimentação.</Text>}
         </Stack>
     );
 }

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionIcon, Alert, Badge, Box, Button, Group, Indicator, Loader, Modal, Popover, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
+import classes from "../styles/Estrutura.module.css";
 import { useMediaQuery } from "@mantine/hooks";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
+import { caminhoPendencia } from "../lib/selecionarPendencias";
 import { caminhoPagamento } from "../lib/pendenciasProjeto";
 import { formatarValor } from "../lib/comercial";
 
@@ -160,20 +162,15 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const categoriasAtivas = alertas.filter(a => pendencias.some(p=>p.categoria === a.id));
     const urgentes = categoriasAtivas.some(a=>a.urgente);
     function abrirPendencia(p: Pendencia) {
-        if (p.conversaId) navigate(`${lado === "admin" ? "" : "/portal"}/mensagens?conversa=${encodeURIComponent(p.conversaId)}`);
-        else if (p.projetoId) {
-            const id = encodeURIComponent(p.projetoId);
-            if (lado === "admin") navigate(`/projetos/${id}${p.marcoId ? `?marco=${encodeURIComponent(p.marcoId)}` : ""}`);
-            else if (p.categoria.startsWith("pagamento_")) navigate(caminhoPagamento(p.projetoId,p.marcoId));
-            else navigate(`/portal/projetos?projeto=${id}${p.categoria === "validacao_pendente" ? `&validar=1${p.marcoId ? `&marco=${encodeURIComponent(p.marcoId)}` : ""}` : ""}`);
-        }
+        const caminho = caminhoPendencia(lado,p);
+        if (caminho) navigate(caminho);
         setAberta(false);
     }
     const total = resumo?.total ?? 0;
     const paginaAtual = resumo?.pagina === pagina ? resumo : null;
     const gatilho = (
-        <ActionIcon size="lg" variant="subtle" aria-label={`Notificações: ${total} não lidas; ${categoriasAtivas.length} categorias de pendências ativas`} aria-expanded={aberta} onClick={() => alterarAbertura(!aberta)}>
-            <Indicator disabled={total === 0 && !categoriasAtivas.length} label={total > 99 ? "99+" : total || "!"} size={17} color={urgentes || !categoriasAtivas.length ? "red" : "orange"} offset={2}>
+        <ActionIcon size={44} className={classes.bell} variant="subtle" aria-label={`Notificações: ${total} não lidas; ${categoriasAtivas.length} categorias de pendências ativas`} aria-expanded={aberta} onClick={() => alterarAbertura(!aberta)}>
+            <Indicator disabled={total === 0 && !categoriasAtivas.length} label={total > 99 ? "99+" : total || "!"} size={17} color={urgentes || !categoriasAtivas.length ? "red" : "orange"} offset={4}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
             </Indicator>
         </ActionIcon>

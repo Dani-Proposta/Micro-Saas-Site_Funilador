@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
+import classes from "../styles/Estrutura.module.css";
 import { useNavigate } from "react-router";
 import { formatarValor } from "../lib/comercial";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
@@ -47,7 +48,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
                   {nome: "A receber no mês", valor: dados.aReceberMes, cor: undefined, categoria: "mes", ajuda: "Saldos com vencimento de hoje até o fim do mês."},
                   {nome: "Total estimado do mês", valor: dados.totalMes, cor: undefined, categoria: null, ajuda: "Recebido mais previsto no mês. Não inclui atrasados."},
                   ...(completo ? [{nome: "Pagamentos atrasados", valor: dados.atrasado, cor: Number(dados.atrasado) > 0 ? "red" : undefined, categoria: "atrasado", ajuda: "Saldos com vencimento ultrapassado."}] : [])].map(item =>
-                    <Card key={item.nome} withBorder padding="md"><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
+                    <Card key={item.nome} withBorder padding="md" className={classes.metric}><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text className={classes.metricValue} size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
             </SimpleGrid>
             {completo && <Card withBorder padding="md"><Stack gap="md">
                 <Group justify="space-between"><Text fw={600}>Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>

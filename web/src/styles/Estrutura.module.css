@@ -1,0 +1,26 @@
+/* estrutura dos paineis */
+.shell { --funilador-acento: var(--mantine-color-violet-6); }
+.header { background: var(--mantine-color-body); border-bottom: 1px solid var(--mantine-color-default-border); }
+.headerInner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: clamp(12px, 2vw, 24px); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brandMark { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 9px; background: var(--mantine-color-violet-6); color: white; }
+.brandText { min-width: 0; line-height: 1.15; }
+.navbar { background: var(--mantine-color-body); padding: 14px 10px; }
+.navLabel { padding: 8px 12px 12px; text-transform: uppercase; letter-spacing: .08em; }
+.navLink[aria-current="page"] { background: var(--mantine-color-violet-light); color: var(--mantine-color-violet-light-color); font-weight: 600; }
+.navLink { border-radius: 8px; min-height: 42px; margin-bottom: 3px; transition: background-color 150ms ease, color 150ms ease; }
+.navLink:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+.main { min-width: 0; }
+.dashboard { max-width: 1400px; margin-inline: auto; width: 100%; }
+.heading { letter-spacing: -.035em; line-height: 1.15; }
+.section { scroll-margin-top: 84px; min-width: 0; }
+.section:focus { outline: none; }
+.section:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 4px; border-radius: 8px; }
+.metric { border-radius: 12px; min-width: 0; text-align: left; transition: border-color 150ms ease, background-color 150ms ease; }
+.metric:has(button:focus-visible) { border-color: var(--mantine-color-violet-5); }
+.metricValue { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; letter-spacing: -.02em; }
+.bell { overflow: visible !important; flex-shrink: 0; }
+.bell :global(.mantine-Indicator-root) { display: flex; align-items: center; justify-content: center; }
+.account { flex-shrink: 0; }
+@media (max-width: 30em) { .brandMark { display: none; } .headerInner { gap: 6px; padding-inline: 10px; } .brand { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .navLink, .metric { transition: none; } }
