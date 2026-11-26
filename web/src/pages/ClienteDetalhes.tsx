@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { caminhoMensagens } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Divider, Group, Loader, Stack, Text, Title, Modal, TextInput } from "@mantine/core";
 
 type ProjetoRelacionado = {
@@ -166,7 +167,7 @@ export function ClienteDetalhes() {
 
         <Group justify="space-between" align="center">
             <Title order={2} style={{ overflowWrap: "anywhere" }}>{cliente.nome}</Title>
-            <Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button>
+            <Group gap="xs"><Button size="xs" onClick={() => navigate(caminhoMensagens(cliente.id), {state: {voltarPara: `/clientes/${cliente.id}`}})}>Enviar mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button></Group>
         </Group>
 
         <Text c="dimmed" size="sm">
@@ -233,7 +234,7 @@ export function ClienteDetalhes() {
                   size="xs"
                   variant="light"
                   onClick={() =>
-                    navigate(`/projetos/${projeto.id}`)
+                    navigate(`/projetos/${projeto.id}`, {state: {voltarPara: `/clientes/${cliente.id}`}})
                   }
                 >
                   Abrir

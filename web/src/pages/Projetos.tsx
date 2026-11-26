@@ -1,5 +1,6 @@
 
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams, useLocation } from "react-router";
+import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Card, Group, Loader, Stack, Select, SegmentedControl, Text, Title, Button, Modal, TextInput, Textarea } from "@mantine/core";
 import type { SubmitEvent } from "react";
@@ -42,7 +43,18 @@ export function Projetos() {
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
-    const [filtro, setFiltro] = useState<FiltroProjetos>("ativos");
+    const [params, setParams] = useSearchParams();
+    const location = useLocation();
+    const filtro: FiltroProjetos = params.get("arquivados") === "true" ? "arquivados" : "ativos";
+    const status = filtroStatus(params, statusProjetos);
+    const projetosVisiveis = projetos.filter(projeto => status === "todos" || projeto.status === status);
+
+    function setFiltro(valor: FiltroProjetos) {
+        const proximo = new URLSearchParams(params);
+        if (valor === "arquivados") proximo.set("arquivados", "true");
+        else proximo.delete("arquivados");
+        setParams(proximo);
+    }
 
     const navigate = useNavigate();
 
@@ -132,9 +144,9 @@ export function Projetos() {
                     ...novoProjeto,
                     clienteNome: clienteSelecionado?.nome ?? "Cliente não identificado",
                 }, ...anteriores]);
-            } else {
-                setFiltro("ativos");
             }
+            // O novo projeto deve ficar visível, mesmo vindo de um filtro.
+            setParams(new URLSearchParams());
 
             setClienteId(null);
             setTitulo("");
@@ -188,6 +200,7 @@ export function Projetos() {
 
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}
 
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
             <SegmentedControl value={filtro} onChange={(valor) => { if (valor === "ativos" || valor === "arquivados") setFiltro(valor);}} data={[{ value: "ativos", label: "Ativos" },{ value: "arquivados", label: "Arquivados" },]}/>
             <Modal opened={modalAberto} onClose={() => {setModalAberto(false); setClienteId(null); setTitulo(""); setDescricao(""); setErroEnvio(null);}} title="Novo Projeto" centered>
                 <form onSubmit={criarProjeto}>
@@ -203,8 +216,8 @@ export function Projetos() {
 
             {carregando && <Loader size="sm"/>}
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && projetos.length === 0 && (<Text c="dimmed">{filtro === "arquivados" ? "Nenhum projeto arquivado" : "Nenhum projeto ativo encontrado"}</Text>)}
-            {!carregando && !erro && projetos.map((projeto) => (
+            {!carregando && !erro && projetosVisiveis.length === 0 && (<Text c="dimmed">{status !== "todos" ? "Nenhum projeto com este status." : filtro === "arquivados" ? "Nenhum projeto arquivado" : "Nenhum projeto ativo encontrado"}</Text>)}
+            {!carregando && !erro && projetosVisiveis.map((projeto) => (
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between" wrap="nowrap">
@@ -215,7 +228,7 @@ export function Projetos() {
 
                             <Stack gap="xs" align="flex-end" style={{ flexShrink: 0 }}>{filtro === "ativos" ? (
                                 <Select size="xs" w={165} chevronColor="#000000" styles={{input: {backgroundColor: projeto.status === "concluido" ? "var(--mantine-color-green-filled)" : projeto.status === "em_andamento" ? "var(--mantine-color-blue-filled)" : projeto.status === "cancelado" ? "var(--mantine-color-red-filled)" : "var(--mantine-color-violet-filled)", color: "black", fontWeight: 600, border: "1px solid #000000",},}}value={projeto.status}disabled={atualizandoId !== null} allowDeselect={false} data={[{ value: "planejado", label: "Planejado" },{ value: "em_andamento", label: "Em andamento" },{ value: "concluido", label: "Concluído" },{ value: "cancelado", label: "Cancelado" },]}onChange={(novoStatus) => {if (novoStatus === "planejado" || novoStatus === "em_andamento" || novoStatus === "concluido" || novoStatus === "cancelado") {void alterarStatus(projeto.id, novoStatus);}}}/>) : (<Badge color="gray" variant="light">Arquivado</Badge>)}
-                                <Button variant="subtle" size="xs" onClick={() => navigate(`/projetos/${projeto.id}`)}>Ver detalhes</Button>
+                                <Button variant="subtle" size="xs" onClick={() => navigate(`/projetos/${projeto.id}`, {state: {voltarPara: location.pathname + location.search}})}>Ver detalhes</Button>
                             </Stack>
                         </Group>
                         <Text size="xs" c="dimmed" lineClamp={1}>Cliente: {projeto.clienteNome}</Text>

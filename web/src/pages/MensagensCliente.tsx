@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { destinoRetorno } from "../lib/navegacaoContextual";
 import {
     Alert,
     Badge,
+    Button,
     Card,
     Center,
     Divider,
@@ -38,6 +41,15 @@ const tipoConversa = {
 };
 
 export function MensagensCliente() {
+    const location = useLocation();
+    return <CentralMensagensCliente key={location.search}/>;
+}
+
+function CentralMensagensCliente() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const projetoAlvo = new URLSearchParams(location.search).get("projeto");
+    const voltarPara = destinoRetorno(location.state, "");
     const [conversas, setConversas] = useState<Conversa[]>([]);
     const [conversaId, setConversaId] = useState<string | null>(null);
     const [carregando, setCarregando] = useState(true);
@@ -46,7 +58,7 @@ export function MensagensCliente() {
     const [selecionou, setSelecionou] = useState(false);
 
     const conversaSelecionada = conversas.find(conversa => conversa.id === conversaId)
-        ?? (!selecionou ? (conversas.find(conversa => conversa.tipo === "geral" && !conversa.arquivadaEm) ?? conversas.find(conversa => !conversa.arquivadaEm)) : undefined);
+        ?? (!selecionou ? (projetoAlvo ? conversas.find(c => c.projetoId === projetoAlvo) : (conversas.find(conversa => conversa.tipo === "geral" && !conversa.arquivadaEm) ?? conversas.find(conversa => !conversa.arquivadaEm))) : undefined);
 
     const arquivadas = conversaSelecionada ? !!conversaSelecionada.arquivadaEm : abaArquivadas;
     const conversasVisiveis = ordenarConversas(conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas));
@@ -97,7 +109,8 @@ export function MensagensCliente() {
 
     return (
         <Stack gap="md">
-            <Title order={2}>Minhas mensagens</Title>
+            <Group justify="space-between"><Title order={2}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}</Group>
+            {!carregando && !erro && !selecionou && projetoAlvo && !conversaSelecionada && <Alert color="gray" title="Conversa do projeto">Ainda não há uma conversa disponível para este projeto. Você pode entrar em contato pela conversa Geral.</Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
 
             <Grid align="stretch">

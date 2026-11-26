@@ -65,22 +65,22 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
             {resumo && (
                 <SimpleGrid cols={{base: 1, xs: 2, lg: 4}}>
 
-                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos")} style={{textAlign: "left", cursor: "pointer"}}>
+                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos?status=planejado")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Projetos planejados</Text>
                         <Title order={2} c="violet">{resumo.projetosPlanejados}</Title>
                     </Card>
 
-                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos")} style={{textAlign: "left", cursor: "pointer"}}>
+                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Em andamento</Text>
                         <Title order={2} c="blue">{resumo.projetosEmAndamento}</Title>
                     </Card>
 
-                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos")} style={{textAlign: "left", cursor: "pointer"}}>
+                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Projetos concluídos</Text>
                         <Title order={2} c="green">{resumo.projetosConcluidos}</Title>
                     </Card>
 
-                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/solicitacoes")} style={{textAlign: "left", cursor: "pointer"}}>
+                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
                         <Text size="sm" c="dimmed">Solicitações pendentes</Text>
                         <Title order={2} c="yellow">{resumo.solicitacoesPendentes}</Title>
                     </Card>

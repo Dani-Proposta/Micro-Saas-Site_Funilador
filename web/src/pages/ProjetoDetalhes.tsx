@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
+import { caminhoMensagens, destinoRetorno } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput } from "@mantine/core";
 
 type Projeto = {
@@ -33,6 +34,9 @@ const coresStatus: Record<Projeto["status"], string> = {
 export function ProjetoDetalhes() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const voltarPara = destinoRetorno(location.state, "/projetos");
+    const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : "Voltar aos projetos";
 
     const [projeto, setProjeto] = useState<Projeto | null>(null);
     const [carregando, setCarregando] = useState(true);
@@ -183,8 +187,8 @@ export function ProjetoDetalhes() {
                 <Alert color="red">
                     {erro ?? "Projeto não encontrado"}
                 </Alert>
-                <Button variant="light" onClick={() => navigate("/projetos")}>
-                    Voltar aos projetos
+                <Button variant="light" onClick={() => navigate(voltarPara)}>
+                    {rotuloVoltar}
                 </Button>
             </Stack>
         );
@@ -216,11 +220,12 @@ export function ProjetoDetalhes() {
             </Modal>
             <Group justify="space-between" align="start">
                 <Stack gap="xs" style={{ minWidth: 0 }}>
-                    <Button variant="subtle" size="xs" onClick={() => navigate("/projetos")}> ← Voltar aos projetos</Button>
+                    <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}> ← {rotuloVoltar}</Button>
                     <Title order={2} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
                 </Stack>
 
                 <Group gap="xs">
+                    <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {voltarPara: `/projetos/${projeto.id}`, origemProjeto: voltarPara, projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
                     {projeto.arquivadaEm && (<Badge color="gray">Arquivado</Badge>)}
                     <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge>
                     {!projeto.arquivadaEm && (<Button size="xs" variant="light" onClick={abrirEdicao}>Editar</Button>)}

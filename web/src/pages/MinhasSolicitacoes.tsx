@@ -1,6 +1,8 @@
 
 import { useEffect, useState } from "react";
-import { Alert, Badge, Button, Card, Group, Loader, Modal, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { useSearchParams } from "react-router";
+import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
+import { Alert, Badge, Button, Card, Group, Loader, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 
 type Solicitacao = {
     id: string;
@@ -19,6 +21,9 @@ const statusSolicitacao = {
 export function MinhasSolicitacoes() {
 
     const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+    const [params, setParams] = useSearchParams();
+    const status = filtroStatus(params, statusSolicitacoes);
+    const solicitacoesVisiveis = solicitacoes.filter(s => status === "todos" || s.status === status);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -85,6 +90,7 @@ export function MinhasSolicitacoes() {
 
             setSolicitacoes((anteriores) => [dados, ...anteriores]);
             fecharModal();
+            setParams(comStatus(params, "todos"));
 
         } catch (erroRecebido) {
             setErroEnvio(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao enviar solicitação.");
@@ -114,11 +120,12 @@ export function MinhasSolicitacoes() {
                 </Stack>
             </Modal>
 
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => setParams(comStatus(params, valor))}/>
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && solicitacoes.length === 0 && <Text c="dimmed">Você ainda não possui solicitações.</Text>}
+            {!carregando && !erro && solicitacoesVisiveis.length === 0 && <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>}
 
-            {!carregando && !erro && solicitacoes.map((solicitacao) => (
+            {!carregando && !erro && solicitacoesVisiveis.map((solicitacao) => (
                 <Card key={solicitacao.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">

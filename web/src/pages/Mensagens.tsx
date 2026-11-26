@@ -1,4 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { destinoRetorno } from "../lib/navegacaoContextual";
 import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Grid, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
@@ -35,13 +37,30 @@ type Projeto = {
 };
 
 export function Mensagens() {
+    const location = useLocation();
+    return <CentralMensagens key={location.search}/>;
+}
+
+function CentralMensagens() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const params = new URLSearchParams(location.search);
+    const clienteAlvo = params.get("cliente");
+    const projetoAlvo = params.get("projeto");
+    const voltarPara = destinoRetorno(location.state, "");
+    const origemProjeto = destinoRetorno({voltarPara: location.state?.origemProjeto}, "/projetos");
     const [clientes, setClientes] = useState<ClienteConversas[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
     const [busca, setBusca] = useState("");
-    const [expandidos, setExpandidos] = useState<string[]>([]);
-    const [conversaId, setConversaId] = useState<string | null>(null);
+    const [expandidos, setExpandidos] = useState<string[]>(clienteAlvo ? [clienteAlvo] : []);
+    // undefined: seguir o atalho inicial; null: nenhuma seleção por escolha do usuário.
+    const [escolha, setConversaId] = useState<string | null | undefined>(undefined);
+    const clienteAtalho = clientes.find(c => c.clienteId === clienteAlvo);
+    const conversaAtalho = clienteAtalho?.conversas.find(c => projetoAlvo ? c.projetoId === projetoAlvo : c.tipo === "geral");
+    const conversaId = escolha === undefined ? conversaAtalho?.id ?? null : escolha;
+    const [projetoCriacao, setProjetoCriacao] = useState<string | null>(null);
 
     const clienteSelecionado = clientes.find((cliente) =>
         cliente.conversas.some((conversa) => conversa.id === conversaId),
@@ -138,6 +157,7 @@ export function Mensagens() {
 
         setConversaId(conversa.id);
         setClienteCriacao(null);
+        setProjetoCriacao(null);
         atualizarConversas();
     }
     function atualizarTitulo(conversaId: string, titulo: string) {
@@ -182,13 +202,15 @@ export function Mensagens() {
 
     return (
         <Stack gap="md">
-            <Title order={2}>Central de mensagens</Title>
+            <Group justify="space-between"><Title order={2}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined})}>← Voltar à origem</Button>}</Group>
+            {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
             {clienteCriacao && (
                 <NovaConversa
                     key={clienteCriacao.clienteId}
                     cliente={clienteCriacao}
-                    onClose={() => setClienteCriacao(null)}
+                    projetoInicial={projetoCriacao}
+                    onClose={() => {setClienteCriacao(null); setProjetoCriacao(null);}}
                     onCriada={(conversa) =>
                         adicionarConversa(clienteCriacao.clienteId, conversa)
                     }
@@ -281,7 +303,7 @@ export function Mensagens() {
                                                     color="gray"
                                                     mt="xs"
                                                     aria-label={`Criar conversa para ${cliente.clienteNome}`}
-                                                    onClick={() => setClienteCriacao(clientes.find(c => c.clienteId === cliente.clienteId) ?? cliente)}
+                                                    onClick={() => {setProjetoCriacao(null); setClienteCriacao(clientes.find(c => c.clienteId === cliente.clienteId) ?? cliente);}}
                                                 >
                                                     +
                                                 </ActionIcon>
@@ -388,16 +410,18 @@ export function Mensagens() {
 
 function NovaConversa({
     cliente,
+    projetoInicial = null,
     onClose,
     onCriada,
 }: {
     cliente: ClienteConversas;
+    projetoInicial?: string | null;
     onClose: () => void;
     onCriada: (conversa: Conversa) => void;
 }) {
-    const [tipo, setTipo] = useState<"avulsa" | "projeto">("avulsa");
+    const [tipo, setTipo] = useState<"avulsa" | "projeto">(projetoInicial ? "projeto" : "avulsa");
     const [titulo, setTitulo] = useState("");
-    const [projetoId, setProjetoId] = useState<string | null>(null);
+    const [projetoId, setProjetoId] = useState<string | null>(projetoInicial);
 
     const [projetos, setProjetos] = useState<Projeto[] | null>(null);
     const [erroProjetos, setErroProjetos] = useState<string | null>(null);
@@ -410,6 +434,8 @@ function NovaConversa({
             projeto.clienteId === cliente.clienteId &&
             !cliente.conversas.some((conversa) => conversa.projetoId === projeto.id),
     );
+
+    const projetoValido = projetosDisponiveis.some(p => p.id === projetoId);
 
     useEffect(() => {
         if (tipo !== "projeto") return;
@@ -447,7 +473,7 @@ function NovaConversa({
         if (enviando) return;
 
         if (tipo === "avulsa" && !titulo.trim()) return;
-        if (tipo === "projeto" && !projetoId) return;
+        if (tipo === "projeto" && !projetoValido) return;
 
         setEnviando(true);
         setErro(null);
@@ -568,7 +594,7 @@ function NovaConversa({
                     </Button>
                     <Button
                         loading={enviando}
-                        disabled={tipo === "avulsa" ? !titulo.trim() : !projetoId}
+                        disabled={tipo === "avulsa" ? !titulo.trim() : !projetoValido}
                         onClick={() => void criarConversa()}
                     >
                         Criar conversa

@@ -109,7 +109,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
             {/*cards gerais*/}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Group justify="space-between" mb="sm">
                         <Text c="dimmed" size="sm">Projetos em andamento</Text>
                     </Group>
@@ -117,7 +117,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
 
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/solicitacoes")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Solicitações Pendentes</Text>
                     <Text fw={700} size="32px">{resumo?.solicitacoesPendentes ?? "—"}</Text>
                 </Card>
@@ -127,7 +127,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                     <Text fw={700} size="32px">{resumo?.totalClientes ?? "—"}</Text>
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Projetos concluidos</Text>
                     <Text fw={700} size="32px">{resumo?.projetosConcluidos ?? "—"}</Text>
                 </Card>

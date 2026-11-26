@@ -1,6 +1,8 @@
 
 import { useEffect, useState } from "react";
-import { Alert, Badge, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
+import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
+import { Alert, Badge, Button, Card, Group, Loader, Select, Stack, Text, Title } from "@mantine/core";
 
 type Projeto = {
     id: string;
@@ -21,6 +23,11 @@ const statusProjeto = {
 export function MeusProjetos() {
 
     const [projetos, setProjetos] = useState<Projeto[]>([]);
+    const [params, setParams] = useSearchParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const status = filtroStatus(params, statusProjetos);
+    const projetosVisiveis = projetos.filter(p => status === "todos" || p.status === status);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -53,11 +60,12 @@ export function MeusProjetos() {
             <Title order={2}>Meus projetos</Title>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && projetos.length === 0 && <Text c="dimmed">Você ainda não possui projetos.</Text>}
+            {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}
 
-            {!carregando && !erro && projetos.map((projeto) => (
+            {!carregando && !erro && projetosVisiveis.map((projeto) => (
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">
@@ -68,6 +76,7 @@ export function MeusProjetos() {
                         <Text size="sm" style={{whiteSpace: "pre-wrap"}}>{projeto.descricao}</Text>
                         <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
                         <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
+                        <Group justify="flex-end"><Button size="xs" variant="light" onClick={() => navigate(`/portal/mensagens?projeto=${encodeURIComponent(projeto.id)}`, {state: {voltarPara: location.pathname + location.search}})}>Conversa do projeto</Button></Group>
                     </Stack>
                 </Card>
             ))}

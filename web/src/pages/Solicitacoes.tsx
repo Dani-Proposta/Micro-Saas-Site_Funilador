@@ -1,4 +1,6 @@
 import { useState, useEffect, } from "react";
+import { useSearchParams } from "react-router";
+import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
 import { Card, Text, Badge, Loader, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
 import type { SubmitEvent, } from 'react';
 
@@ -28,6 +30,9 @@ export function Solicitacoes(){
     
     
     const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+    const [params, setParams] = useSearchParams();
+    const status = filtroStatus(params, statusSolicitacoes);
+    const solicitacoesVisiveis = solicitacoes.filter(s => status === "todos" || s.status === status);
     
     const [titulo, setTitulo] = useState('');
     const [descricao, setDescricao] = useState('');
@@ -139,6 +144,7 @@ export function Solicitacoes(){
         setTitulo("");
         setDescricao("");
         setModalAberto(false);
+        setParams(comStatus(params, "todos"));
     }catch(erro){
         console.error(erro);
         setErroEnvio("Não deu pra enviar a solicitação");
@@ -188,14 +194,15 @@ export function Solicitacoes(){
                 <Title order={2}>Solicitações</Title>
                 <Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button>
             </Group>
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => setParams(comStatus(params, valor))}/>
             {carregando && <Loader size="sm"/>}
             
             {!carregando && erro && (
                 <Alert color="red" title="Erro">{erro}</Alert>
             )}
 
-            {!carregando && !erro && solicitacoes.length === 0 && (
-                <Text c="dimmed">Nenhuma solicitação encontrada.</Text>
+            {!carregando && !erro && solicitacoesVisiveis.length === 0 && (
+                <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>
             )}
             <Modal 
             opened={modalAberto}
@@ -236,7 +243,7 @@ export function Solicitacoes(){
 
 
 
-            {!carregando && !erro && solicitacoes.map((solicitacao) => (
+            {!carregando && !erro && solicitacoesVisiveis.map((solicitacao) => (
                 <Card key={solicitacao.id} withBorder padding="lg" mt="lg">
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
                         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
