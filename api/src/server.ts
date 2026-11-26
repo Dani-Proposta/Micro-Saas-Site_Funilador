@@ -762,6 +762,70 @@ app.get("/api/dashboard/financeiro", async (_req, res) => {
     }
 });
 
+//admin: consultar registros financeiros
+app.get("/api/dashboard/financeiro/detalhes", async (req, res) => {
+    try {
+        const {categoria = "todos", mes, cliente, projeto, pagina = "1"} = req.query;
+        if (typeof categoria !== "string" || !["todos", "atrasado", "mes", "futuro", "sem_data", "cobrados", "nao_cobrados", "recebidos", "cancelados"].includes(categoria)) throw new ErroConversa(400, "Categoria inválida");
+        if (mes !== undefined && (typeof mes !== "string" || !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(mes))) throw new ErroConversa(400, "Mês inválido");
+        if (cliente !== undefined && (typeof cliente !== "string" || !uuidConversa.test(cliente))) throw new ErroConversa(400, "Cliente inválido");
+        if (projeto !== undefined && (typeof projeto !== "string" || !uuidConversa.test(projeto))) throw new ErroConversa(400, "Projeto inválido");
+        if (typeof pagina !== "string" || !/^[1-9]\d{0,5}$/.test(pagina)) throw new ErroConversa(400, "Página inválida");
+        const resultado = await pool.query(`
+            WITH periodo AS (
+                SELECT hoje, (date_trunc('month', hoje::timestamp) + interval '1 month')::date AS proximo,
+                    COALESCE($2::date, date_trunc('month', hoje::timestamp)::date) AS inicio
+                FROM (SELECT (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje) d
+            ), base AS (
+                SELECT m.id, m.projeto_id, m.titulo AS marco, p.titulo AS projeto, c.nome AS cliente,
+                    c.id AS cliente_id, m.status, p.status AS projeto_status, p.arquivada_em IS NOT NULL AS arquivado,
+                    m.vencimento, m.valor, m.recebido, m.cobranca_iniciada, m.bloqueia_progresso, m.saldo_dispensado,
+                    CASE WHEN m.saldo_dispensado OR (p.status = 'cancelado' AND NOT m.cobranca_iniciada
+                        AND m.status NOT IN ('concluido','cancelado','aguardando_validacao')) THEN 0
+                        ELSE COALESCE(m.saldo,0) END AS saldo
+                FROM funilador_marcos_resumo m JOIN projetos p ON p.id = m.projeto_id JOIN clientes c ON c.id = p.cliente_id
+                WHERE ($3::uuid IS NULL OR c.id = $3) AND ($4::uuid IS NULL OR p.id = $4)
+            ), marcos AS (
+                SELECT b.*, CASE WHEN vencimento IS NULL THEN 'sem_data' WHEN vencimento < hoje THEN 'atrasado'
+                    WHEN vencimento < proximo THEN 'mes' ELSE 'futuro' END AS categoria
+                FROM base b CROSS JOIN periodo
+            ), registros AS (
+                SELECT m.id, m.id AS marco_id, m.projeto_id, m.cliente_id, m.marco, m.projeto, m.cliente,
+                    m.vencimento AS data, m.saldo AS valor, m.categoria, m.arquivado, m.cobranca_iniciada,
+                    m.bloqueia_progresso, m.status, m.projeto_status, m.saldo_dispensado, NULL::timestamptz AS anulado_em,
+                    m.valor AS valor_marco, m.recebido
+                FROM marcos m WHERE $1 <> 'recebidos' AND (
+                    ($1 = 'cancelados' AND (m.status = 'cancelado' OR m.projeto_status = 'cancelado')) OR
+                    (m.saldo > 0 AND ($1 = 'todos' OR $1 = m.categoria OR
+                        ($1 = 'cobrados' AND m.cobranca_iniciada) OR ($1 = 'nao_cobrados' AND NOT m.cobranca_iniciada))))
+                UNION ALL
+                SELECT pg.id, m.id, m.projeto_id, m.cliente_id, m.marco, m.projeto, m.cliente,
+                    pg.recebido_em, pg.valor, 'recebidos', m.arquivado, m.cobranca_iniciada,
+                    m.bloqueia_progresso, m.status, m.projeto_status, m.saldo_dispensado, pg.anulado_em, m.valor, m.recebido
+                FROM marcos_pagamentos pg JOIN marcos m ON m.id = pg.marco_id CROSS JOIN periodo
+                WHERE $1 = 'recebidos' AND pg.recebido_em >= inicio AND pg.recebido_em < inicio + interval '1 month'
+            ), itens AS (
+                SELECT * FROM registros ORDER BY CASE WHEN $1 = 'recebidos' THEN data END DESC NULLS LAST,
+                    CASE WHEN $1 <> 'recebidos' THEN data END ASC NULLS LAST, id LIMIT 25 OFFSET $5
+            )
+            SELECT (SELECT COUNT(*)::int FROM registros) AS quantidade,
+                COALESCE((SELECT SUM(valor) FROM registros WHERE anulado_em IS NULL),0)::text AS total,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'marcoId',marco_id,'projetoId',projeto_id,'clienteId',cliente_id,
+                    'marco',marco,'projeto',projeto,'cliente',cliente,'data',to_char(data,'YYYY-MM-DD'),'valor',valor::text,
+                    'categoria',categoria,'arquivado',arquivado,'cobrancaIniciada',cobranca_iniciada,'bloqueiaProgresso',bloqueia_progresso,
+                    'status',status,'projetoStatus',projeto_status,'saldoDispensado',saldo_dispensado,'anuladoEm',anulado_em,
+                    'valorMarco',valor_marco::text,'recebido',recebido::text) ORDER BY CASE WHEN $1 = 'recebidos' THEN data END DESC NULLS LAST,
+                    CASE WHEN $1 <> 'recebidos' THEN data END ASC NULLS LAST,id),'[]'::jsonb) FROM itens) AS itens,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('value',id,'label',nome) ORDER BY nome,id),'[]'::jsonb) FROM clientes) AS clientes,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('value',p.id,'label',p.titulo || ' · ' || c.nome,'clienteId',c.id) ORDER BY p.titulo,p.id),'[]'::jsonb)
+                    FROM projetos p JOIN clientes c ON c.id = p.cliente_id) AS projetos,
+                (SELECT to_char(inicio,'YYYY-MM') FROM periodo) AS mes
+        `, [categoria, mes ? `${mes}-01` : null, cliente ?? null, projeto ?? null, (Number(pagina) - 1) * 25]);
+        res.set("Cache-Control", "no-store");
+        res.json(resultado.rows[0]);
+    } catch (erro) {responderErroMarco(res, erro);}
+});
+
 //cliente: carregar dashboard
 app.get("/api/me/dashboard", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
@@ -2309,6 +2373,29 @@ app.patch("/api/projetos/:id/marcos/:marcoId/visibilidade", async (req, res) => 
             if (!marco.rows.length) throw new ErroConversa(404, "Marco não encontrado");
             if (oculto) await db.query(`INSERT INTO marcos_ocultos (marco_id, usuario_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [marcoId, res.locals.usuarioId]);
             else await db.query(`DELETE FROM marcos_ocultos WHERE marco_id = $1 AND usuario_id = $2`, [marcoId, res.locals.usuarioId]);
+            return carregarMarcos(db, id, null, res.locals.usuarioId);
+        });
+        res.json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
+});
+
+//admin: iniciar cobrança do marco
+app.patch("/api/projetos/:id/marcos/:marcoId/cobranca", async (req, res) => {
+    const {id, marcoId} = req.params;
+    try {
+        if (!uuidConversa.test(marcoId)) throw new ErroConversa(400, "Marco inválido");
+        const resultado = await transacaoConversa(async db => {
+            const statusProjeto = await travarProjetoMarco(db, id);
+            const marco = await db.query(`SELECT status, cobranca_iniciada, saldo > 0 AS pendente, saldo_dispensado
+                FROM funilador_marcos_resumo WHERE id = $1 AND projeto_id = $2`, [marcoId, id]);
+            const atual = marco.rows[0];
+            if (!atual) throw new ErroConversa(404, "Marco não encontrado");
+            if (!atual.pendente || atual.saldo_dispensado) throw new ErroConversa(409, "Não há saldo para cobrar");
+            if (statusProjeto === "cancelado" && !["concluido", "cancelado", "aguardando_validacao"].includes(atual.status) && !atual.cobranca_iniciada) throw new ErroConversa(409, "A previsão deste marco foi suspensa");
+            if (!atual.cobranca_iniciada) {
+                await db.query(`UPDATE projetos_marcos SET cobranca_iniciada = TRUE, atualizada_em = NOW() WHERE id = $1 AND projeto_id = $2`, [marcoId, id]);
+                return atualizarProjetoMarco(db, id, res.locals.usuarioId);
+            }
             return carregarMarcos(db, id, null, res.locals.usuarioId);
         });
         res.json(resultado);

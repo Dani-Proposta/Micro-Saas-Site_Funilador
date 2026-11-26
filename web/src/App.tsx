@@ -6,6 +6,7 @@ import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavi
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
+import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
 import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
@@ -114,6 +115,7 @@ function PainelAdmin() {
         <MantineNavLink label="Clientes" renderRoot={(props)=>(<RouterNavLink to="/clientes" end {...props}/>)} />
         <MantineNavLink label="Solicitações"  renderRoot={(props)=>(<RouterNavLink to="/solicitacoes" end {...props}/>)}/>
         <MantineNavLink label="Projetos" renderRoot={(props)=>(<RouterNavLink to="/projetos" end {...props}/>)} />
+        <MantineNavLink label="Financeiro" renderRoot={(props)=>(<RouterNavLink to="/financeiro" end {...props}/>)} />
         <MantineNavLink label="Convites" renderRoot={(props)=>(<RouterNavLink to="/convites" end {...props}/>)} />
         <MantineNavLink label="Mensagens" rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} renderRoot={(props)=>(<RouterNavLink to="/mensagens" end {...props}/>)} />
 
@@ -128,6 +130,7 @@ function PainelAdmin() {
           <Route path="/solicitacoes" element={<Solicitacoes/>}/>
           <Route path="/projetos" element={<Projetos />}/>
           <Route path="/projetos/:id" element={<ProjetoDetalhes />}/>
+          <Route path="/financeiro" element={<Financeiro/>}/>
           <Route path="/convites" element={<Convites />}/>
           <Route path="/mensagens" element={<Mensagens/>}/>
         </Routes>

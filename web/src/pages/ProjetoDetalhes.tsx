@@ -41,7 +41,7 @@ export function ProjetoDetalhes() {
     const location = useLocation();
     const voltarPara = destinoRetorno(location.state, "/projetos");
     const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
-    const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : "Voltar aos projetos";
+    const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : voltarPara.startsWith("/financeiro") ? "Voltar ao financeiro" : "Voltar aos projetos";
 
     const [projeto, setProjeto] = useState<Projeto | null>(null);
     const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : anterior), []);
@@ -283,7 +283,7 @@ export function ProjetoDetalhes() {
             </Card>
 
             <DadosComerciaisProjeto key={projeto.id} projeto={projeto} onSalvo={dados => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, ...dados} : anterior)}/>
-            <MarcosProjeto key={`marcos-${projeto.id}`} projeto={projeto} onAtualizado={atualizarMarcos}/>
+            <MarcosProjeto key={`marcos-${projeto.id}-${new URLSearchParams(location.search).get("marco") ?? ""}`} projeto={projeto} onAtualizado={atualizarMarcos} focoMarco={new URLSearchParams(location.search).get("marco") ?? undefined}/>
 
             <Card withBorder padding="lg">
                 <Stack gap="sm">

@@ -9,7 +9,7 @@ export function destinoRetorno(state: unknown, padrao: string): string {
         const url = new URL(destino, "https://funilador.invalid");
         if (url.origin !== "https://funilador.invalid") return padrao;
         const partes = url.pathname.split("/");
-        if (["/", "/clientes", "/projetos", "/portal", "/portal/projetos", "/solicitacoes", "/portal/solicitacoes"].includes(url.pathname) ||
+        if (["/", "/financeiro", "/clientes", "/projetos", "/portal", "/portal/projetos", "/solicitacoes", "/portal/solicitacoes"].includes(url.pathname) ||
             (partes.length === 3 && ["clientes", "projetos"].includes(partes[1] ?? "") && uuid.test(partes[2] ?? ""))) {
             return url.pathname + url.search;
         }

@@ -125,15 +125,6 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                     <Text fw={700} size="32px">{resumo?.solicitacoesPendentes ?? "—"}</Text>
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/clientes")} style={{textAlign: "left", cursor: "pointer"}}>
-                    <Text c="dimmed" size="sm">Clientes cadastrados</Text>
-                    <Text fw={700} size="32px">{resumo?.totalClientes ?? "—"}</Text>
-                </Card>
-
-                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
-                    <Text c="dimmed" size="sm">Projetos concluidos</Text>
-                    <Text fw={700} size="32px">{resumo?.projetosConcluidos ?? "—"}</Text>
-                </Card>
                 <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Mensagens não lidas</Text>
                     <Text fw={700} size="32px" c={mensagensNaoLidas ? "red" : undefined}>{mensagensNaoLidas ?? "—"}</Text>
@@ -141,6 +132,10 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                 </Card>
             </SimpleGrid>
 
+            <Group gap="md" wrap="wrap">
+                <UnstyledButton onClick={() => navigate("/clientes")}><Text size="sm" c="dimmed">Clientes cadastrados: {resumo?.totalClientes ?? "—"}</Text></UnstyledButton>
+                <UnstyledButton onClick={() => navigate("/projetos?status=concluido")}><Text size="sm" c="dimmed">Projetos concluídos: {resumo?.projetosConcluidos ?? "—"}</Text></UnstyledButton>
+            </Group>
             {/*extras*/}
 
             <Card withBorder shadow="sm">

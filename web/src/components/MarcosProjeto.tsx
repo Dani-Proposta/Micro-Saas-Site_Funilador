@@ -53,7 +53,7 @@ function podeExcluir(marco: Marco) {
 }
 
 //admin e cliente: acompanhar marcos
-export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValidacao = false}: {projeto: Projeto; lado?: "admin" | "cliente"; onAtualizado?: (dados: ResumoMarcos) => void; focoValidacao?: boolean}) {
+export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValidacao = false, focoMarco}: {projeto: Projeto; lado?: "admin" | "cliente"; onAtualizado?: (dados: ResumoMarcos) => void; focoValidacao?: boolean; focoMarco?: string}) {
     const admin = lado === "admin";
     const apenasValidacao = !admin && focoValidacao;
     const endpoint = admin ? `/api/projetos/${projeto.id}/marcos` : `/api/me/projetos/${projeto.id}/marcos`;
@@ -62,7 +62,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
     const [erro, setErro] = useState<string | null>(null);
     const [edicao, setEdicao] = useState<Edicao | null>(null);
     const [pagamento, setPagamento] = useState<{marcoId: string; pagamentoId: string; valor: string; recebidoEm: string} | null>(null);
-    const [filtro, setFiltro] = useState(admin ? "ativos" : "todos");
+    const [filtro, setFiltro] = useState(admin && !focoMarco ? "ativos" : "todos");
     const [historicos, setHistoricos] = useState<string[]>([]);
     const [cancelamento, setCancelamento] = useState<{marco: Marco; dispensar: boolean} | null>(null);
     const [limpeza, setLimpeza] = useState<string[] | null>(null);
@@ -81,7 +81,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
     const ocupado = salvando || !!edicao || !!pagamento || !!cancelamento || !!limpeza;
     const visiveis = marcos.filter(m => {
         if (apenasValidacao) return !cancelado && m.status === "aguardando_validacao";
-        if (edicao?.id === m.id || pagamento?.marcoId === m.id) return true;
+        if (edicao?.id === m.id || pagamento?.marcoId === m.id || (admin && focoMarco === m.id && filtro === "todos")) return true;
         if (filtro === "ocultos") return !!m.oculto;
         if (m.oculto) return false;
         return filtro === "todos" || (filtro === "ativos" ? !["concluido", "cancelado"].includes(m.status) : m.status === filtro);
@@ -106,6 +106,13 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         void carregar();
         return () => controller.abort();
     }, [aberto, endpoint, revisao, onAtualizado]);
+
+    const focoRealizado = useRef(false);
+    useEffect(() => {
+        if (!admin || !focoMarco || !resumo || focoRealizado.current) return;
+        const alvo = document.getElementById(`marco-${focoMarco}`);
+        if (alvo) {focoRealizado.current = true; alvo.scrollIntoView({block: "center"});}
+    }, [admin, focoMarco, resumo]);
 
     function alterarEdicao<K extends keyof Edicao>(campo: K, valor: Edicao[K]) {
         setEdicao(atual => atual ? {...atual, [campo]: valor} : atual);
@@ -216,8 +223,8 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
             <TextInput label="Prazo de entrega" type="date" value={edicao.prazoEntrega} onChange={e => alterarEdicao("prazoEntrega", e.currentTarget.value)} disabled={salvando}/>
             <TextInput label="Vencimento do pagamento" type="date" value={edicao.vencimento} onChange={e => alterarEdicao("vencimento", e.currentTarget.value)} disabled={salvando}/>
         </SimpleGrid>
-        <Checkbox label="Cobrança iniciada" checked={edicao.cobrancaIniciada} onChange={e => alterarEdicao("cobrancaIniciada", e.currentTarget.checked)} disabled={salvando}/>
-        <Checkbox label="Aguardar pagamento para prosseguir" checked={edicao.bloqueiaProgresso} onChange={e => alterarEdicao("bloqueiaProgresso", e.currentTarget.checked)} disabled={salvando}/>
+        <Checkbox description="Indica que você está solicitando o pagamento. Não registra dinheiro recebido." label="Cobrança iniciada" checked={edicao.cobrancaIniciada} onChange={e => alterarEdicao("cobrancaIniciada", e.currentTarget.checked)} disabled={salvando}/>
+        <Checkbox description="Sinaliza que a próxima etapa depende do pagamento; não bloqueia o sistema." label="Aguardar pagamento para prosseguir" checked={edicao.bloqueiaProgresso} onChange={e => alterarEdicao("bloqueiaProgresso", e.currentTarget.checked)} disabled={salvando}/>
 
         {erro && <Alert color="red">{erro}</Alert>}
         <Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setEdicao(null); setErro(null);}}>Cancelar</Button><Button loading={salvando} disabled={!edicao.titulo.trim()} onClick={() => void salvarMarco()}>Salvar</Button></Group>
@@ -275,7 +282,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
             </Group>}
             {resumo && !visiveis.length && <Text size="sm" c="dimmed">{apenasValidacao ? "Nenhuma entrega aguardando validação" : marcos.length ? "Nenhum marco neste filtro" : "Nenhum marco cadastrado"}</Text>}
             {edicao && !edicao.id && !somenteLeitura && editor}
-            {visiveis.map(marco => <Card key={marco.id} withBorder padding="sm"><Stack gap="xs">
+            {visiveis.map(marco => <Card id={`marco-${marco.id}`} key={marco.id} withBorder padding="sm"><Stack gap="xs">
                 <Group justify="space-between" align="flex-start"><Group gap="xs" wrap="nowrap" style={{minWidth: 0, flex: 1}}>{!somenteLeitura && !cancelado && marco.status !== "cancelado" && <Checkbox aria-label={`Concluir ${marco.titulo}`} checked={marco.status === "concluido"} disabled={ocupado} onChange={e => void concluirMarco(marco, e.currentTarget.checked)}/>}<Text fw={600} style={{overflowWrap: "anywhere", minWidth: 0}}>{marco.titulo}</Text></Group><Badge color={cores[marco.status]}>{statusMarcos.find(s => s.value === marco.status)?.label}</Badge></Group>
                 {marco.descricao && <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{marco.descricao}</Text>}
                 {apenasValidacao ? <Text size="sm" c="dimmed">Entrega: {formatarPrazo(marco.prazoEntrega)}</Text> : <SimpleGrid cols={{base: 1, xs: 2, md: 3}}><Text size="sm">Entrega: {formatarPrazo(marco.prazoEntrega)}</Text><Text size="sm">Valor: {formatarValor(marco.valor)}</Text><Text size="sm">{admin ? "Recebido" : "Pago"}: {formatarValor(marco.recebido)}</Text><Text size="sm">Saldo: {formatarValor(marco.saldo)}</Text><Text size="sm">Vencimento: {formatarPrazo(marco.vencimento)}</Text><Text size="sm" fw={500}>{statusPagamento(marco, cancelado)}</Text></SimpleGrid>}
