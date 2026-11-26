@@ -1,16 +1,26 @@
 //precisa pra se quer existir
 import express from "express";
+
 import type { PoolClient } from "pg";
+
 import { pool } from "./db.ts";
+
 import { randomUUID, randomBytes } from "node:crypto";
+
 import { Kysely, PostgresDialect, sql } from "kysely";
+
 import { betterAuth } from "better-auth";
+
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
+
 import type { Request, Response, NextFunction } from "express";
 
 import type { Solicitacao } from "./solicitacao.ts";
+
 import type { Cliente } from "./cliente.ts";
+
 import { auth } from "./auth.ts";
+
 import { error } from "node:console";
 
 const app = express();
@@ -118,17 +128,318 @@ class ErroCadastro extends Error {
         this.status = status;
     }
 }
-//rotas de solicitação
+
+//funções auxiliares
+function rotaHistorico(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        const {id} = req.params;
+        const {antes, depois, aPartir} = req.query;
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const cursor = antes ?? depois ?? aPartir ?? null;
+        const inicio = req.query.inicio === "true";
+        if (typeof id !== "string" || !uuid.test(id) ||
+            ([antes, depois, aPartir].filter(v => v !== undefined).length > 1) ||
+            (cursor !== null && (typeof cursor !== "string" || !uuid.test(cursor)))) {
+            res.status(400).json({erro: "Conversa ou cursor inválido."});
+            return;
+        }
+
+        const crescente = depois !== undefined || aPartir !== undefined;
+        const direcao = crescente ? "ASC" : "DESC";
+        const operador = aPartir !== undefined ? ">=" : crescente ? ">" : "<";
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+
+        try {
+            const resultado = await pool.query(`
+                SELECT c.arquivada_em AS "arquivadaEm",
+                    COALESCE(h.mensagens, '[]'::json) AS mensagens,
+                    COALESCE(h."temMais", false) AS "temMais",
+                    CASE WHEN $6::boolean THEN (
+                        SELECT m.id FROM mensagens m
+                        WHERE m.conversa_id = c.id AND m.remetente_tipo <> $5
+                            AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                                WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
+                        ORDER BY m.enviada_em ASC, m.id ASC LIMIT 1
+                    ) END AS "primeiraNaoLidaId"
+                FROM conversas c
+                LEFT JOIN mensagens referencia ON referencia.id = $4::uuid
+                    AND referencia.conversa_id = c.id
+                LEFT JOIN LATERAL (
+                    SELECT json_agg(json_build_object(
+                        'id', m.id,
+                        'remetenteTipo', m.remetente_tipo,
+                        'conteudo', m.conteudo,
+                        'lida', (m.remetente_tipo = $5 OR EXISTS (
+                            SELECT 1 FROM mensagens_leituras l
+                            WHERE l.mensagem_id = m.id AND l.usuario_id = $3
+                        )),
+                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+                    ) ORDER BY m.enviada_em ASC, m.id ASC)
+                        FILTER (WHERE m.pos <= 50) AS mensagens,
+                        COUNT(*) > 50 AS "temMais"
+                    FROM (
+                        SELECT pagina.*, row_number() OVER (ORDER BY enviada_em ${direcao}, id ${direcao}) AS pos
+                        FROM (
+                            SELECT id, remetente_tipo, conteudo, enviada_em
+                            FROM mensagens
+                            WHERE conversa_id = c.id
+                                AND ($4::uuid IS NULL OR (enviada_em, id) ${operador} (referencia.enviada_em, referencia.id))
+                            ORDER BY enviada_em ${direcao}, id ${direcao}
+                            LIMIT 51
+                        ) pagina
+                    ) m
+                ) h ON TRUE
+                WHERE c.id = $1 AND ($2::uuid IS NULL OR c.cliente_id = $2)
+                    AND ($4::uuid IS NULL OR referencia.id IS NOT NULL)
+            `, [id, clienteId, res.locals.usuarioId, cursor, lado, inicio]);
+
+            const conversa = resultado.rows[0];
+            if (!conversa) {
+                res.status(404).json({erro: "Conversa ou cursor não encontrado."});
+                return;
+            }
+
+            res.set("Cache-Control", "no-store");
+            //manter resposta antiga sem cursor
+            res.json(req.query.estado === "true" || cursor !== null ? conversa : conversa.mensagens);
+        } catch (erro) {
+            console.error("Erro ao buscar histórico:", erro);
+            res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+        }
+    };
+}
+
+const uuidConversa = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+class ErroConversa extends Error {
+    public status: number;
+    constructor(status: number, mensagem: string) {
+        super(mensagem);
+        this.status = status;
+    }
+}
+
+async function transacaoConversa<T>(acao: (db: PoolClient) => Promise<T>): Promise<T> {
+    const db = await pool.connect();
+    try {
+        await db.query("BEGIN");
+        const resultado = await acao(db);
+        await db.query("COMMIT");
+        return resultado;
+    } catch (erro) {
+        await db.query("ROLLBACK");
+        throw erro;
+    } finally {
+        db.release();
+    }
+}
+
+function responderErroConversa(res: Response, erro: unknown) {
+    if (erro instanceof ErroConversa) {
+        res.status(erro.status).json({erro: erro.message});
+        return;
+    }
+    console.error("Erro ao gerenciar conversa:", erro);
+    res.status(500).json({erro: "Não foi possível concluir a operação."});
+}
+
+function contarNaoLidas(lado: "admin" | "cliente") {
+    const recebidoDe = lado === "admin" ? "cliente" : "admin";
+    return async (_req: Request, res: Response) => {
+        try {
+            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+            const resultado = await pool.query(`
+                SELECT COUNT(*)::int AS total
+                FROM mensagens m JOIN conversas c ON c.id = m.conversa_id
+                WHERE m.remetente_tipo = $1
+                    AND ($2::uuid IS NULL OR c.cliente_id = $2)
+                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                        WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
+            `, [recebidoDe, clienteId, res.locals.usuarioId]);
+            res.set("Cache-Control", "no-store");
+            res.json(resultado.rows[0]);
+        } catch (erro) {
+            console.error("Erro ao contar mensagens não lidas:", erro);
+            res.status(500).json({erro: "Não foi possível atualizar o contador."});
+        }
+    };
+}
+
+function registrarLeituras(lado: "admin" | "cliente") {
+    const recebidoDe = lado === "admin" ? "cliente" : "admin";
+    return async (req: Request, res: Response) => {
+        const {id} = req.params;
+        const {mensagemIds, todas} = req.body ?? {};
+        const marcarTodas = todas === true;
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (typeof id !== "string" || !uuid.test(id) || (!marcarTodas && (!Array.isArray(mensagemIds) ||
+            mensagemIds.length < 1 || mensagemIds.length > 100 ||
+            !mensagemIds.every(v => typeof v === "string" && uuid.test(v))))) {
+            res.status(400).json({erro: "Informe IDs de mensagens válidos (até 100)."});
+            return;
+        }
+        try {
+            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+            //verificar e registrar leitura
+            const resultado = await pool.query(`
+                WITH conversa AS (
+                    SELECT id FROM conversas WHERE id = $1
+                        AND ($2::uuid IS NULL OR cliente_id = $2)
+                ), elegiveis AS (
+                    SELECT m.id FROM mensagens m JOIN conversa c ON c.id = m.conversa_id
+                    WHERE ($6::boolean OR m.id = ANY($3::uuid[])) AND m.remetente_tipo = $4
+                        AND (NOT $6::boolean OR NOT EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $5))
+                ), gravadas AS (
+                    INSERT INTO mensagens_leituras (mensagem_id, usuario_id)
+                    SELECT id, $5 FROM elegiveis WHERE TRUE ON CONFLICT DO NOTHING
+                    RETURNING mensagem_id
+                )
+                SELECT EXISTS (SELECT 1 FROM conversa) AS autorizada,
+                    CASE WHEN $6::boolean THEN '[]'::json ELSE COALESCE((SELECT json_agg(id) FROM elegiveis), '[]'::json) END AS "mensagemIds",
+                    (SELECT COUNT(*)::int FROM gravadas) AS total
+            `, [id, clienteId, marcarTodas ? [] : mensagemIds, recebidoDe, res.locals.usuarioId, marcarTodas]);
+            const dados = resultado.rows[0];
+            if (!dados.autorizada) {
+                res.status(404).json({erro: "Conversa não encontrada."});
+                return;
+            }
+            res.json({mensagemIds: dados.mensagemIds, total: dados.total});
+        } catch (erro) {
+            console.error("Erro ao registrar leitura:", erro);
+            res.status(500).json({erro: "Não foi possível registrar a leitura."});
+        }
+    };
+}
+
+function listarNotificacoes(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        const pagina = req.query.pagina === undefined ? 0 : Number(req.query.pagina);
+        if (!Number.isSafeInteger(pagina) || pagina < 0 || pagina > 1000000) {
+            res.status(400).json({erro: "Página inválida."}); return;
+        }
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            const resultado = await pool.query(`
+                WITH eventos AS (
+                    SELECT n.*, (
+                        l.notificacao_id IS NULL AND CASE
+                            WHEN n.tipo <> 'mensagem' THEN TRUE
+                            WHEN n.mensagem_id IS NOT NULL THEN NOT EXISTS (
+                                SELECT 1 FROM mensagens_leituras ml
+                                WHERE ml.mensagem_id = n.mensagem_id AND ml.usuario_id = $3
+                            )
+                            ELSE EXISTS (
+                                -- compatibilidade com notificações antigas
+                                SELECT 1 FROM mensagens m
+                                WHERE m.conversa_id = n.referencia_id
+                                    AND m.remetente_tipo = CASE WHEN n.publico = 'admin' THEN 'cliente' ELSE 'admin' END
+                                    AND m.enviada_em <= n.criada_em
+                                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras ml WHERE ml.mensagem_id = m.id AND ml.usuario_id = $3)
+                            )
+                        END
+                    ) AS nao_lida,
+                        CASE WHEN n.tipo = 'mensagem' THEN 'm:' || n.referencia_id::text ELSE 'e:' || n.id::text END AS grupo
+                    FROM notificacoes n
+                    LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
+                    WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
+                        AND l.ocultada_em IS NULL
+                ), agrupadas AS (
+                    SELECT *, (COUNT(*) FILTER (WHERE nao_lida) OVER (PARTITION BY grupo))::int AS quantidade,
+                        ROW_NUMBER() OVER (PARTITION BY grupo ORDER BY criada_em DESC, id DESC) AS ordem
+                    FROM eventos
+                ), grupos AS (
+                    SELECT id, tipo, referencia_id AS "referenciaId", titulo, resumo,
+                        criada_em AS "criadaEm", quantidade FROM agrupadas WHERE ordem = 1
+                ), pagina AS (
+                    SELECT * FROM grupos ORDER BY "criadaEm" DESC, id DESC LIMIT 20 OFFSET $4
+                )
+                SELECT (SELECT COUNT(*)::int FROM grupos WHERE quantidade > 0) AS total,
+                    (SELECT COUNT(*)::int FROM grupos) AS "totalGrupos",
+                    COALESCE((SELECT json_agg(p ORDER BY p."criadaEm" DESC, p.id DESC) FROM pagina p), '[]'::json) AS itens
+            `, [lado, clienteId, res.locals.usuarioId, pagina * 20]);
+            res.set("Cache-Control", "no-store").json(resultado.rows[0]);
+        } catch (erro) {
+            console.error("Erro ao consultar notificações:", erro);
+            res.status(500).json({erro: "Não foi possível consultar notificações."});
+        }
+    };
+}
+
+function limparNotificacoes(lado: "admin" | "cliente") {
+    return async (_req: Request, res: Response) => {
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            const resultado = await pool.query(`
+                INSERT INTO notificacoes_leituras (notificacao_id, usuario_id, ocultada_em)
+                SELECT n.id, $3, clock_timestamp()
+                FROM notificacoes n
+                LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
+                WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
+                    AND l.ocultada_em IS NULL
+                ON CONFLICT (notificacao_id, usuario_id) DO UPDATE
+                    SET ocultada_em = EXCLUDED.ocultada_em
+                    WHERE notificacoes_leituras.ocultada_em IS NULL
+                RETURNING notificacao_id
+            `, [lado, clienteId, res.locals.usuarioId]);
+            res.json({limpas: resultado.rowCount ?? 0});
+        } catch (erro) {
+            console.error("Erro ao limpar notificações:", erro);
+            res.status(500).json({erro: "Não foi possível limpar as notificações."});
+        }
+    };
+}
+
+function lerNotificacoes(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        const {id, todas} = req.body ?? {};
+        const marcarTodas = todas === true;
+        if (!marcarTodas && (typeof id !== "string" || !uuidConversa.test(id))) {
+            res.status(400).json({erro: "Notificação inválida."}); return;
+        }
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            //marcar até a notificação selecionada
+            const resultado = await pool.query(`
+                WITH autorizadas AS (
+                    SELECT n.* FROM notificacoes n WHERE publico = $1 AND ($2::uuid IS NULL OR cliente_id = $2)
+                        AND NOT EXISTS (SELECT 1 FROM notificacoes_leituras l WHERE l.notificacao_id = n.id AND l.usuario_id = $3 AND l.ocultada_em IS NOT NULL)
+                ), ancora AS (
+                    SELECT * FROM autorizadas WHERE id = $4::uuid
+                ), gravadas AS (
+                    INSERT INTO notificacoes_leituras (notificacao_id, usuario_id)
+                    SELECT n.id, $3 FROM autorizadas n
+                    WHERE $5::boolean OR EXISTS (
+                        SELECT 1 FROM ancora a WHERE n.id = a.id OR (
+                            a.tipo = 'mensagem' AND n.tipo = 'mensagem' AND n.referencia_id = a.referencia_id
+                            AND (n.criada_em, n.id) <= (a.criada_em, a.id)
+                        )
+                    ) ON CONFLICT DO NOTHING RETURNING notificacao_id
+                )
+                SELECT ($5::boolean OR EXISTS (SELECT 1 FROM ancora)) AS encontrada,
+                    (SELECT COUNT(*)::int FROM gravadas) AS marcadas
+            `, [lado, clienteId, res.locals.usuarioId, marcarTodas ? null : id, marcarTodas]);
+            if (!resultado.rows[0].encontrada) {res.status(404).json({erro: "Notificação não encontrada."}); return;}
+            res.json({marcadas: resultado.rows[0].marcadas});
+        } catch (erro) {
+            console.error("Erro ao registrar leitura de notificações:", erro);
+            res.status(500).json({erro: "Não foi possível registrar a leitura."});
+        }
+    };
+}
+
+//rotas GET
+
 //verificar conexão com api
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
 });
 
+//cliente: carregar dados da conta
 app.get("/api/me", (_req, res) => {
     res.json(res.locals.cliente);
 });
-//solicitar pedidos do DB
-//solicitação do dashboard para pegar os numeros das tabelas, o total, e outras coisas relacionadas
+
+//admin: carregar dashboard
 app.get("/api/dashboard", async (req, res) => {
     try {
         const resultado = await pool.query(
@@ -161,7 +472,7 @@ app.get("/api/dashboard", async (req, res) => {
     }
 });
 
-//dashboard do cliente
+//cliente: carregar dashboard
 app.get("/api/me/dashboard", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
 
@@ -202,65 +513,7 @@ app.get("/api/me/dashboard", async (_req, res) => {
     }
 });
 
-//Pedir pro DB as solicitações mais recentes com info de cada cliente
-app.get("/api/solicitacoes", async (_req, res) => {
-    try {
-        const resultado = await pool.query(
-            `SELECT 
-            s.id,
-            s.cliente_id AS "clienteId",
-            c.nome AS "clienteNome",
-            s.titulo,
-            s.descricao,
-            s.status,
-            s.criada_em AS "criadaEm"
-            FROM solicitacoes AS s
-            INNER JOIN clientes as c
-                ON c.id = s.cliente_id
-            
-            ORDER by s.criada_em DESC`,
-        );
-
-        res.json(resultado.rows);
-    } catch (erro) {
-        console.error("Erro ao buscar as solicitações:", erro);
-
-        res
-            .status(500)
-            .json({ erro: "Não foi possivel carregar as solicitações." });
-    }
-});
-
-//solicitação do client side
-app.get("/api/me/solicitacoes", async (_req, res) => {
-    const clienteId = res.locals.cliente.id;
-
-    try {
-        const resultado = await pool.query(
-            `
-            SELECT
-                id,
-                titulo,
-                descricao,
-                status,
-                criada_em AS "criadaEm"
-            FROM solicitacoes
-            WHERE cliente_id = $1
-            ORDER BY criada_em DESC
-        `,
-            [clienteId],
-        );
-
-        res.json(resultado.rows);
-    } catch (erro) {
-        console.error("Erro ao buscar solicitações do cliente:", erro);
-        res
-            .status(500)
-            .json({ erro: "Não foi possível carregar suas solicitações." });
-    }
-});
-
-//solicitar clienteS no plural, a lista de todos eles
+//admin: clientes do DB
 app.get("/api/clientes", async (_req, res) => {
     try {
         const resultado = await pool.query(
@@ -273,7 +526,7 @@ app.get("/api/clientes", async (_req, res) => {
     }
 });
 
-//solicitar clientes do DB por id especifico
+//admin: dados do cliente
 app.get("/api/clientes/:id", async (req, res) => {
     const id = req.params.id;
 
@@ -331,7 +584,71 @@ app.get("/api/clientes/:id", async (req, res) => {
     }
 });
 
-//solicitar os projetos do db
+//admin: carregar solicitações
+app.get("/api/solicitacoes", async (_req, res) => {
+    try {
+        const resultado = await pool.query(
+            `SELECT 
+            s.id,
+            s.cliente_id AS "clienteId",
+            c.nome AS "clienteNome",
+            s.titulo,
+            s.descricao,
+            s.status,
+            s.criada_em AS "criadaEm",
+            (SELECT p.id FROM projetos p WHERE p.solicitacao_id = s.id ORDER BY p.id LIMIT 1) AS "projetoId",
+            COALESCE((SELECT json_agg(json_build_object('id', h.id, 'anterior', h.status_anterior, 'status', h.status_novo, 'criadaEm', h.criada_em) ORDER BY h.criada_em, h.id)
+                FROM solicitacoes_decisoes h WHERE h.solicitacao_id = s.id), '[]'::json) AS historico
+            FROM solicitacoes AS s
+            INNER JOIN clientes as c
+                ON c.id = s.cliente_id
+            
+            ORDER by s.criada_em DESC`,
+        );
+
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao buscar as solicitações:", erro);
+
+        res
+            .status(500)
+            .json({ erro: "Não foi possivel carregar as solicitações." });
+    }
+});
+
+//cliente: carregar solicitações
+app.get("/api/me/solicitacoes", async (_req, res) => {
+    const clienteId = res.locals.cliente.id;
+
+    try {
+        const resultado = await pool.query(
+            `
+            SELECT
+                s.id,
+                s.titulo,
+                s.descricao,
+                s.status,
+                s.criada_em AS "criadaEm",
+                (SELECT p.id FROM projetos p WHERE p.solicitacao_id = s.id AND p.cliente_id = s.cliente_id AND p.arquivada_em IS NULL ORDER BY p.id LIMIT 1) AS "projetoId",
+                COALESCE((SELECT json_agg(json_build_object('id', h.id, 'anterior', h.status_anterior, 'status', h.status_novo, 'criadaEm', h.criada_em) ORDER BY h.criada_em, h.id)
+                    FROM solicitacoes_decisoes h WHERE h.solicitacao_id = s.id), '[]'::json) AS historico
+            FROM solicitacoes s
+            WHERE s.cliente_id = $1
+            ORDER BY s.criada_em DESC
+        `,
+            [clienteId],
+        );
+
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao buscar solicitações do cliente:", erro);
+        res
+            .status(500)
+            .json({ erro: "Não foi possível carregar suas solicitações." });
+    }
+});
+
+//admin: projetos do DB
 app.get("/api/projetos", async (req, res) => {
     const arquivados = req.query.arquivados === "true";
 
@@ -363,7 +680,7 @@ app.get("/api/projetos", async (req, res) => {
     }
 });
 
-//painel individual dos projetos
+//admin: dados do projeto
 app.get("/api/projetos/:id", async (req, res) => {
     const id = req.params.id;
 
@@ -399,7 +716,7 @@ app.get("/api/projetos/:id", async (req, res) => {
     }
 });
 
-//solicitar projeto do cliente
+//cliente: carregar projetos
 app.get("/api/me/projetos", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
 
@@ -428,7 +745,7 @@ app.get("/api/me/projetos", async (_req, res) => {
     }
 });
 
-//solicitar convites do DB
+//admin: convites do DB
 app.get("/api/convites", async (req, res) => {
     try {
         const resultado = await pool.query(`
@@ -524,7 +841,7 @@ app.get("/api/convite/:token", async (req, res) => {
     }
 });
 
-//listar conversas
+//admin: conversas
 app.get("/api/conversas", async (req, res) => {
     const arquivadas = req.query.arquivadas === "true";
     const todas = req.query.todas === "true";
@@ -575,90 +892,10 @@ app.get("/api/conversas", async (req, res) => {
     }
 });
 
-// Histórico paginado: o cursor é resolvido no próprio banco, com precisão integral.
-// Os únicos fragmentos SQL dinâmicos são operadores/direções definidos pelo servidor.
-function rotaHistorico(lado: "admin" | "cliente") {
-    return async (req: Request, res: Response) => {
-        const {id} = req.params;
-        const {antes, depois, aPartir} = req.query;
-        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const cursor = antes ?? depois ?? aPartir ?? null;
-        const inicio = req.query.inicio === "true";
-        if (typeof id !== "string" || !uuid.test(id) ||
-            ([antes, depois, aPartir].filter(v => v !== undefined).length > 1) ||
-            (cursor !== null && (typeof cursor !== "string" || !uuid.test(cursor)))) {
-            res.status(400).json({erro: "Conversa ou cursor inválido."});
-            return;
-        }
-
-        const crescente = depois !== undefined || aPartir !== undefined;
-        const direcao = crescente ? "ASC" : "DESC";
-        const operador = aPartir !== undefined ? ">=" : crescente ? ">" : "<";
-        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-
-        try {
-            const resultado = await pool.query(`
-                SELECT c.arquivada_em AS "arquivadaEm",
-                    COALESCE(h.mensagens, '[]'::json) AS mensagens,
-                    COALESCE(h."temMais", false) AS "temMais",
-                    CASE WHEN $6::boolean THEN (
-                        SELECT m.id FROM mensagens m
-                        WHERE m.conversa_id = c.id AND m.remetente_tipo <> $5
-                            AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
-                                WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
-                        ORDER BY m.enviada_em ASC, m.id ASC LIMIT 1
-                    ) END AS "primeiraNaoLidaId"
-                FROM conversas c
-                LEFT JOIN mensagens referencia ON referencia.id = $4::uuid
-                    AND referencia.conversa_id = c.id
-                LEFT JOIN LATERAL (
-                    SELECT json_agg(json_build_object(
-                        'id', m.id,
-                        'remetenteTipo', m.remetente_tipo,
-                        'conteudo', m.conteudo,
-                        'lida', (m.remetente_tipo = $5 OR EXISTS (
-                            SELECT 1 FROM mensagens_leituras l
-                            WHERE l.mensagem_id = m.id AND l.usuario_id = $3
-                        )),
-                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-                    ) ORDER BY m.enviada_em ASC, m.id ASC)
-                        FILTER (WHERE m.pos <= 50) AS mensagens,
-                        COUNT(*) > 50 AS "temMais"
-                    FROM (
-                        SELECT pagina.*, row_number() OVER (ORDER BY enviada_em ${direcao}, id ${direcao}) AS pos
-                        FROM (
-                            SELECT id, remetente_tipo, conteudo, enviada_em
-                            FROM mensagens
-                            WHERE conversa_id = c.id
-                                AND ($4::uuid IS NULL OR (enviada_em, id) ${operador} (referencia.enviada_em, referencia.id))
-                            ORDER BY enviada_em ${direcao}, id ${direcao}
-                            LIMIT 51
-                        ) pagina
-                    ) m
-                ) h ON TRUE
-                WHERE c.id = $1 AND ($2::uuid IS NULL OR c.cliente_id = $2)
-                    AND ($4::uuid IS NULL OR referencia.id IS NOT NULL)
-            `, [id, clienteId, res.locals.usuarioId, cursor, lado, inicio]);
-
-            const conversa = resultado.rows[0];
-            if (!conversa) {
-                res.status(404).json({erro: "Conversa ou cursor não encontrado."});
-                return;
-            }
-
-            res.set("Cache-Control", "no-store");
-            // Sem estado/cursor, preserva a resposta em array dos pacotes anteriores.
-            res.json(req.query.estado === "true" || cursor !== null ? conversa : conversa.mensagens);
-        } catch (erro) {
-            console.error("Erro ao buscar histórico:", erro);
-            res.status(500).json({erro: "Não foi possível carregar as mensagens."});
-        }
-    };
-}
-
+//admin: carregar mensagens
 app.get("/api/conversas/:id/mensagens", rotaHistorico("admin"));
 
-//cliente carregar conversas
+//cliente: conversas
 app.get("/api/me/conversas", async (req, res) => {
     const arquivadas = req.query.arquivadas === "true";
     const todas = req.query.todas === "true";
@@ -709,83 +946,57 @@ app.get("/api/me/conversas", async (req, res) => {
     }
 });
 
-// Histórico do cliente: o middleware e o filtro de propriedade permanecem obrigatórios.
+//cliente: carregar mensagens
 app.get("/api/me/conversas/:id/mensagens", rotaHistorico("cliente"));
 
-// Contadores globais e recibos individuais de leitura.
-// Cada rota já passa pelo middleware correspondente; nunca confia em IDs de usuário do JSON.
-function rotasLeitura(prefixo: string, lado: "admin" | "cliente") {
-    const recebidoDe = lado === "admin" ? "cliente" : "admin";
+//admin: contar não lidas
+app.get("/api/conversas/nao-lidas", contarNaoLidas("admin"));
 
-    app.get(`${prefixo}/nao-lidas`, async (_req, res) => {
-        try {
-            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-            const resultado = await pool.query(`
-                SELECT COUNT(*)::int AS total
-                FROM mensagens m JOIN conversas c ON c.id = m.conversa_id
-                WHERE m.remetente_tipo = $1
-                    AND ($2::uuid IS NULL OR c.cliente_id = $2)
-                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
-                        WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
-            `, [recebidoDe, clienteId, res.locals.usuarioId]);
-            res.set("Cache-Control", "no-store");
-            res.json(resultado.rows[0]);
-        } catch (erro) {
-            console.error("Erro ao contar mensagens não lidas:", erro);
-            res.status(500).json({erro: "Não foi possível atualizar o contador."});
-        }
-    });
+//cliente: contar não lidas
+app.get("/api/me/conversas/nao-lidas", contarNaoLidas("cliente"));
 
-    app.post(`${prefixo}/:id/leituras`, async (req, res) => {
-        const {id} = req.params;
-        const {mensagemIds, todas} = req.body ?? {};
-        const marcarTodas = todas === true;
-        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (typeof id !== "string" || !uuid.test(id) || (!marcarTodas && (!Array.isArray(mensagemIds) ||
-            mensagemIds.length < 1 || mensagemIds.length > 100 ||
-            !mensagemIds.every(v => typeof v === "string" && uuid.test(v))))) {
-            res.status(400).json({erro: "Informe IDs de mensagens válidos (até 100)."});
-            return;
-        }
-        try {
-            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-            // A autorização, seleção e gravação acontecem na mesma instrução SQL.
-            const resultado = await pool.query(`
-                WITH conversa AS (
-                    SELECT id FROM conversas WHERE id = $1
-                        AND ($2::uuid IS NULL OR cliente_id = $2)
-                ), elegiveis AS (
-                    SELECT m.id FROM mensagens m JOIN conversa c ON c.id = m.conversa_id
-                    WHERE ($6::boolean OR m.id = ANY($3::uuid[])) AND m.remetente_tipo = $4
-                        AND (NOT $6::boolean OR NOT EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $5))
-                ), gravadas AS (
-                    INSERT INTO mensagens_leituras (mensagem_id, usuario_id)
-                    SELECT id, $5 FROM elegiveis WHERE TRUE ON CONFLICT DO NOTHING
-                    RETURNING mensagem_id
-                )
-                SELECT EXISTS (SELECT 1 FROM conversa) AS autorizada,
-                    CASE WHEN $6::boolean THEN '[]'::json ELSE COALESCE((SELECT json_agg(id) FROM elegiveis), '[]'::json) END AS "mensagemIds",
-                    (SELECT COUNT(*)::int FROM gravadas) AS total
-            `, [id, clienteId, marcarTodas ? [] : mensagemIds, recebidoDe, res.locals.usuarioId, marcarTodas]);
-            const dados = resultado.rows[0];
-            if (!dados.autorizada) {
-                res.status(404).json({erro: "Conversa não encontrada."});
-                return;
-            }
-            res.json({mensagemIds: dados.mensagemIds, total: dados.total});
-        } catch (erro) {
-            console.error("Erro ao registrar leitura:", erro);
-            res.status(500).json({erro: "Não foi possível registrar a leitura."});
-        }
-    });
-}
+//admin: listar notificações
+app.get("/api/notificacoes", listarNotificacoes("admin"));
 
-rotasLeitura("/api/conversas", "admin");
-rotasLeitura("/api/me/conversas", "cliente");
+//cliente: listar notificações
+app.get("/api/me/notificacoes", listarNotificacoes("cliente"));
 
-//rotas de atualização ou pedido ou criação
+//rotas POST
 
-// criar solicitação
+//admin: cadastrar cliente
+app.post("/api/clientes", async (req, res) => {
+    const nome = req.body?.nome;
+    const email = req.body?.email;
+
+    if (typeof nome !== "string" || nome.trim().length === 0) {
+        res.status(400).json({ erro: "Nome é obrigatório" });
+        return;
+    }
+
+    if (email != null && typeof email !== "string") {
+        res.status(400).json({ erro: "E-mail invalido" });
+        return;
+    }
+
+    const emailTratado =
+        typeof email === "string" && email.trim() ? email.trim() : null;
+
+    try {
+        const resultado = await pool.query(
+            `INSERT INTO clientes (nome,email)
+            VALUES ($1, $2)
+            RETURNING id, nome, email`,
+            [nome.trim(), emailTratado],
+        );
+
+        res.status(201).json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao cadastrar cliente", erro);
+        res.status(500).json({ erro: "Falha ao cadastrar cliente" });
+    }
+});
+
+//admin: criar solicitação
 app.post("/api/solicitacoes", async (req, res) => {
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
@@ -826,76 +1037,7 @@ app.post("/api/solicitacoes", async (req, res) => {
     }
 });
 
-//atualizar status do pedido da solicitação
-app.patch("/api/solicitacoes/:id/status", async (req, res) => {
-    const id = req.params.id;
-    const status = req.body?.status;
-
-    if (status !== "aprovada" && status !== "recusada") {
-        res.status(400).json({ erro: "tem coisa errada nesses status ai" });
-        return;
-    }
-
-    const client = await pool.connect();
-
-    try {
-        await client.query("BEGIN");
-
-        const resultado = await client.query(
-            `SELECT id, cliente_id, titulo, descricao, status
-            FROM solicitacoes
-            WHERE id = $1
-            FOR UPDATE`,
-            [id],
-        );
-        const solicitacao = resultado.rows[0];
-
-        if (!solicitacao) {
-            await client.query("ROLLBACK");
-            res.status(404).json({ erro: "Solicitação não encontrada." });
-            return;
-        }
-
-        if (solicitacao.status !== "pendente") {
-            await client.query("ROLLBACK");
-            res.status(409).json({
-                erro: "Esta solicitação já foi decidida.",
-            });
-            return;
-        }
-
-        await client.query(
-            `UPDATE solicitacoes
-            SET status = $1
-            WHERE id = $2`,
-            [status, id],
-        );
-        if (status === "aprovada") {
-            await client.query(
-                `INSERT INTO projetos
-                (cliente_id, solicitacao_id, titulo, descricao)
-                VALUES ($1,$2,$3,$4)`,
-                [
-                    solicitacao.cliente_id,
-                    solicitacao.id,
-                    solicitacao.titulo,
-                    solicitacao.descricao,
-                ],
-            );
-        }
-        await client.query("COMMIT");
-
-        res.json({ id, status });
-    } catch (erro) {
-        await client.query("ROLLBACK");
-        console.error("Não deu pra decidir o pedido", erro);
-        res.status(500).json({ erro: "Falha na atu da solicitação" });
-    } finally {
-        client.release();
-    }
-});
-
-//solciitação do cliente
+//cliente: criar solicitação
 app.post("/api/me/solicitacoes", async (req, res) => {
     const clienteId = res.locals.cliente.id;
     const { titulo, descricao } = req.body ?? {};
@@ -947,80 +1089,7 @@ app.post("/api/me/solicitacoes", async (req, res) => {
     }
 });
 
-//cadastrar cliente
-app.post("/api/clientes", async (req, res) => {
-    const nome = req.body?.nome;
-    const email = req.body?.email;
-
-    if (typeof nome !== "string" || nome.trim().length === 0) {
-        res.status(400).json({ erro: "Nome é obrigatório" });
-        return;
-    }
-
-    if (email != null && typeof email !== "string") {
-        res.status(400).json({ erro: "E-mail invalido" });
-        return;
-    }
-
-    const emailTratado =
-        typeof email === "string" && email.trim() ? email.trim() : null;
-
-    try {
-        const resultado = await pool.query(
-            `INSERT INTO clientes (nome,email)
-            VALUES ($1, $2)
-            RETURNING id, nome, email`,
-            [nome.trim(), emailTratado],
-        );
-
-        res.status(201).json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao cadastrar cliente", erro);
-        res.status(500).json({ erro: "Falha ao cadastrar cliente" });
-    }
-});
-
-//atualizar dados do cliente
-app.patch("/api/clientes/:id", async (req, res) => {
-    const id = req.params.id;
-    const nome = req.body?.nome;
-    const email = req.body?.email;
-
-    if (typeof nome !== "string" || nome.trim().length === 0) {
-        res.status(400).json({ erro: "Nome obrigatorio" });
-        return;
-    }
-
-    if (email != null && typeof email !== "string") {
-        res.status(400).json({ erro: "Email invalido" });
-        return;
-    }
-
-    const emailTratado =
-        typeof email === "string" && email.trim() ? email.trim() : null;
-
-    try {
-        const resultado = await pool.query(
-            `UPDATE clientes
-            SET nome = $1, email = $2
-            WHERE id = $3
-            Returning id, nome, email`,
-            [nome.trim(), emailTratado, id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Clientes não encontra" });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao editar cliente:", erro);
-        res.status(500).json({ erro: "Falha ao editar cliente" });
-    }
-});
-
-//criar projeto direto
+//admin: criar projeto
 app.post("/api/projetos", async (req, res) => {
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
@@ -1062,164 +1131,7 @@ app.post("/api/projetos", async (req, res) => {
     }
 });
 
-//atualizar projetos
-app.patch("/api/projetos/:id/status", async (req, res) => {
-    const id = req.params.id;
-    const status = req.body?.status;
-
-    const statusPermitidos = [
-        "planejado",
-        "em_andamento",
-        "concluido",
-        "cancelado",
-    ];
-
-    if (!statusPermitidos.includes(status)) {
-        res.status(400).json({
-            erro: "Status de projeto inválido.",
-        });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `UPDATE projetos
-            SET status = $1,
-            atualizada_em = NOW()
-            WHERE id = $2
-            AND arquivada_em IS NULL
-            RETURNING
-            id,
-            status,
-            atualizada_em AS "atualizadaEm"`,
-            [status, id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Projeto não encontrado." });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao atualizar projeto:", erro);
-        res.status(500).json({ erro: "Não foi possível atualizar o projeto." });
-    }
-});
-
-//atualizar projeto por completo
-app.patch("/api/projetos/:id", async (req, res) => {
-    const id = req.params.id;
-    const titulo = req.body?.titulo;
-    const descricao = req.body?.descricao;
-
-    if (
-        typeof titulo !== "string" ||
-        titulo.trim().length === 0 ||
-        typeof descricao !== "string" ||
-        descricao.trim().length === 0
-    ) {
-        res.status(400).json({ erro: "Título e descrição são obrigatórios" });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `UPDATE projetos
-        SET
-        titulo = $1,
-        descricao = $2,
-        atualizada_em = NOW()
-        WHERE id = $3
-        AND arquivada_em IS NULL
-        RETURNING
-        id,
-        titulo,
-        descricao,
-        atualizada_em AS "atualizadaEm"`,
-            [titulo.trim(), descricao.trim(), id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Projeto não encontrado ou arquivado" });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao editar projeto", erro);
-
-        res.status(500).json({ erro: "Não foi possível editar o projeto" });
-    }
-});
-
-//arquivamento de projetos
-app.patch("/api/projetos/:id/arquivar", async (req, res) => {
-    const id = req.params.id;
-
-    try {
-        const resultado = await pool.query(
-            `UPDATE projetos
-        SET arquivada_em = NOW(),
-        atualizada_em = NOW()
-        WHERE id = $1
-        AND arquivada_em IS NULL
-        RETURNING
-        id,
-        status,
-        arquivada_em AS "arquivadaEm",
-        atualizada_em AS "atualizadaEm"`,
-            [id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Projeto não encontrado ou já arquivado" });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao arquivar projeto", erro);
-
-        res.status(500).json({ erro: "Não foi possível arquivar o projeto" });
-    }
-});
-
-//restaurar projeto arquivado
-app.patch("/api/projetos/:id/restaurar", async (req, res) => {
-    const id = req.params.id;
-
-    try {
-        const resultado = await pool.query(
-            `UPDATE projetos
-        SET arquivada_em = NULL,
-        atualizada_em = NOW()
-        WHERE id = $1
-        AND arquivada_em IS NOT NULL
-        RETURNING
-        id,
-        status,
-        arquivada_em AS "arquivadaEm",
-        atualizada_em AS "atualizadaEm"`,
-            [id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res
-                .status(404)
-                .json({ erro: "Projeto não encontrado ou não está arquivado." });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao restaurar projeto:", erro);
-
-        res.status(500).json({ erro: "Não foi possível restaurar o projeto." });
-    }
-});
-
-//criar convites
+//admin: criar convite
 app.post("/api/convites", async (req, res) => {
     const clienteId = req.body?.clienteId ?? null;
 
@@ -1280,79 +1192,6 @@ app.post("/api/convites", async (req, res) => {
     } catch (erro) {
         console.error("Erro ao gerar convite", erro);
         res.status(500).json({ erro: "Não foi possível gerar o convite" });
-    }
-});
-
-//revogar convite
-app.patch("/api/convites/:id/revogar", async (req, res) => {
-    const id = req.params.id;
-
-    if (
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-    ) {
-        res.status(400).json({ erro: "ID do convite inválido." });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `
-            UPDATE convites
-            SET revogado_em = NOW()
-            WHERE id = $1
-                AND usado_em IS NULL
-                AND revogado_em IS NULL
-                AND expira_em > NOW()
-
-            RETURNING
-                id,
-                revogado_em AS "revogadoEm"
-        `,
-            [id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res
-                .status(409)
-                .json({
-                    erro: "Convite não encontrado ou indisponível para revogação.",
-                });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao revogar convite:", erro);
-        res.status(500).json({ erro: "Não foi possível revogar o convite." });
-    }
-});
-
-//deletar convites
-app.delete("/api/convites/:id", async (req, res) => {
-    const id = req.params.id;
-
-    if (
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-    ) {
-        res.status(400).json({ erro: "ID do convite inválido" });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `DELETE FROM convites WHERE id = $1 RETURNING id`,
-            [id],
-        );
-
-        if (resultado.rowCount === 0) {
-            res.status(404).json({ erro: "Convite não encontrado" });
-            return;
-        }
-
-        res.status(204).end();
-    } catch (erro) {
-        console.error("Erro ao excluir convite:", erro);
-        res.status(500).json({ erro: "Não foi possível excluir o convite" });
     }
 });
 
@@ -1516,7 +1355,7 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
     }
 });
 
-//criar conversas por projeto
+//admin: criar conversa
 app.post("/api/conversas", async (req, res) => {
     const { clienteId, projetoId, titulo, tipo } = req.body ?? {};
 
@@ -1615,64 +1454,7 @@ app.post("/api/conversas", async (req, res) => {
     }
 });
 
-//alterar nome da conversa
-app.patch("/api/conversas/:id", async (req, res) => {
-    const { id } = req.params;
-    const { titulo } = req.body ?? {};
-
-    const uuidValido =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidValido.test(id)) {
-        res.status(400).json({ erro: "Conversa inválida." });
-        return;
-    }
-
-    if (
-        typeof titulo !== "string" ||
-        !titulo.trim() ||
-        titulo.trim().length > 150
-    ) {
-        res
-            .status(400)
-            .json({ erro: "Informe um título válido de até 150 caracteres." });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `
-            UPDATE conversas
-            SET titulo = $2
-            WHERE id = $1
-                AND tipo <> 'geral'
-                AND arquivada_em IS NULL
-            RETURNING
-                id,
-                cliente_id AS "clienteId",
-                projeto_id AS "projetoId",
-                titulo,
-                tipo,
-                criada_em AS "criadaEm"
-        `,
-            [id, titulo.trim()],
-        );
-
-        if (resultado.rows.length === 0) {
-            res
-                .status(404)
-                .json({ erro: "Conversa não encontrada ou indisponível para edição." });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao renomear conversa:", erro);
-        res.status(500).json({ erro: "Não foi possível renomear a conversa." });
-    }
-});
-
-//mandar mensagem como admin
+//admin: mandar mensagem
 app.post("/api/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
     const { conteudo } = req.body ?? {};
@@ -1758,81 +1540,7 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
     }
 });
 
-//arquivar conversas
-app.patch("/api/conversas/:id/arquivar", async (req, res) => {
-    const { id } = req.params;
-
-    const uuidValido =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidValido.test(id)) {
-        res.status(400).json({ erro: "Conversa inválida." });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(
-            `
-            UPDATE conversas
-            SET arquivada_em = NOW()
-            WHERE id = $1
-                AND tipo <> 'geral'
-                AND arquivada_em IS NULL
-            RETURNING id, arquivada_em AS "arquivadaEm"
-        `,
-            [id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res
-                .status(404)
-                .json({ erro: "Conversa indisponível para arquivamento." });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao arquivar conversa:", erro);
-        res.status(500).json({ erro: "Não foi possível arquivar a conversa." });
-    }
-});
-
-// Todas as mudanças de reabertura bloqueiam a conversa antes de consultar o pedido.
-const uuidConversa = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-class ErroConversa extends Error {
-    public status: number;
-    constructor(status: number, mensagem: string) {
-        super(mensagem);
-        this.status = status;
-    }
-}
-
-async function transacaoConversa<T>(acao: (db: PoolClient) => Promise<T>): Promise<T> {
-    const db = await pool.connect();
-    try {
-        await db.query("BEGIN");
-        const resultado = await acao(db);
-        await db.query("COMMIT");
-        return resultado;
-    } catch (erro) {
-        await db.query("ROLLBACK");
-        throw erro;
-    } finally {
-        db.release();
-    }
-}
-
-function responderErroConversa(res: Response, erro: unknown) {
-    if (erro instanceof ErroConversa) {
-        res.status(erro.status).json({erro: erro.message});
-        return;
-    }
-    console.error("Erro ao gerenciar conversa:", erro);
-    res.status(500).json({erro: "Não foi possível concluir a operação."});
-}
-
-// Cliente: pedir reabertura da própria conversa arquivada.
+//cliente: pedir reabertura
 app.post("/api/me/conversas/:id/reaberturas", async (req, res) => {
     const {id} = req.params;
     if (!uuidConversa.test(id)) {res.status(400).json({erro: "Conversa inválida."}); return;}
@@ -1852,79 +1560,7 @@ app.post("/api/me/conversas/:id/reaberturas", async (req, res) => {
     } catch (erro) {responderErroConversa(res, erro);}
 });
 
-// Admin: decidir um pedido específico. Aprovação e restauração são atômicas.
-app.patch("/api/conversas/:id/reaberturas/:pedidoId", async (req, res) => {
-    const {id, pedidoId} = req.params;
-    const {status, justificativa} = req.body ?? {};
-    if (!uuidConversa.test(id) || !uuidConversa.test(pedidoId) || !["aprovada", "recusada"].includes(status) ||
-        (justificativa != null && (typeof justificativa !== "string" || justificativa.trim().length > 1000))) {
-        res.status(400).json({erro: "Pedido, decisão ou justificativa inválida."}); return;
-    }
-    try {
-        const dados = await transacaoConversa(async db => {
-            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
-                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
-            if (!conversa.rowCount) throw new ErroConversa(409, "Conversa já restaurada ou indisponível.");
-            const resultado = await db.query(`UPDATE conversas_reaberturas r SET status = $3,
-                decidida_por = $4, decidida_em = clock_timestamp(), justificativa = $5
-                FROM conversas c WHERE r.id = $2 AND r.conversa_id = $1 AND c.id = r.conversa_id
-                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'
-                RETURNING r.id, r.status, r.solicitada_em AS "solicitadaEm", r.decidida_em AS "decididaEm", r.justificativa`,
-                [id, pedidoId, status, res.locals.usuarioId, justificativa?.trim() || null]);
-            if (!resultado.rowCount) throw new ErroConversa(409, "Pedido já decidido ou indisponível.");
-            if (status === "aprovada") await db.query("UPDATE conversas SET arquivada_em = NULL WHERE id = $1", [id]);
-            return {reabertura: resultado.rows[0], restaurada: status === "aprovada"};
-        });
-        res.json(dados);
-    } catch (erro) {responderErroConversa(res, erro);}
-});
-
-// Restauração manual também resolve um pedido pendente, sem deixá-lo órfão.
-app.patch("/api/conversas/:id/restaurar", async (req, res) => {
-    const {id} = req.params;
-    if (!uuidConversa.test(id)) {res.status(400).json({erro: "Conversa inválida."}); return;}
-    try {
-        const dados = await transacaoConversa(async db => {
-            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
-                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
-            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa indisponível para restauração.");
-            await db.query(`UPDATE conversas_reaberturas r SET status = 'aprovada',
-                decidida_por = $2, decidida_em = clock_timestamp(), justificativa = 'Restauração administrativa'
-                FROM conversas c WHERE c.id = $1 AND r.conversa_id = c.id
-                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'`, [id, res.locals.usuarioId]);
-            const resultado = await db.query(`UPDATE conversas SET arquivada_em = NULL WHERE id = $1
-                RETURNING id, arquivada_em AS "arquivadaEm"`, [id]);
-            return resultado.rows[0];
-        });
-        res.json(dados);
-    } catch (erro) {responderErroConversa(res, erro);}
-});
-
-// Preferência pessoal do cliente; nunca altera arquivada_em.
-app.patch("/api/me/conversas/:id/ocultar", async (req, res) => {
-    const {id} = req.params;
-    const {ocultada} = req.body ?? {};
-    if (!uuidConversa.test(id) || typeof ocultada !== "boolean") {res.status(400).json({erro: "Preferência inválida."}); return;}
-    try {
-        await transacaoConversa(async db => {
-            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND cliente_id = $2
-                AND tipo <> 'geral' AND arquivada_em IS NULL FOR UPDATE`, [id, res.locals.cliente.id]);
-            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa ativa não encontrada.");
-            if (ocultada) {
-                await db.query(`INSERT INTO conversas_ocultas (conversa_id, usuario_id, ultima_admin_id)
-                    VALUES ($1, $2, (SELECT id FROM mensagens WHERE conversa_id = $1 AND remetente_tipo = 'admin'
-                        ORDER BY enviada_em DESC, id DESC LIMIT 1))
-                    ON CONFLICT (conversa_id, usuario_id) DO UPDATE SET ocultada_em = clock_timestamp(),
-                        ultima_admin_id = EXCLUDED.ultima_admin_id`, [id, res.locals.usuarioId]);
-            } else {
-                await db.query("DELETE FROM conversas_ocultas WHERE conversa_id = $1 AND usuario_id = $2", [id, res.locals.usuarioId]);
-            }
-        });
-        res.json({id, ocultada});
-    } catch (erro) {responderErroConversa(res, erro);}
-});
-
-//cliente mandar mensagem
+//cliente: mandar mensagem
 app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
     const { conteudo } = req.body ?? {};
@@ -2012,124 +1648,527 @@ app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
     }
 });
 
-// Notificações persistentes: visibilidade por papel e cliente autenticado.
-// Cada conversa é um grupo de mensagens; outros eventos mantêm histórico individual.
-for (const lado of ["admin", "cliente"] as const) {
-    const prefixo = lado === "admin" ? "/api/notificacoes" : "/api/me/notificacoes";
+//admin: registrar leituras
+app.post("/api/conversas/:id/leituras", registrarLeituras("admin"));
 
-    app.get(prefixo, async (req, res) => {
-        const pagina = req.query.pagina === undefined ? 0 : Number(req.query.pagina);
-        if (!Number.isSafeInteger(pagina) || pagina < 0 || pagina > 1000000) {
-            res.status(400).json({erro: "Página inválida."}); return;
-        }
-        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-        try {
-            const resultado = await pool.query(`
-                WITH eventos AS (
-                    SELECT n.*, (
-                        l.notificacao_id IS NULL AND CASE
-                            WHEN n.tipo <> 'mensagem' THEN TRUE
-                            WHEN n.mensagem_id IS NOT NULL THEN NOT EXISTS (
-                                SELECT 1 FROM mensagens_leituras ml
-                                WHERE ml.mensagem_id = n.mensagem_id AND ml.usuario_id = $3
-                            )
-                            ELSE EXISTS (
-                                -- Eventos anteriores à migração não possuem ID exato.
-                                -- Conservador: só baixam quando as mensagens recebidas até o evento forem lidas.
-                                SELECT 1 FROM mensagens m
-                                WHERE m.conversa_id = n.referencia_id
-                                    AND m.remetente_tipo = CASE WHEN n.publico = 'admin' THEN 'cliente' ELSE 'admin' END
-                                    AND m.enviada_em <= n.criada_em
-                                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras ml WHERE ml.mensagem_id = m.id AND ml.usuario_id = $3)
-                            )
-                        END
-                    ) AS nao_lida,
-                        CASE WHEN n.tipo = 'mensagem' THEN 'm:' || n.referencia_id::text ELSE 'e:' || n.id::text END AS grupo
-                    FROM notificacoes n
-                    LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
-                    WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
-                        AND l.ocultada_em IS NULL
-                ), agrupadas AS (
-                    SELECT *, (COUNT(*) FILTER (WHERE nao_lida) OVER (PARTITION BY grupo))::int AS quantidade,
-                        ROW_NUMBER() OVER (PARTITION BY grupo ORDER BY criada_em DESC, id DESC) AS ordem
-                    FROM eventos
-                ), grupos AS (
-                    SELECT id, tipo, referencia_id AS "referenciaId", titulo, resumo,
-                        criada_em AS "criadaEm", quantidade FROM agrupadas WHERE ordem = 1
-                ), pagina AS (
-                    SELECT * FROM grupos ORDER BY "criadaEm" DESC, id DESC LIMIT 20 OFFSET $4
-                )
-                SELECT (SELECT COUNT(*)::int FROM grupos WHERE quantidade > 0) AS total,
-                    (SELECT COUNT(*)::int FROM grupos) AS "totalGrupos",
-                    COALESCE((SELECT json_agg(p ORDER BY p."criadaEm" DESC, p.id DESC) FROM pagina p), '[]'::json) AS itens
-            `, [lado, clienteId, res.locals.usuarioId, pagina * 20]);
-            res.set("Cache-Control", "no-store").json(resultado.rows[0]);
-        } catch (erro) {
-            console.error("Erro ao consultar notificações:", erro);
-            res.status(500).json({erro: "Não foi possível consultar notificações."});
-        }
-    });
+//cliente: registrar leituras
+app.post("/api/me/conversas/:id/leituras", registrarLeituras("cliente"));
 
-    // Limpa a central somente para o usuário autenticado, incluindo eventos não lidos.
-    app.delete(prefixo, async (_req, res) => {
-        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-        try {
-            const resultado = await pool.query(`
-                INSERT INTO notificacoes_leituras (notificacao_id, usuario_id, ocultada_em)
-                SELECT n.id, $3, clock_timestamp()
-                FROM notificacoes n
-                LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
-                WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
-                    AND l.ocultada_em IS NULL
-                ON CONFLICT (notificacao_id, usuario_id) DO UPDATE
-                    SET ocultada_em = EXCLUDED.ocultada_em
-                    WHERE notificacoes_leituras.ocultada_em IS NULL
-                RETURNING notificacao_id
-            `, [lado, clienteId, res.locals.usuarioId]);
-            res.json({limpas: resultado.rowCount ?? 0});
-        } catch (erro) {
-            console.error("Erro ao limpar notificações:", erro);
-            res.status(500).json({erro: "Não foi possível limpar as notificações."});
-        }
-    });
+//admin: registrar leituras
+app.post("/api/notificacoes/leituras", lerNotificacoes("admin"));
 
-    app.post(`${prefixo}/leituras`, async (req, res) => {
-        const {id, todas} = req.body ?? {};
-        const marcarTodas = todas === true;
-        if (!marcarTodas && (typeof id !== "string" || !uuidConversa.test(id))) {
-            res.status(400).json({erro: "Notificação inválida."}); return;
+//cliente: registrar leituras
+app.post("/api/me/notificacoes/leituras", lerNotificacoes("cliente"));
+
+//rotas PATCH
+
+//admin: editar cliente
+app.patch("/api/clientes/:id", async (req, res) => {
+    const id = req.params.id;
+    const nome = req.body?.nome;
+    const email = req.body?.email;
+
+    if (typeof nome !== "string" || nome.trim().length === 0) {
+        res.status(400).json({ erro: "Nome obrigatorio" });
+        return;
+    }
+
+    if (email != null && typeof email !== "string") {
+        res.status(400).json({ erro: "Email invalido" });
+        return;
+    }
+
+    const emailTratado =
+        typeof email === "string" && email.trim() ? email.trim() : null;
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE clientes
+            SET nome = $1, email = $2
+            WHERE id = $3
+            Returning id, nome, email`,
+            [nome.trim(), emailTratado, id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Clientes não encontra" });
+            return;
         }
-        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
-        try {
-            // A âncora é verificada no mesmo escopo de autorização da leitura.
-            // Novas mensagens posteriores à âncora não são marcadas por este clique.
-            const resultado = await pool.query(`
-                WITH autorizadas AS (
-                    SELECT n.* FROM notificacoes n WHERE publico = $1 AND ($2::uuid IS NULL OR cliente_id = $2)
-                        AND NOT EXISTS (SELECT 1 FROM notificacoes_leituras l WHERE l.notificacao_id = n.id AND l.usuario_id = $3 AND l.ocultada_em IS NOT NULL)
-                ), ancora AS (
-                    SELECT * FROM autorizadas WHERE id = $4::uuid
-                ), gravadas AS (
-                    INSERT INTO notificacoes_leituras (notificacao_id, usuario_id)
-                    SELECT n.id, $3 FROM autorizadas n
-                    WHERE $5::boolean OR EXISTS (
-                        SELECT 1 FROM ancora a WHERE n.id = a.id OR (
-                            a.tipo = 'mensagem' AND n.tipo = 'mensagem' AND n.referencia_id = a.referencia_id
-                            AND (n.criada_em, n.id) <= (a.criada_em, a.id)
-                        )
-                    ) ON CONFLICT DO NOTHING RETURNING notificacao_id
-                )
-                SELECT ($5::boolean OR EXISTS (SELECT 1 FROM ancora)) AS encontrada,
-                    (SELECT COUNT(*)::int FROM gravadas) AS marcadas
-            `, [lado, clienteId, res.locals.usuarioId, marcarTodas ? null : id, marcarTodas]);
-            if (!resultado.rows[0].encontrada) {res.status(404).json({erro: "Notificação não encontrada."}); return;}
-            res.json({marcadas: resultado.rows[0].marcadas});
-        } catch (erro) {
-            console.error("Erro ao registrar leitura de notificações:", erro);
-            res.status(500).json({erro: "Não foi possível registrar a leitura."});
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao editar cliente:", erro);
+        res.status(500).json({ erro: "Falha ao editar cliente" });
+    }
+});
+
+//admin: decidir solicitação
+app.patch("/api/solicitacoes/:id/status", async (req, res) => {
+    const {id} = req.params;
+    const {status} = req.body ?? {};
+
+    if (typeof id !== "string" || !uuidConversa.test(id)) {
+        res.status(400).json({erro: "Solicitação inválida"});
+        return;
+    }
+    if (status !== "aprovada" && status !== "recusada" && status !== "pendente") {
+        res.status(400).json({erro: "Status inválido"});
+        return;
+    }
+
+    try {
+        const dados = await transacaoConversa(async db => {
+            const resultado = await db.query(`
+                SELECT id, cliente_id, titulo, descricao, status
+                FROM solicitacoes WHERE id = $1 FOR UPDATE
+            `, [id]);
+            const solicitacao = resultado.rows[0];
+            if (!solicitacao) throw new ErroConversa(404, "Solicitação não encontrada");
+
+            const permitida = solicitacao.status === "pendente" && (status === "aprovada" || status === "recusada")
+                || solicitacao.status === "recusada" && status === "pendente";
+            if (!permitida) throw new ErroConversa(409, "Esta decisão não pode ser alterada");
+
+            await db.query(`UPDATE solicitacoes SET status = $1 WHERE id = $2`, [status, id]);
+
+            let projetoId: string | null = null;
+            if (status === "aprovada") {
+                const existente = await db.query(`SELECT id FROM projetos WHERE solicitacao_id = $1 LIMIT 1`, [id]);
+                if (existente.rows.length) throw new ErroConversa(409, "Esta solicitação já possui um projeto");
+                const projeto = await db.query(`
+                    INSERT INTO projetos (cliente_id, solicitacao_id, titulo, descricao)
+                    VALUES ($1, $2, $3, $4) RETURNING id
+                `, [solicitacao.cliente_id, id, solicitacao.titulo, solicitacao.descricao]);
+                projetoId = projeto.rows[0].id;
+            }
+
+            //registrar a decisão
+            await db.query(`
+                INSERT INTO solicitacoes_decisoes (solicitacao_id, usuario_id, status_anterior, status_novo)
+                VALUES ($1, $2, $3, $4)
+            `, [id, res.locals.usuarioId, solicitacao.status, status]);
+            const historico = await db.query(`
+                SELECT id, status_anterior AS anterior, status_novo AS status, criada_em AS "criadaEm"
+                FROM solicitacoes_decisoes WHERE solicitacao_id = $1 ORDER BY criada_em, id
+            `, [id]);
+            return {id, status, projetoId, historico: historico.rows};
+        });
+        res.json(dados);
+    } catch (erro) {
+        if (erro instanceof ErroConversa) {
+            res.status(erro.status).json({erro: erro.message});
+            return;
         }
-    });
-}
+        console.error("Erro ao alterar solicitação:", erro);
+        res.status(500).json({erro: "Não foi possível alterar a decisão"});
+    }
+});
+
+//admin: alterar status do projeto
+app.patch("/api/projetos/:id/status", async (req, res) => {
+    const id = req.params.id;
+    const status = req.body?.status;
+
+    const statusPermitidos = [
+        "planejado",
+        "em_andamento",
+        "concluido",
+        "cancelado",
+    ];
+
+    if (!statusPermitidos.includes(status)) {
+        res.status(400).json({
+            erro: "Status de projeto inválido.",
+        });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE projetos
+            SET status = $1,
+            atualizada_em = NOW()
+            WHERE id = $2
+            AND arquivada_em IS NULL
+            RETURNING
+            id,
+            status,
+            atualizada_em AS "atualizadaEm"`,
+            [status, id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Projeto não encontrado." });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao atualizar projeto:", erro);
+        res.status(500).json({ erro: "Não foi possível atualizar o projeto." });
+    }
+});
+
+//admin: editar projeto
+app.patch("/api/projetos/:id", async (req, res) => {
+    const id = req.params.id;
+    const titulo = req.body?.titulo;
+    const descricao = req.body?.descricao;
+
+    if (
+        typeof titulo !== "string" ||
+        titulo.trim().length === 0 ||
+        typeof descricao !== "string" ||
+        descricao.trim().length === 0
+    ) {
+        res.status(400).json({ erro: "Título e descrição são obrigatórios" });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE projetos
+        SET
+        titulo = $1,
+        descricao = $2,
+        atualizada_em = NOW()
+        WHERE id = $3
+        AND arquivada_em IS NULL
+        RETURNING
+        id,
+        titulo,
+        descricao,
+        atualizada_em AS "atualizadaEm"`,
+            [titulo.trim(), descricao.trim(), id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Projeto não encontrado ou arquivado" });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao editar projeto", erro);
+
+        res.status(500).json({ erro: "Não foi possível editar o projeto" });
+    }
+});
+
+//admin: arquivar projeto
+app.patch("/api/projetos/:id/arquivar", async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE projetos
+        SET arquivada_em = NOW(),
+        atualizada_em = NOW()
+        WHERE id = $1
+        AND arquivada_em IS NULL
+        RETURNING
+        id,
+        status,
+        arquivada_em AS "arquivadaEm",
+        atualizada_em AS "atualizadaEm"`,
+            [id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Projeto não encontrado ou já arquivado" });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao arquivar projeto", erro);
+
+        res.status(500).json({ erro: "Não foi possível arquivar o projeto" });
+    }
+});
+
+//admin: restaurar projeto
+app.patch("/api/projetos/:id/restaurar", async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const resultado = await pool.query(
+            `UPDATE projetos
+        SET arquivada_em = NULL,
+        atualizada_em = NOW()
+        WHERE id = $1
+        AND arquivada_em IS NOT NULL
+        RETURNING
+        id,
+        status,
+        arquivada_em AS "arquivadaEm",
+        atualizada_em AS "atualizadaEm"`,
+            [id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res
+                .status(404)
+                .json({ erro: "Projeto não encontrado ou não está arquivado." });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao restaurar projeto:", erro);
+
+        res.status(500).json({ erro: "Não foi possível restaurar o projeto." });
+    }
+});
+
+//admin: revogar convite
+app.patch("/api/convites/:id/revogar", async (req, res) => {
+    const id = req.params.id;
+
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+        res.status(400).json({ erro: "ID do convite inválido." });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `
+            UPDATE convites
+            SET revogado_em = NOW()
+            WHERE id = $1
+                AND usado_em IS NULL
+                AND revogado_em IS NULL
+                AND expira_em > NOW()
+
+            RETURNING
+                id,
+                revogado_em AS "revogadoEm"
+        `,
+            [id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res
+                .status(409)
+                .json({
+                    erro: "Convite não encontrado ou indisponível para revogação.",
+                });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao revogar convite:", erro);
+        res.status(500).json({ erro: "Não foi possível revogar o convite." });
+    }
+});
+
+//admin: renomear conversa
+app.patch("/api/conversas/:id", async (req, res) => {
+    const { id } = req.params;
+    const { titulo } = req.body ?? {};
+
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({ erro: "Conversa inválida." });
+        return;
+    }
+
+    if (
+        typeof titulo !== "string" ||
+        !titulo.trim() ||
+        titulo.trim().length > 150
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe um título válido de até 150 caracteres." });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `
+            UPDATE conversas
+            SET titulo = $2
+            WHERE id = $1
+                AND tipo <> 'geral'
+                AND arquivada_em IS NULL
+            RETURNING
+                id,
+                cliente_id AS "clienteId",
+                projeto_id AS "projetoId",
+                titulo,
+                tipo,
+                criada_em AS "criadaEm"
+        `,
+            [id, titulo.trim()],
+        );
+
+        if (resultado.rows.length === 0) {
+            res
+                .status(404)
+                .json({ erro: "Conversa não encontrada ou indisponível para edição." });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao renomear conversa:", erro);
+        res.status(500).json({ erro: "Não foi possível renomear a conversa." });
+    }
+});
+
+//admin: arquivar conversa
+app.patch("/api/conversas/:id/arquivar", async (req, res) => {
+    const { id } = req.params;
+
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({ erro: "Conversa inválida." });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `
+            UPDATE conversas
+            SET arquivada_em = NOW()
+            WHERE id = $1
+                AND tipo <> 'geral'
+                AND arquivada_em IS NULL
+            RETURNING id, arquivada_em AS "arquivadaEm"
+        `,
+            [id],
+        );
+
+        if (resultado.rows.length === 0) {
+            res
+                .status(404)
+                .json({ erro: "Conversa indisponível para arquivamento." });
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao arquivar conversa:", erro);
+        res.status(500).json({ erro: "Não foi possível arquivar a conversa." });
+    }
+});
+
+//admin: decidir reabertura
+app.patch("/api/conversas/:id/reaberturas/:pedidoId", async (req, res) => {
+    const {id, pedidoId} = req.params;
+    const {status, justificativa} = req.body ?? {};
+    if (!uuidConversa.test(id) || !uuidConversa.test(pedidoId) || !["aprovada", "recusada"].includes(status) ||
+        (justificativa != null && (typeof justificativa !== "string" || justificativa.trim().length > 1000))) {
+        res.status(400).json({erro: "Pedido, decisão ou justificativa inválida."}); return;
+    }
+    try {
+        const dados = await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
+                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
+            if (!conversa.rowCount) throw new ErroConversa(409, "Conversa já restaurada ou indisponível.");
+            const resultado = await db.query(`UPDATE conversas_reaberturas r SET status = $3,
+                decidida_por = $4, decidida_em = clock_timestamp(), justificativa = $5
+                FROM conversas c WHERE r.id = $2 AND r.conversa_id = $1 AND c.id = r.conversa_id
+                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'
+                RETURNING r.id, r.status, r.solicitada_em AS "solicitadaEm", r.decidida_em AS "decididaEm", r.justificativa`,
+                [id, pedidoId, status, res.locals.usuarioId, justificativa?.trim() || null]);
+            if (!resultado.rowCount) throw new ErroConversa(409, "Pedido já decidido ou indisponível.");
+            if (status === "aprovada") await db.query("UPDATE conversas SET arquivada_em = NULL WHERE id = $1", [id]);
+            return {reabertura: resultado.rows[0], restaurada: status === "aprovada"};
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//admin: restaurar conversa
+app.patch("/api/conversas/:id/restaurar", async (req, res) => {
+    const {id} = req.params;
+    if (!uuidConversa.test(id)) {res.status(400).json({erro: "Conversa inválida."}); return;}
+    try {
+        const dados = await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
+                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
+            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa indisponível para restauração.");
+            await db.query(`UPDATE conversas_reaberturas r SET status = 'aprovada',
+                decidida_por = $2, decidida_em = clock_timestamp(), justificativa = 'Restauração administrativa'
+                FROM conversas c WHERE c.id = $1 AND r.conversa_id = c.id
+                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'`, [id, res.locals.usuarioId]);
+            const resultado = await db.query(`UPDATE conversas SET arquivada_em = NULL WHERE id = $1
+                RETURNING id, arquivada_em AS "arquivadaEm"`, [id]);
+            return resultado.rows[0];
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//cliente: ocultar conversa
+app.patch("/api/me/conversas/:id/ocultar", async (req, res) => {
+    const {id} = req.params;
+    const {ocultada} = req.body ?? {};
+    if (!uuidConversa.test(id) || typeof ocultada !== "boolean") {res.status(400).json({erro: "Preferência inválida."}); return;}
+    try {
+        await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND cliente_id = $2
+                AND tipo <> 'geral' AND arquivada_em IS NULL FOR UPDATE`, [id, res.locals.cliente.id]);
+            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa ativa não encontrada.");
+            if (ocultada) {
+                await db.query(`INSERT INTO conversas_ocultas (conversa_id, usuario_id, ultima_admin_id)
+                    VALUES ($1, $2, (SELECT id FROM mensagens WHERE conversa_id = $1 AND remetente_tipo = 'admin'
+                        ORDER BY enviada_em DESC, id DESC LIMIT 1))
+                    ON CONFLICT (conversa_id, usuario_id) DO UPDATE SET ocultada_em = clock_timestamp(),
+                        ultima_admin_id = EXCLUDED.ultima_admin_id`, [id, res.locals.usuarioId]);
+            } else {
+                await db.query("DELETE FROM conversas_ocultas WHERE conversa_id = $1 AND usuario_id = $2", [id, res.locals.usuarioId]);
+            }
+        });
+        res.json({id, ocultada});
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//rotas DELETE
+
+//admin: excluir convite
+app.delete("/api/convites/:id", async (req, res) => {
+    const id = req.params.id;
+
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+        res.status(400).json({ erro: "ID do convite inválido" });
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(
+            `DELETE FROM convites WHERE id = $1 RETURNING id`,
+            [id],
+        );
+
+        if (resultado.rowCount === 0) {
+            res.status(404).json({ erro: "Convite não encontrado" });
+            return;
+        }
+
+        res.status(204).end();
+    } catch (erro) {
+        console.error("Erro ao excluir convite:", erro);
+        res.status(500).json({ erro: "Não foi possível excluir o convite" });
+    }
+});
+
+//admin: limpar notificações
+app.delete("/api/notificacoes", limparNotificacoes("admin"));
+
+//cliente: limpar notificações
+app.delete("/api/me/notificacoes", limparNotificacoes("cliente"));
 
 //acesso a API
 app.listen(3001, () => {

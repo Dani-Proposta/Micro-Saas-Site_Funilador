@@ -1,23 +1,13 @@
-import { TextoExpansivel } from "../components/TextoExpansivel";
+import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
+import { statusSolicitacao } from "../lib/solicitacoes";
+import type { SolicitacaoDetalhada } from "../components/DetalhesSolicitacao";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 
-type Solicitacao = {
-    id: string;
-    titulo: string;
-    descricao: string;
-    status: "pendente" | "aprovada" | "recusada";
-    criadaEm: string;
-};
-
-const statusSolicitacao = {
-    pendente: {label: "Pendente", color: "yellow"},
-    aprovada: {label: "Aprovada", color: "green"},
-    recusada: {label: "Recusada", color: "red"},
-};
+type Solicitacao = SolicitacaoDetalhada;
 
 export function MinhasSolicitacoes() {
 
@@ -37,6 +27,9 @@ export function MinhasSolicitacoes() {
     const [erro, setErro] = useState<string | null>(null);
 
     const [modalAberto, setModalAberto] = useState(false);
+    const [detalhesId, setDetalhesId] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const detalhes = solicitacoes.find(s => s.id === detalhesId);
     const [titulo, setTitulo] = useState("");
     const [descricao, setDescricao] = useState("");
 
@@ -98,7 +91,10 @@ export function MinhasSolicitacoes() {
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível criar a solicitação.");
 
             setSolicitacoes((anteriores) => [dados, ...anteriores]);
-            fecharModal();
+            setModalAberto(false);
+            setTitulo("");
+            setDescricao("");
+            setErroEnvio(null);
             const proximo = comStatus(params, "todos");
             proximo.delete("solicitacao");
             proximo.delete("notificacao");
@@ -121,6 +117,7 @@ export function MinhasSolicitacoes() {
 
             <Text size="sm" c="dimmed">Envie novas solicitações e acompanhe suas respostas.</Text>
 
+            {detalhes && <DetalhesSolicitacao key={detalhes.id} solicitacao={detalhes} onClose={() => setDetalhesId(null)} acoes={detalhes.projetoId && <Button size="xs" variant="light" onClick={() => navigate(`/portal/projetos?projeto=${detalhes.projetoId}`)}>Ver projeto</Button>}/>}
             <Modal opened={modalAberto} onClose={fecharModal} title="Nova solicitação" centered closeOnEscape={!enviando} closeOnClickOutside={!enviando} withCloseButton={!enviando}>
                 <Stack gap="md">
                     <TextInput label="Título" placeholder="Sobre o que é sua solicitação?" value={titulo} onChange={(evento) => setTitulo(evento.currentTarget.value)} maxLength={150} disabled={enviando} required/>
@@ -142,12 +139,16 @@ export function MinhasSolicitacoes() {
                 <Card key={solicitacao.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">
-                            <Text fw={600} style={{overflowWrap: "anywhere", minWidth: 0}}>{solicitacao.titulo}</Text>
+                            <Text fw={600} lineClamp={2} style={{overflowWrap: "anywhere", minWidth: 0}}>{solicitacao.titulo}</Text>
                             <Badge color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
                         </Group>
 
-                        <TextoExpansivel texto={solicitacao.descricao} linhas={5}/>
+                        <Text size="sm" lineClamp={4} style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>
                         <Text size="xs" c="dimmed">Enviada em: {new Date(solicitacao.criadaEm).toLocaleString("pt-BR")}</Text>
+                        <Group justify="flex-end" gap="xs">
+                            <Button size="xs" variant="subtle" onClick={() => setDetalhesId(solicitacao.id)}>Ver detalhes</Button>
+                            {solicitacao.projetoId && <Button size="xs" variant="light" onClick={() => navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto</Button>}
+                        </Group>
                     </Stack>
                 </Card>
             ))}

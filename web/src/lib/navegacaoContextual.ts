@@ -1,4 +1,4 @@
-// Destinos de retorno internos e explicitamente permitidos.
+//destinos de retorno permitidos
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function destinoRetorno(state: unknown, padrao: string): string {
@@ -9,7 +9,7 @@ export function destinoRetorno(state: unknown, padrao: string): string {
         const url = new URL(destino, "https://funilador.invalid");
         if (url.origin !== "https://funilador.invalid") return padrao;
         const partes = url.pathname.split("/");
-        if (["/", "/clientes", "/projetos", "/portal", "/portal/projetos"].includes(url.pathname) ||
+        if (["/", "/clientes", "/projetos", "/portal", "/portal/projetos", "/solicitacoes", "/portal/solicitacoes"].includes(url.pathname) ||
             (partes.length === 3 && ["clientes", "projetos"].includes(partes[1] ?? "") && uuid.test(partes[2] ?? ""))) {
             return url.pathname + url.search;
         }
@@ -45,7 +45,7 @@ export function comStatus(params: URLSearchParams, valor: string | null): URLSea
     return proximo;
 }
 
-// Preserva a cadeia de origem sem aceitar destinos externos ou cadeias ilimitadas.
+//preservar origem da navegação
 export type EstadoRetorno = {voltarPara: string; estadoAnterior?: EstadoRetorno};
 export function estadoRetorno(state: unknown, profundidade = 0): EstadoRetorno | undefined {
     if (profundidade >= 8) return undefined;

@@ -139,7 +139,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                 <Button size="compact-xs" color="red" variant="subtle" disabled={!resumo?.totalGrupos || ocupada} onClick={() => setConfirmarLimpeza(true)}>Limpar todas</Button>
             </Group>
             {confirmarLimpeza && <Alert color="red" title="Limpar todas as notificações?">
-                <Text size="sm">Isso remove da sua central inclusive as não lidas. As mensagens, solicitações e notificações de outras contas não serão afetadas.</Text>
+                <Text size="sm">Isso remove as notificações, incluindo as não lidas.</Text>
                 <Group justify="flex-end" mt="xs" gap="xs">
                     <Button size="compact-xs" variant="default" disabled={ocupada} onClick={() => setConfirmarLimpeza(false)}>Cancelar</Button>
                     <Button size="compact-xs" color="red" loading={ocupada} onClick={() => void limpar()}>Confirmar limpeza</Button>

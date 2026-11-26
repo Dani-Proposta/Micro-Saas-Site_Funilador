@@ -1,18 +1,14 @@
 import { SeletorCliente } from "../components/SeletorCliente";
-import { TextoExpansivel } from "../components/TextoExpansivel";
+import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
+import { statusSolicitacao } from "../lib/solicitacoes";
+import type { SolicitacaoDetalhada, StatusSolicitacao } from "../lib/solicitacoes";
 import { useState, useEffect, } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
 import { Card, Text, Badge, Loader, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
 import type { SubmitEvent, } from 'react';
 
-type Solicitacao = {
-    id: string;
-    clienteNome: string;
-    titulo: string;
-    descricao: string;
-    status: "pendente" | "aprovada" | "recusada";
-}
+type Solicitacao = SolicitacaoDetalhada & {clienteNome: string};
 
 type Cliente = {
   id: string;
@@ -53,6 +49,11 @@ export function Solicitacoes(){
     const [cadastroClienteAberto, setCadastroClienteAberto] = useState(false);
 
     const [atualizandoId, setAtualizandoId] = useState<string | null>(null);
+    const [detalhesId, setDetalhesId] = useState<string | null>(null);
+    const [erroDecisao, setErroDecisao] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const local = useLocation();
+    const detalhes = solicitacoes.find(s => s.id === detalhesId);
 
     //carregar solicitações
     useEffect(() => {
@@ -169,38 +170,37 @@ export function Solicitacoes(){
 
     }
 
-    async function atualizarStatus(id:string, novoStatus: "aprovada" |"recusada") {
-        
-        setAtualizandoId(id)
-        
-        try{
-            const resposta = await fetch(`/api/solicitacoes/${id}/status`,{ 
+    //admin: decidir solicitação
+    async function atualizarStatus(id: string, novoStatus: StatusSolicitacao) {
+        if (atualizandoId) return;
+        setAtualizandoId(id);
+        setErroDecisao(null);
+
+        try {
+            const resposta = await fetch(`/api/solicitacoes/${id}/status`, {
                 method: "PATCH",
-                headers:{
-                    "Content-Type": "application/json",
-                },body:JSON.stringify({status:novoStatus}),
-
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({status: novoStatus}),
             });
-
-            if(!resposta.ok){
-                throw new Error("Falha ao atualizar Status");
-            }
-
-            const dados: {
-                id: string;
-                status: Solicitacao["status"];
-            } = await resposta.json();
-
-            setSolicitacoes((anteriores) =>
-                anteriores.map((solicitacao) => solicitacao.id === dados.id ? {...solicitacao, status:dados.status} : solicitacao));
-        }catch(erro){
-            console.error("Erro ao alterar os status da solicitação", erro);
-            alert("Não foi possivel atualizar a solicitação");
-        }finally{
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível alterar a decisão");
+            setSolicitacoes(anteriores => anteriores.map(s => s.id === id ? {...s, ...dados} : s));
+        } catch (erro) {
+            setErroDecisao(erro instanceof Error ? erro.message : "Não foi possível alterar a decisão");
+        } finally {
             setAtualizandoId(null);
         }
     }
 
+    function acoesSolicitacao(solicitacao: Solicitacao) {
+        if (solicitacao.status === "pendente") return <>
+            <Button size="xs" color="red" variant="outline" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "recusada")}>Recusar</Button>
+            <Button size="xs" color="green" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "aprovada")}>Aprovar</Button>
+        </>;
+        if (solicitacao.status === "recusada") return <Button size="xs" variant="light" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "pendente")}>Reconsiderar</Button>;
+        if (solicitacao.projetoId) return <Button size="xs" variant="light" onClick={() => navigate(`/projetos/${solicitacao.projetoId}`, {state: {voltarPara: local.pathname + local.search}})}>Ver projeto</Button>;
+        return null;
+    }
 
     //aparencia da pagina
     return(
@@ -220,6 +220,8 @@ export function Solicitacoes(){
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && (
                 <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>
             )}
+            {erroDecisao && <Alert color="red">{erroDecisao}</Alert>}
+            {detalhes && <DetalhesSolicitacao key={detalhes.id} solicitacao={detalhes} onClose={() => setDetalhesId(null)} ocupado={atualizandoId !== null} acoes={<>{erroDecisao && <Text size="xs" c="red">{erroDecisao}</Text>}{acoesSolicitacao(detalhes)}</>}/>}
             <Modal 
             opened={modalAberto}
             onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo("");setDescricao("");setErroEnvio(null);}}
@@ -256,21 +258,19 @@ export function Solicitacoes(){
                 <Card key={solicitacao.id} withBorder padding="lg" mt="lg">
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
                         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={700} style={{overflowWrap: "anywhere"}}>{solicitacao.titulo}</Text>
-                            <TextoExpansivel texto={solicitacao.descricao} linhas={4}/>
+                            <Text fw={700} lineClamp={2} style={{overflowWrap: "anywhere"}}>{solicitacao.titulo}</Text>
+                            <Text size="sm" lineClamp={4} style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>
                         </Stack>
 
                         <Stack align="flex-end" style={{maxWidth: "40%"}}>
-                            <Badge>{solicitacao.status}</Badge>
+                            <Badge color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
                             <Text size="sm" c="dimmed" ta="right">Cliente: {solicitacao.clienteNome}</Text>
                         </Stack>
                     </Group>
-                    {solicitacao.status === "pendente" && (
-                        <Group justify="flex-end" mt="sm">
-                            <Button size="xs" color="red" variant="outline" disabled={atualizandoId === solicitacao.id} onClick={()=> atualizarStatus(solicitacao.id, "recusada")}>Recusar</Button>
-                            <Button size="xs" color="green" disabled={atualizandoId === solicitacao.id} onClick={() => atualizarStatus(solicitacao.id, "aprovada")}>Aprovar</Button>
-                        </Group>
-                    )}
+                    <Group justify="space-between" mt="sm" gap="xs">
+                        <Button size="xs" variant="subtle" onClick={() => {setErroDecisao(null); setDetalhesId(solicitacao.id);}}>Ver detalhes</Button>
+                        <Group gap="xs">{acoesSolicitacao(solicitacao)}</Group>
+                    </Group>
                 </Card>
             ))}
         </div>
