@@ -7,6 +7,7 @@ import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavi
 import { AppShell, Group, Text, Burger} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
+import { RedefinirSenha } from "./pages/RedefinirSenha";
 import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
 import { IconePainel, MarcaPainel, MenuConta } from "./components/MenuConta";
@@ -88,7 +89,7 @@ function PainelAdmin() {
           </Group>
           <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
             <CentralNotificacoes key={sessao.user.id} lado="admin"/>
-            <MenuConta nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()} aoAbrir={close}/>
+            <MenuConta key={sessao.user.id} nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()} aoAbrir={close}/>
           </Group>
         </div>
       </AppShell.Header>
@@ -124,6 +125,7 @@ function PainelAdmin() {
 function App() {
     return (
         <Routes>
+            <Route path="/redefinir" element={<RedefinirSenha/>}/>
             <Route path="/convite/:token" element={<AceitarConvite/>}/>
             <Route path="/portal/*" element={<PainelCliente/>}/>
             <Route path="/*" element={<PainelAdmin/>}/>

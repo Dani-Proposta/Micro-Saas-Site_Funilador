@@ -1,3 +1,4 @@
+import { GerenciarAcesso } from "../components/GerenciarAcesso";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 
@@ -156,7 +157,7 @@ export function ClienteDetalhes() {
           <form onSubmit={(event) => {event.preventDefault(); void salvarEdicao();}}>
               <Stack gap="sm">
                   <TextInput label="Nome" required value={nomeEdicao} onChange={(event) => setNomeEdicao(event.currentTarget.value)}/>
-                  <TextInput label="E-mail" type="email" value={emailEdicao} onChange={(event) => setEmailEdicao(event.currentTarget.value)}/>
+                  <TextInput label="E-mail de contato" type="email" value={emailEdicao} onChange={(event) => setEmailEdicao(event.currentTarget.value)}/>
                   {erroEdicao && <Alert color="red">{erroEdicao}</Alert>}
                   <Group justify="flex-end">
                       <Button variant="default" disabled={salvando} onClick={() => setEditando(false)}>Cancelar</Button>
@@ -191,7 +192,7 @@ export function ClienteDetalhes() {
           </Text>
 
           <Text>
-            <Text span c="dimmed">E-mail: </Text>
+            <Text span c="dimmed">E-mail de contato: </Text>
             {cliente.email ?? "Não cadastrado"}
           </Text>
 
@@ -201,6 +202,8 @@ export function ClienteDetalhes() {
           </Text>
         </Stack>
       </Card>
+
+      <GerenciarAcesso key={cliente.id} clienteId={cliente.id}/>
 
       <Card withBorder padding="lg">
         <Stack gap="md">

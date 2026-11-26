@@ -9,6 +9,7 @@ export function Login(){
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
+    const [ajuda, setAjuda] = useState(false);
     const [entrando, setEntrando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -51,6 +52,9 @@ export function Login(){
                     <PasswordInput label="Senha" required value={senha} onChange={(event) => setSenha(event.currentTarget.value)}/>
                     {erro && <Alert color="red">{erro}</Alert>}
                     <Button type="submit" loading={entrando}>Entrar</Button>
+                    <Button type="button" variant="subtle" size="sm" onClick={()=>setAjuda(v=>!v)}>Esqueci minha senha</Button>
+                    {ajuda && <Alert color="blue">Entre em contato com o administrador pelo canal de atendimento habitual para solicitar um link ou código de recuperação.</Alert>}
+                    {ajuda && <Button type="button" variant="default" size="sm" onClick={()=>navigate("/redefinir")}>Já tenho um código</Button>}
                 </Stack>
             </form>
         </Paper>

@@ -5,7 +5,7 @@ import type { PoolClient } from "pg";
 
 import { pool } from "./db.ts";
 
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 
 import { Kysely, PostgresDialect, sql } from "kysely";
 
@@ -25,7 +25,29 @@ import { error } from "node:console";
 
 const app = express();
 
-app.all("/api/auth/*splat", toNodeHandler(auth));
+const handlerAuth = toNodeHandler(auth);
+//serializar login e troca de credenciais nesta instância
+let filaCredenciais: Promise<void> = Promise.resolve();
+let operacoesCredenciais = 0;
+async function comCredenciais<T>(acao: () => Promise<T>): Promise<T> {
+    if (operacoesCredenciais >= 50) throw new ErroConversa(503, "Muitas operações de acesso. Tente novamente.");
+    operacoesCredenciais++;
+    const anterior = filaCredenciais;
+    let liberar!: () => void;
+    filaCredenciais = new Promise<void>(resolve => {liberar = resolve;});
+    try {await anterior; return await acao();}
+    finally {operacoesCredenciais--; liberar();}
+}
+//apenas os endpoints de autenticação utilizados pelo painel
+app.all("/api/auth/*splat", async (req, res) => {
+    const permitidos = (req.path === "/api/auth/get-session" && ["GET","POST"].includes(req.method)) ||
+        (["/api/auth/sign-in/email","/api/auth/sign-out"].includes(req.path) && req.method === "POST");
+    if (!permitidos) {res.status(404).json({erro:"Rota indisponível"}); return;}
+    try {
+        if (req.path === "/api/auth/sign-in/email") await comCredenciais(async () => {await handlerAuth(req, res);});
+        else await handlerAuth(req, res);
+    } catch (erro) {if (!res.headersSent) responderErroConversa(res, erro);}
+});
 
 app.use(express.json());
 
@@ -75,6 +97,9 @@ async function exigirCliente(req: Request, res: Response, next: NextFunction) {
             return;
         }
 
+        const bloqueio = await pool.query(`SELECT 1 FROM usuarios_configuracoes WHERE usuario_id = $1 AND senha_provisoria_ate IS NOT NULL`, [sessao.user.id]);
+        if (bloqueio.rows.length) {res.status(403).json({erro: "Escolha uma nova senha para acessar o portal", codigo: "TROCA_SENHA_OBRIGATORIA"}); return;}
+
         const resultado = await pool.query(
             `
             SELECT id, nome, email
@@ -112,6 +137,30 @@ app.use(
     ],
     exigirAdmin,
 );
+
+//conta: acesso do próprio usuário
+async function exigirConta(req: Request, res: Response, next: NextFunction) {
+    try {
+        const sessao = await auth.api.getSession({headers: fromNodeHeaders(req.headers)});
+        if (!sessao) {res.status(401).json({erro: "Você precisa fazer login"}); return;}
+        const papeis = sessao.user.role?.split(",") ?? [];
+        const admin = papeis.includes("admin");
+        if (!admin && !papeis.includes("user")) {res.status(403).json({erro: "Acesso restrito"}); return;}
+        res.locals.usuarioId = sessao.user.id;
+        res.locals.contaAdmin = admin;
+        res.locals.sessaoId = sessao.session.id;
+        if (!admin && !(req.method === "PATCH" && req.path === "/senha")) {
+            const bloqueio = await pool.query(`SELECT 1 FROM usuarios_configuracoes WHERE usuario_id = $1 AND senha_provisoria_ate IS NOT NULL`, [sessao.user.id]);
+            if (bloqueio.rows.length) {res.status(403).json({erro: "Escolha uma nova senha para acessar o portal", codigo: "TROCA_SENHA_OBRIGATORIA"}); return;}
+        }
+        next();
+    } catch (erro) {
+        console.error("Erro ao verificar conta:", erro);
+        res.status(500).json({erro: "Não foi possível verificar a conta"});
+    }
+}
+
+app.use("/api/conta", exigirConta);
 
 //apenas cliente logado ve
 app.use("/api/me", exigirCliente);
@@ -646,11 +695,113 @@ function rotaDecidirProposta(lado: "admin" | "cliente") {
     };
 }
 
+//conta: dados pessoais e preferências
+async function carregarConta(db: PoolClient | typeof pool, usuarioId: string, admin: boolean) {
+    const resultado = await db.query(`
+        SELECT COALESCE(c.nome, u.name) AS nome, u.email, $2::boolean AS admin,
+            cfg.tema, CASE WHEN NOT $2::boolean AND cfg.nome_alterado_em + interval '6 hours' > NOW()
+                THEN cfg.nome_alterado_em + interval '6 hours' END AS "proximaAlteracaoNome"
+        FROM "user" u
+        LEFT JOIN clientes c ON c.usuario_id = u.id AND NOT $2::boolean
+        LEFT JOIN usuarios_configuracoes cfg ON cfg.usuario_id = u.id
+        WHERE u.id = $1 AND ($2::boolean OR c.id IS NOT NULL)
+    `, [usuarioId, admin]);
+    if (!resultado.rows.length) throw new ErroConversa(404, "Conta não encontrada");
+    return resultado.rows[0];
+}
+
+function nomeConta(valor: unknown) {
+    if (typeof valor !== "string" || !valor.trim() || valor.trim().length > 150) {
+        throw new ErroConversa(400, "Informe um nome válido de até 150 caracteres");
+    }
+    return valor.trim();
+}
+
+//recuperação de acesso
+function hashRecuperacao(token: string) {
+    return createHash("sha256").update(token).digest("hex");
+}
+
+function senhaValida(valor: unknown): valor is string {
+    return typeof valor === "string" && valor.length >= 8 && valor.length <= 128;
+}
+
+const tentativasAcesso = new Map<string, {total: number; ate: number}>();
+function limitarAcesso(chave: string, limite = 10) {
+    const agora = Date.now();
+    for (const [id, item] of tentativasAcesso) if (item.ate <= agora) tentativasAcesso.delete(id);
+    const item = tentativasAcesso.get(chave);
+    if (!item) {
+        if (tentativasAcesso.size >= 5000) throw new ErroConversa(429, "Muitas tentativas. Tente novamente mais tarde.");
+        tentativasAcesso.set(chave, {total: 1, ate: agora + 600000});
+    } else {
+        if (item.total >= limite) throw new ErroConversa(429, "Muitas tentativas. Tente novamente mais tarde.");
+        item.total++;
+    }
+}
+
+function exigirJsonAcesso(req: Request) {
+    if (!req.is("application/json")) throw new ErroConversa(415, "Envie dados em JSON");
+    const origem = req.get("origin");
+    const origens = Array.isArray(auth.options.trustedOrigins) ? auth.options.trustedOrigins : [];
+    const permitidas = [auth.options.baseURL, ...origens, process.env.BETTER_AUTH_URL].filter((v): v is string => typeof v === "string").map(v => new URL(v).origin);
+    if (req.get("sec-fetch-site") === "cross-site" || (origem && !permitidas.includes(origem))) throw new ErroConversa(403, "Origem não autorizada");
+}
+
+async function travarUsuarioAcesso(db: PoolClient, usuarioId: string) {
+    const usuario = (await db.query(`SELECT id, role FROM "user" WHERE id = $1 FOR UPDATE`, [usuarioId])).rows[0];
+    if (!usuario) throw new ErroConversa(404, "Conta não encontrada");
+    return usuario;
+}
+
+async function contaCredencial(db: PoolClient, usuarioId: string) {
+    const dados = await db.query(`SELECT id, password FROM "account" WHERE "userId" = $1 AND "providerId" = 'credential' FOR UPDATE`, [usuarioId]);
+    if (dados.rows.length !== 1 || !dados.rows[0].password) throw new ErroConversa(409, "Conta de acesso indisponível");
+    return dados.rows[0] as {id: string; password: string};
+}
+
+async function confirmarAdminAcesso(db: PoolClient, usuarioId: string, senha: unknown) {
+    if (!senhaValida(senha)) throw new ErroConversa(400, "Informe sua senha atual");
+    const conta = await contaCredencial(db, usuarioId);
+    const contexto = await auth.$context;
+    if (!await contexto.password.verify({hash: conta.password, password: senha})) throw new ErroConversa(403, "Senha administrativa incorreta");
+}
+
+async function clienteAcesso(db: PoolClient, id: string) {
+    if (!uuidConversa.test(id)) throw new ErroConversa(400, "Cliente inválido");
+    const cliente = (await db.query(`SELECT usuario_id FROM clientes WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+    if (!cliente?.usuario_id) throw new ErroConversa(404, "Cliente sem conta vinculada");
+    const usuario = await travarUsuarioAcesso(db, cliente.usuario_id);
+    const papeis = String(usuario.role ?? "").split(",");
+    if (!papeis.includes("user") || papeis.includes("admin")) throw new ErroConversa(403, "Conta indisponível para recuperação administrativa");
+    return cliente.usuario_id as string;
+}
+
+async function invalidarRecuperacoes(db: PoolClient, usuarioId: string, tipo: "link" | "provisoria" | null = null) {
+    await db.query(`UPDATE usuarios_recuperacoes SET revogada_em = clock_timestamp() WHERE usuario_id = $1 AND tipo IN ('link','provisoria') AND ($2::text IS NULL OR tipo = $2) AND usada_em IS NULL AND revogada_em IS NULL`, [usuarioId, tipo]);
+}
+
+async function trocarCredencial(db: PoolClient, usuarioId: string, senha: string, manterSessao: string | null = null) {
+    const conta = await contaCredencial(db, usuarioId);
+    const contexto = await auth.$context;
+    const hash = await contexto.password.hash(senha);
+    await db.query(`UPDATE "account" SET password = $2, "updatedAt" = NOW() WHERE id = $1`, [conta.id, hash]);
+    await db.query(`DELETE FROM "session" WHERE "userId" = $1 AND ($2::text IS NULL OR id <> $2)`, [usuarioId, manterSessao]);
+}
+
 //rotas GET
 
 //verificar conexão com api
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+});
+
+//conta: consultar dados pessoais
+app.get("/api/conta", async (_req, res) => {
+    try {
+        const dados = await carregarConta(pool, res.locals.usuarioId, res.locals.contaAdmin);
+        res.set("Cache-Control", "no-store").json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
 });
 
 //cliente: carregar dados da conta
@@ -1485,6 +1636,27 @@ app.get("/api/notificacoes", listarNotificacoes("admin"));
 //cliente: listar notificações
 app.get("/api/me/notificacoes", listarNotificacoes("cliente"));
 
+//admin: consultar gerenciamento de acesso
+app.get("/api/clientes/:id/acesso", async (req, res) => {
+    try {
+        const {id} = req.params;
+        if (!uuidConversa.test(id)) throw new ErroConversa(400, "Cliente inválido");
+        const dados = await pool.query(`SELECT u.email, u.id AS "usuarioId", cfg.senha_provisoria_ate AS "senhaProvisoriaAte",
+            COALESCE((SELECT jsonb_agg(h ORDER BY h."criadaEm" DESC,h.id DESC) FROM (
+                SELECT r.id, r.tipo, r.criada_em AS "criadaEm", r.expira_em AS "expiraEm",
+                    CASE WHEN r.revogada_em IS NOT NULL THEN 'revogado' WHEN r.usada_em IS NOT NULL THEN 'utilizado'
+                        WHEN r.expira_em <= clock_timestamp() THEN 'expirado' ELSE 'ativo' END AS estado,
+                    a.name AS administrador
+                FROM usuarios_recuperacoes r LEFT JOIN "user" a ON a.id = r.administrador_id
+                WHERE r.usuario_id = u.id ORDER BY r.criada_em DESC,r.id DESC LIMIT 30
+            ) h),'[]'::jsonb) AS historico
+            FROM clientes c LEFT JOIN "user" u ON u.id = c.usuario_id
+            LEFT JOIN usuarios_configuracoes cfg ON cfg.usuario_id = u.id WHERE c.id = $1`, [id]);
+        if (!dados.rows.length) throw new ErroConversa(404, "Cliente não encontrado");
+        res.set("Cache-Control", "no-store").json(dados.rows[0]);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
 //rotas POST
 
 //admin: cadastrar cliente
@@ -1509,7 +1681,7 @@ app.post("/api/clientes", async (req, res) => {
         const resultado = await pool.query(
             `INSERT INTO clientes (nome,email)
             VALUES ($1, $2)
-            RETURNING id, nome, email`,
+            RETURNING id, usuario_id AS "usuarioId", nome, email`,
             [nome.trim(), emailTratado],
         );
 
@@ -2294,46 +2466,222 @@ app.post("/api/notificacoes/leituras", lerNotificacoes("admin"));
 //cliente: registrar leituras
 app.post("/api/me/notificacoes/leituras", lerNotificacoes("cliente"));
 
+//admin: gerar recuperação ou encerrar sessões
+app.post("/api/clientes/:id/acesso", async (req, res) => {
+    try {
+        exigirJsonAcesso(req);
+        const {id} = req.params;
+        const {acao, validade, senhaAdmin} = req.body ?? {};
+        if (!["link","provisoria","sessoes"].includes(acao) || (acao !== "sessoes" && ![15,60,1440].includes(validade))) throw new ErroConversa(400, "Operação inválida");
+        const admin = res.locals.usuarioId as string;
+        limitarAcesso(`admin:${admin}`);
+        const resultado = await comCredenciais(() => transacaoConversa(async db => {
+            await confirmarAdminAcesso(db, admin, senhaAdmin);
+            const usuario = await clienteAcesso(db, id);
+            await contaCredencial(db, usuario);
+            if (acao === "sessoes") {
+                await db.query(`DELETE FROM "session" WHERE "userId" = $1`, [usuario]);
+                await db.query(`INSERT INTO usuarios_recuperacoes (usuario_id,administrador_id,tipo,usada_em) VALUES ($1,$2,'sessoes',clock_timestamp())`, [usuario,admin]);
+                return {acao};
+            }
+            const segredo = randomBytes(32).toString("base64url");
+            await invalidarRecuperacoes(db, usuario, acao === "link" ? "link" : null);
+            const registro = await db.query(`INSERT INTO usuarios_recuperacoes (usuario_id,administrador_id,tipo,token_hash,expira_em)
+                VALUES ($1,$2,$3,$4,clock_timestamp() + $5::int * interval '1 minute') RETURNING id,expira_em AS "expiraEm"`,
+                [usuario,admin,acao,acao === "link" ? hashRecuperacao(segredo) : null,validade]);
+            if (acao === "provisoria") {
+                await trocarCredencial(db, usuario, segredo);
+                await db.query(`INSERT INTO usuarios_configuracoes (usuario_id,senha_provisoria_ate) VALUES ($1,$2)
+                    ON CONFLICT (usuario_id) DO UPDATE SET senha_provisoria_ate = EXCLUDED.senha_provisoria_ate`, [usuario,registro.rows[0].expiraEm]);
+            }
+            return {acao, ...registro.rows[0], segredo};
+        }));
+        res.set("Cache-Control", "no-store").status(201).json(resultado);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//cliente: redefinir senha por link de uso único
+app.post("/api/recuperacao", async (req, res) => {
+    try {
+        exigirJsonAcesso(req);
+        limitarAcesso(`publico:${req.ip ?? "local"}`, 30);
+        const {token, senha} = req.body ?? {};
+        if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token) || !senhaValida(senha)) throw new ErroConversa(400, "Código ou senha inválidos");
+        const hash = hashRecuperacao(token);
+        await comCredenciais(() => transacaoConversa(async db => {
+            const invalido = () => new ErroConversa(410, "Link inválido, expirado ou já utilizado. Solicite outro ao administrador.");
+            const referencia = (await db.query(`SELECT usuario_id FROM usuarios_recuperacoes WHERE token_hash = $1 AND tipo = 'link' AND usada_em IS NULL AND revogada_em IS NULL AND expira_em > clock_timestamp()`, [hash])).rows[0];
+            if (!referencia) throw invalido();
+            const usuario = await travarUsuarioAcesso(db, referencia.usuario_id);
+            const papeis = String(usuario.role ?? "").split(",");
+            if (!papeis.includes("user") || papeis.includes("admin")) throw invalido();
+            //não tornar a senha provisória uma credencial definitiva
+            const cfg = (await db.query(`SELECT senha_provisoria_ate IS NOT NULL AS provisoria FROM usuarios_configuracoes WHERE usuario_id = $1`, [usuario.id])).rows[0];
+            if (cfg?.provisoria) {
+                const conta = await contaCredencial(db, usuario.id);
+                const contexto = await auth.$context;
+                if (await contexto.password.verify({hash: conta.password, password: senha})) throw new ErroConversa(400, "Escolha uma senha diferente da provisória");
+            }
+            const registro = await db.query(`UPDATE usuarios_recuperacoes SET usada_em = clock_timestamp() WHERE token_hash = $1 AND usuario_id = $2 AND usada_em IS NULL AND revogada_em IS NULL AND expira_em > clock_timestamp() RETURNING id`, [hash,usuario.id]);
+            if (!registro.rows.length) throw invalido();
+            await trocarCredencial(db, usuario.id, senha);
+            await invalidarRecuperacoes(db, usuario.id);
+            await db.query(`UPDATE usuarios_configuracoes SET senha_provisoria_ate = NULL WHERE usuario_id = $1`, [usuario.id]);
+        }));
+        res.set("Cache-Control", "no-store").json({mensagem: "Senha redefinida. Entre novamente."});
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
 //rotas PATCH
+
+//admin: revogar link de recuperação
+app.patch("/api/clientes/:id/acesso/:recuperacaoId/revogar", async (req, res) => {
+    try {
+        exigirJsonAcesso(req);
+        const {id, recuperacaoId} = req.params;
+        if (!uuidConversa.test(recuperacaoId)) throw new ErroConversa(400, "Link inválido");
+        const admin = res.locals.usuarioId as string;
+        limitarAcesso(`admin:${admin}`);
+        await transacaoConversa(async db => {
+            await confirmarAdminAcesso(db, admin, req.body?.senhaAdmin);
+            const usuario = await clienteAcesso(db, id);
+            const resultado = await db.query(`UPDATE usuarios_recuperacoes SET revogada_em = clock_timestamp() WHERE id = $1 AND usuario_id = $2 AND tipo = 'link' AND usada_em IS NULL AND revogada_em IS NULL AND expira_em > clock_timestamp() RETURNING id`, [recuperacaoId,usuario]);
+            if (!resultado.rows.length) throw new ErroConversa(409, "Link indisponível");
+        });
+        res.json({revogado: true});
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//conta: alterar senha atual ou provisória
+app.patch("/api/conta/senha", async (req, res) => {
+    try {
+        exigirJsonAcesso(req);
+        const {atual, nova, provisoria: solicitarTrocaProvisoria} = req.body ?? {};
+        if (!senhaValida(nova)) throw new ErroConversa(400, "A nova senha deve possuir de 8 a 128 caracteres");
+        const usuario = res.locals.usuarioId as string;
+        limitarAcesso(`senha:${usuario}`);
+        const provisoria = await comCredenciais(() => transacaoConversa(async db => {
+            const contaUsuario = await travarUsuarioAcesso(db, usuario);
+            const sessao = await db.query(`SELECT 1 FROM "session" WHERE id = $1 AND "userId" = $2 AND "expiresAt" > clock_timestamp() FOR UPDATE`, [res.locals.sessaoId,usuario]);
+            if (!sessao.rows.length) throw new ErroConversa(401, "Sessão indisponível. Entre novamente");
+            const cfg = (await db.query(`SELECT senha_provisoria_ate IS NOT NULL AS provisoria, senha_provisoria_ate <= clock_timestamp() AS expirada FROM usuarios_configuracoes WHERE usuario_id = $1`, [usuario])).rows[0];
+            if (cfg?.expirada) throw new ErroConversa(410, "Senha provisória expirada. Solicite uma nova recuperação");
+            const conta = await contaCredencial(db, usuario);
+            const contexto = await auth.$context;
+            if (solicitarTrocaProvisoria === true) {
+                const papeis = String(contaUsuario.role ?? "").split(",");
+                if (!cfg?.provisoria || !papeis.includes("user") || papeis.includes("admin")) throw new ErroConversa(403, "Não há troca de senha provisória disponível");
+                //a sessão deve ter sido criada após a emissão da senha provisória vigente
+                const autorizada = await db.query(`SELECT r.id FROM usuarios_recuperacoes r
+                    JOIN usuarios_configuracoes cfg ON cfg.usuario_id = r.usuario_id AND cfg.senha_provisoria_ate = r.expira_em
+                    JOIN "session" s ON s."userId" = r.usuario_id AND s.id = $2
+                    WHERE r.usuario_id = $1 AND r.tipo = 'provisoria' AND r.usada_em IS NULL AND r.revogada_em IS NULL
+                        AND r.expira_em > clock_timestamp() AND s."expiresAt" > clock_timestamp()
+                        AND s."createdAt" >= date_trunc('milliseconds', r.criada_em) AND s."createdAt" < r.expira_em
+                    FOR UPDATE OF r`, [usuario,res.locals.sessaoId]);
+                if (!autorizada.rows.length) throw new ErroConversa(403, "Sessão de recuperação indisponível. Entre novamente com a senha provisória ou solicite outra recuperação");
+                if (await contexto.password.verify({hash: conta.password,password: nova})) throw new ErroConversa(400, "Escolha uma senha diferente da provisória");
+                await trocarCredencial(db, usuario, nova);
+                await db.query(`UPDATE usuarios_recuperacoes SET usada_em = clock_timestamp() WHERE id = $1`, [autorizada.rows[0].id]);
+            } else {
+                if (cfg?.provisoria) throw new ErroConversa(403, "Utilize a tela de troca de senha provisória");
+                if (!senhaValida(atual)) throw new ErroConversa(400, "Informe sua senha atual");
+                if (!await contexto.password.verify({hash: conta.password,password: atual})) throw new ErroConversa(403, "Senha atual incorreta");
+                if (atual === nova) throw new ErroConversa(400, "A nova senha deve ser diferente da senha atual");
+                await trocarCredencial(db, usuario, nova, res.locals.sessaoId);
+            }
+            await invalidarRecuperacoes(db, usuario);
+            await db.query(`UPDATE usuarios_configuracoes SET senha_provisoria_ate = NULL WHERE usuario_id = $1`, [usuario]);
+            return !!cfg?.provisoria;
+        }));
+        res.set("Cache-Control", "no-store").json({alterada: true, entrarNovamente: provisoria});
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//conta: alterar próprio nome
+app.patch("/api/conta/nome", async (req, res) => {
+    try {
+        if (!req.is("application/json")) throw new ErroConversa(415, "Envie dados em JSON");
+        const nome = nomeConta(req.body?.nome);
+        const usuarioId = res.locals.usuarioId;
+        const admin = res.locals.contaAdmin;
+        const dados = await transacaoConversa(async db => {
+            //travar cliente antes do usuário, como na edição administrativa
+            const cliente = admin ? null : (await db.query(`SELECT id, nome FROM clientes WHERE usuario_id = $1 FOR UPDATE`, [usuarioId])).rows[0];
+            if (!admin && !cliente) throw new ErroConversa(404, "Cliente não encontrado");
+            const usuario = (await db.query(`SELECT name FROM "user" WHERE id = $1 FOR UPDATE`, [usuarioId])).rows[0];
+            if (!usuario) throw new ErroConversa(404, "Conta não encontrada");
+            if (usuario.name === nome && (admin || cliente.nome === nome)) return carregarConta(db, usuarioId, admin);
+            if (!admin) {
+                const intervalo = await db.query(`
+                    SELECT nome_alterado_em + interval '6 hours' AS proxima
+                    FROM usuarios_configuracoes WHERE usuario_id = $1
+                        AND nome_alterado_em + interval '6 hours' > clock_timestamp()
+                `, [usuarioId]);
+                if (intervalo.rows.length) throw new ErroConversa(429, "Você pode alterar seu nome novamente após " +
+                    new Date(intervalo.rows[0].proxima).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"}));
+            }
+            await db.query(`UPDATE "user" SET name = $2, "updatedAt" = NOW() WHERE id = $1`, [usuarioId, nome]);
+            if (!admin) {
+                await db.query(`UPDATE clientes SET nome = $2 WHERE id = $1`, [cliente.id, nome]);
+                await db.query(`
+                    INSERT INTO usuarios_configuracoes (usuario_id, nome_alterado_em) VALUES ($1, clock_timestamp())
+                    ON CONFLICT (usuario_id) DO UPDATE SET nome_alterado_em = EXCLUDED.nome_alterado_em
+                `, [usuarioId]);
+            }
+            return carregarConta(db, usuarioId, admin);
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+//conta: salvar preferência de tema
+app.patch("/api/conta/preferencias", async (req, res) => {
+    try {
+        if (!req.is("application/json")) throw new ErroConversa(415, "Envie dados em JSON");
+        const tema = req.body?.tema;
+        if (tema !== "light" && tema !== "dark" && tema !== "auto") throw new ErroConversa(400, "Tema inválido");
+        const usuarioId = res.locals.usuarioId;
+        const admin = res.locals.contaAdmin;
+        const dados = await transacaoConversa(async db => {
+            await carregarConta(db, usuarioId, admin);
+            await db.query(`
+                INSERT INTO usuarios_configuracoes (usuario_id, tema) VALUES ($1,$2)
+                ON CONFLICT (usuario_id) DO UPDATE SET tema = EXCLUDED.tema
+            `, [usuarioId, tema]);
+            return carregarConta(db, usuarioId, admin);
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
 
 //admin: editar cliente
 app.patch("/api/clientes/:id", async (req, res) => {
     const id = req.params.id;
-    const nome = req.body?.nome;
-    const email = req.body?.email;
-
-    if (typeof nome !== "string" || nome.trim().length === 0) {
-        res.status(400).json({ erro: "Nome obrigatorio" });
-        return;
-    }
-
-    if (email != null && typeof email !== "string") {
-        res.status(400).json({ erro: "Email invalido" });
-        return;
-    }
-
-    const emailTratado =
-        typeof email === "string" && email.trim() ? email.trim() : null;
-
     try {
-        const resultado = await pool.query(
-            `UPDATE clientes
-            SET nome = $1, email = $2
-            WHERE id = $3
-            Returning id, nome, email`,
-            [nome.trim(), emailTratado, id],
-        );
-
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Clientes não encontra" });
-            return;
+        if (typeof id !== "string" || !uuidConversa.test(id)) throw new ErroConversa(400, "Cliente inválido");
+        const nome = nomeConta(req.body?.nome);
+        const email = req.body?.email;
+        if (email != null && (typeof email !== "string" || email.trim().length > 254 ||
+            (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())))) {
+            throw new ErroConversa(400, "E-mail de contato inválido");
         }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao editar cliente:", erro);
-        res.status(500).json({ erro: "Falha ao editar cliente" });
-    }
+        const emailTratado = typeof email === "string" ? email.trim() || null : null;
+        const dados = await transacaoConversa(async db => {
+            const atual = (await db.query(`SELECT usuario_id FROM clientes WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+            if (!atual) throw new ErroConversa(404, "Cliente não encontrado");
+            if (atual.usuario_id) {
+                await db.query(`UPDATE "user" SET name = $2, "updatedAt" = NOW() WHERE id = $1 AND name IS DISTINCT FROM $2`, [atual.usuario_id, nome]);
+            }
+            const resultado = await db.query(`
+                UPDATE clientes SET nome = $1, email = $2 WHERE id = $3
+                RETURNING id, usuario_id AS "usuarioId", nome, email
+            `, [nome, emailTratado, id]);
+            return resultado.rows[0];
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
 });
 
 //admin: decidir solicitação

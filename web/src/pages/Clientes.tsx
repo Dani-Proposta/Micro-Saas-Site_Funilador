@@ -8,6 +8,7 @@ type Cliente = {
     id: string;
     nome: string;
     email: string | null;
+    usuarioId?: string | null;
 
 };
 
@@ -77,7 +78,9 @@ export function Clientes() {
                 body: JSON.stringify({nome, email}),
             });
 
-            const novoCliente: Cliente = await resposta.json();
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível salvar o cliente");
+            const novoCliente: Cliente = dados;
 
             setClientes((anteriores) => 
                 clienteEditando ? anteriores.map((cliente) => cliente.id === novoCliente.id ? novoCliente: cliente)
@@ -92,7 +95,7 @@ export function Clientes() {
 
         }catch(erro){
             console.error(erro);
-            setErroCadastro("não foi possivel cadastrar o cliente");
+            setErroCadastro(erro instanceof Error ? erro.message : "Não foi possível salvar o cliente");
         }finally{
             setEnviando(false);
         }
@@ -109,10 +112,10 @@ export function Clientes() {
             <Modal opened={modalAberto} onClose={() => {setModalAberto(false); setClienteEditando(null); setNome(""); setEmail(""); setErroCadastro(null);}} title={clienteEditando ? "Editar cliente" : "Novo cliente"}centered>
                 <form onSubmit={salvarCliente}>
                     <Stack gap="sm">
-                        <TextInput label="Nome" required value={nome} onChange={(event)=> setNome(event.currentTarget.value)}/>
-                        <TextInput label= "Email" type="email" placeholder="Opcional" value={email} onChange={(event) => setEmail(event.currentTarget.value)}/>
+                        <TextInput label="Nome" maxLength={150} required value={nome} onChange={(event)=> setNome(event.currentTarget.value)}/>
+                        <TextInput label="E-mail de contato" description={clienteEditando?.usuarioId ? "Não altera o e-mail de acesso à conta." : undefined} type="email" maxLength={254} placeholder="Opcional" value={email} onChange={(event) => setEmail(event.currentTarget.value)}/>
                         {erroCadastro && ( <Alert color="red">{erroCadastro}</Alert>)}
-                        <Button type="submit" loading={enviando}>Cadastrar cliente</Button>
+                        <Button type="submit" loading={enviando}>{clienteEditando ? "Salvar alterações" : "Cadastrar cliente"}</Button>
                     </Stack>
                 </form>
             </Modal>

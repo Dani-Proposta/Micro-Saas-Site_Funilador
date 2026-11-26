@@ -11,6 +11,7 @@ import { CentralNotificacoes } from "../components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
 
 //por dps em um index proprio
+import { RedefinirSenha } from "./RedefinirSenha";
 import { MeusProjetos } from "./MeusProjetos";
 import { MinhasSolicitacoes } from "./MinhasSolicitacoes";
 import { DashboardCliente } from "./DashboardCliente";
@@ -46,6 +47,7 @@ function PortalCliente() {
     const [opened, { toggle, close }] = useDisclosure(false);
     const navigate = useNavigate();
 
+    const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
     const [cliente, setCliente] = useState<Cliente | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [saindo, setSaindo] = useState(false);
@@ -62,6 +64,7 @@ function PortalCliente() {
                 const resposta = await fetch("/api/me", {signal: controller.signal});
                 const dados = await resposta.json();
 
+                if (resposta.status === 403 && dados.codigo === "TROCA_SENHA_OBRIGATORIA") {if (!controller.signal.aborted) setTrocaObrigatoria(true); return;}
                 if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível carregar seus dados.");
 
                 if (!controller.signal.aborted) setCliente(dados);
@@ -93,6 +96,8 @@ function PortalCliente() {
         }
     }
 
+    if (trocaObrigatoria) return <RedefinirSenha provisoria/>;
+
     return (
         <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: 236, breakpoint: "sm", collapsed: {mobile: !opened}}}>
 
@@ -104,7 +109,7 @@ function PortalCliente() {
                     </Group>
                     <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
                         {cliente && <CentralNotificacoes lado="cliente"/>}
-                        <MenuConta nome={cliente?.nome} email={cliente?.email} sair={() => void sair()} aoAbrir={close} saindo={saindo}/>
+                        <MenuConta nome={cliente?.nome} email={cliente?.email} aoAlterarNome={nome => setCliente(anterior => anterior ? {...anterior, nome} : anterior)} sair={() => void sair()} aoAbrir={close} saindo={saindo}/>
                     </Group>
                 </div>
             </AppShell.Header>
