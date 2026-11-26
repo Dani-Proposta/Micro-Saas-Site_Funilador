@@ -1,3 +1,5 @@
+import { formatarPrazo, formatarValor } from "../lib/comercial";
+import classes from "../styles/Trabalho.module.css";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { MarcosProjeto } from "../components/MarcosProjeto";
@@ -8,7 +10,7 @@ import type { DadosProjetoAdmin } from "../lib/comercial";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Stack, Text, Title, Modal, Textarea, TextInput, Select, Tabs } from "@mantine/core";
 
 type Projeto = DadosProjetoAdmin & {
     id: string;
@@ -45,6 +47,8 @@ export function ProjetoDetalhes() {
     const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
     const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : voltarPara.startsWith("/financeiro") ? "Voltar ao financeiro" : "Voltar aos projetos";
 
+    const [aba, setAba] = useState<string | null>(()=>new URLSearchParams(location.search).has("marco") ? "marcos" : "geral");
+    useEffect(()=>{setAba(new URLSearchParams(location.search).has("marco") ? "marcos" : "geral");},[id,location.search]);
     const [projeto, setProjeto] = useState<Projeto | null>(null);
     const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : anterior), []);
     const [carregando, setCarregando] = useState(true);
@@ -218,7 +222,7 @@ export function ProjetoDetalhes() {
     }
 
     return (
-        <Stack gap="lg">
+        <Stack gap="md" className={classes.pagina}>
 
             <Modal opened={editando} onClose={() => { if (!salvando) setEditando(false);}} title="Editar projeto" centered closeOnEscape={!salvando}closeOnClickOutside={!salvando} withCloseButton={!salvando}>
                 <Stack gap="md">
@@ -259,12 +263,16 @@ export function ProjetoDetalhes() {
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}
             {erroArquivo && !confirmarArquivamento && (<Alert color="red">{erroArquivo}</Alert>)}
             
-            <Card withBorder padding="lg">
-                <Stack gap="md">
+            <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={600}>{formatarValor(projeto.valorAcordado)}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={600}>{formatarPrazo(projeto.prazoAcordado)}</Text></div><div><Text size="xs" c="dimmed">Progresso</Text><Text size="sm" fw={600}>{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></div></div>
+            <Tabs value={aba} onChange={setAba} keepMounted className={classes.pagina}>
+                <Tabs.List className={classes.abas}><Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="comercial">Dados comerciais</Tabs.Tab><Tabs.Tab value="marcos">Marcos e pagamentos</Tabs.Tab></Tabs.List>
+                <Tabs.Panel value="geral" pt="sm"><Stack gap="sm">
+            <Card withBorder padding="sm">
+                <Stack gap="sm">
                     <Title order={4}>Informações gerais</Title>
                     <Group justify="space-between">
                         <Text c="dimmed">Cliente</Text>
-                        <Button variant="subtle" size="sm" onClick={() => navigate(`/clientes/${projeto.clienteId}`, {state: registrarOrigem(`/projetos/${projeto.id}`, location.state)})}>{projeto.clienteNome}</Button>
+                        <Button variant="subtle" size="sm" className={classes.clienteLongo} onClick={() => navigate(`/clientes/${projeto.clienteId}`, {state: registrarOrigem(`/projetos/${projeto.id}`, location.state)})}>{projeto.clienteNome}</Button>
                     </Group>
 
                     <Group justify="space-between">
@@ -284,16 +292,19 @@ export function ProjetoDetalhes() {
                 </Stack>
             </Card>
 
-            <DadosComerciaisProjeto key={projeto.id} projeto={projeto} onSalvo={dados => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, ...dados} : anterior)}/>
-            <MarcosProjeto key={`marcos-${projeto.id}-${new URLSearchParams(location.search).get("marco") ?? ""}`} projeto={projeto} onAtualizado={atualizarMarcos} focoMarco={new URLSearchParams(location.search).get("marco") ?? undefined}/>
 
-            <Card withBorder padding="lg">
+
+            <Card withBorder padding="sm">
                 <Stack gap="sm">
                     <Title order={4}>Descrição e escopo</Title>
 
                     <Text style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", }}>{projeto.descricao}</Text>
                 </Stack>
             </Card>
+                </Stack></Tabs.Panel>
+                <Tabs.Panel value="comercial" pt="sm"><DadosComerciaisProjeto key={projeto.id} projeto={projeto} onSalvo={dados => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, ...dados} : anterior)}/></Tabs.Panel>
+                <Tabs.Panel value="marcos" pt="sm"><MarcosProjeto key={`marcos-${projeto.id}-${new URLSearchParams(location.search).get("marco") ?? ""}`} projeto={projeto} onAtualizado={atualizarMarcos} focoMarco={new URLSearchParams(location.search).get("marco") ?? undefined}/></Tabs.Panel>
+            </Tabs>
         </Stack>
     );
 }

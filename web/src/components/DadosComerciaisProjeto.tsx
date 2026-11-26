@@ -1,3 +1,4 @@
+import classes from "../styles/Trabalho.module.css";
 import { useState } from "react";
 import { Alert, Badge, Button, Card, Group, Progress, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { formatarValor, formatarPrazo, prioridades } from "../lib/comercial";
@@ -6,7 +7,7 @@ import type { DadosProjeto, DadosProjetoAdmin } from "../lib/comercial";
 //dados visíveis ao cliente
 export function ResumoProjeto({projeto}: {projeto: DadosProjeto}) {
     return <Stack gap="sm">
-        <SimpleGrid cols={{base: 1, sm: 2}}>
+        <SimpleGrid cols={{base: 1, xs: 2}}>
             <Stack gap={2}><Text size="xs" c="dimmed">Valor acordado</Text><Text fw={500}>{formatarValor(projeto.valorAcordado)}</Text></Stack>
             <Stack gap={2}><Text size="xs" c="dimmed">Prazo acordado</Text><Text fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></Stack>
         </SimpleGrid>
@@ -80,11 +81,11 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
         }
     }
 
-    return <Card withBorder padding="lg">
-        <Stack gap="md">
+    return <Card withBorder padding="sm" className={classes.pagina}>
+        <Stack gap="sm">
             <Group justify="space-between"><Title order={4}>Dados do projeto</Title>{!editando && !projeto.arquivadaEm && <Button size="xs" variant="light" onClick={editar}>Editar dados</Button>}</Group>
             {editando && !projeto.arquivadaEm ? <>
-                <SimpleGrid cols={{base: 1, sm: 2}}>
+                <SimpleGrid cols={{base: 1, xs: 2}}>
                     <TextInput label="Valor acordado (R$)" placeholder="Ex.: 2500,00" inputMode="decimal" maxLength={13} value={valor} onChange={e => setValor(e.currentTarget.value)} disabled={salvando}/>
                     <TextInput label="Prazo acordado" type="date" value={prazo} onChange={e => setPrazo(e.currentTarget.value)} disabled={salvando}/>
                     <Select label="Modo de progresso" data={[{value: "manual", label: "Manual"}, {value: "marcos", label: "Por marcos"}]} allowDeselect={false} value={modoProgresso} onChange={v => {if (v === "manual" || v === "marcos") setModoProgresso(v);}} disabled={salvando}/>

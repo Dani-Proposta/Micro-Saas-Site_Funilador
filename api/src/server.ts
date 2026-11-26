@@ -1159,7 +1159,15 @@ app.get("/api/me/dashboard/pendencias", async (_req, res) => {
 app.get("/api/clientes", async (_req, res) => {
     try {
         const resultado = await pool.query(
-            'SELECT id, usuario_id AS "usuarioId", nome, email FROM clientes',
+            `SELECT c.id, c.usuario_id AS "usuarioId", c.nome, c.email,
+                COALESCE(p.ativos, 0)::int AS "projetosAtivos"
+            FROM clientes c
+            LEFT JOIN (
+                SELECT cliente_id, COUNT(*) AS ativos FROM projetos
+                WHERE arquivada_em IS NULL AND status IN ('planejado', 'em_andamento')
+                GROUP BY cliente_id
+            ) p ON p.cliente_id = c.id
+            ORDER BY c.nome, c.id`,
         );
         res.json(resultado.rows);
     } catch (erro) {
@@ -1176,6 +1184,7 @@ app.get("/api/clientes/:id", async (req, res) => {
         const resultadoCliente = await pool.query(
             `SELECT
         id,
+        usuario_id AS "usuarioId",
         nome,
         email,
         criado_em AS "criadoEm"

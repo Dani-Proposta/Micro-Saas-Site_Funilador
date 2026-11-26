@@ -2,7 +2,9 @@ import { Carregamento } from "./Carregamento";
 import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import classes from "../styles/Estrutura.module.css";
-import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
+import visual from "../styles/Dashboard.module.css";
+import { ContadorDashboard } from "./IndicadorDashboard";
+import { Alert, Badge, Button, Card, Group, Stack, Text, Title, Tooltip } from "@mantine/core";
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
@@ -71,18 +73,20 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
         {erro && <Alert color="red">{erro}{dados && " Exibindo a última consulta."}</Alert>}
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando pendências..."/>}
         {dados && <>
-            <SimpleGrid cols={{base: 1, xs: 2, lg: 3, xl: 4}} spacing="xs" className={classes.safeGrid}>
-                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={classes.metric}>
+            <div className={`${classes.safeGrid} ${visual.pendencias}`}>
+                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={`${classes.metric} ${visual.pendencia}`}>
                     <Group justify="space-between" gap="xs" wrap="nowrap"><Text size="sm" fw={500} style={{minWidth:0, overflowWrap:"anywhere"}}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
-                    <Group justify="space-between" align="center" gap="xs" wrap="wrap"><Stack gap={0} style={{minWidth:0}}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
+                    <Group justify="space-between" align="center" gap="xs" wrap="wrap"><Stack gap={0} style={{minWidth:0}}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}><ContadorDashboard valor={quantidade(c.id)}/></Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
                 </Card>)}
-            </SimpleGrid>
+            </div>
+            {!mostrarZerados && filtro === "todos" && disponiveis.every(c => quantidade(c.id) === 0) && <Text size="sm" c="dimmed">Nenhuma ação pendente no momento.</Text>}
             {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
         </>}
         {children}
-        {dados && <Stack gap="sm" mt="sm" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
+        {dados && (visiveis.length > 0 || filtro !== "todos" || mostrarZerados) && <Stack gap="sm" mt="sm" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
             <Group justify="space-between"><Title order={4}>{filtro === "todos" ? "Pendências detalhadas" : disponiveis.find(c => c.id === filtro)?.nome}</Title>{filtro !== "todos" && <Button size="compact-xs" variant="subtle" onClick={() => selecionar("todos")}>Mostrar todas</Button>}</Group>
-            {visiveis.length === 0 && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
+            {visiveis.length === 0 && filtro !== "todos" && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
+            {visiveis.length === 0 && filtro === "todos" && mostrarZerados && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
             {visiveis.slice(0, limite).map((item, i) => {
                 const cat = disponiveis.find(c => c.id === item.categoria);
                 return <Card key={`${item.categoria}-${item.projetoId}-${item.marcoId}-${item.conversaId}-${i}`} withBorder padding="sm"><Group justify="space-between" align="center" wrap="wrap">

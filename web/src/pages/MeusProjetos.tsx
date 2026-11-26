@@ -1,3 +1,6 @@
+import classes from "../styles/Trabalho.module.css";
+import { correspondeBusca, FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { formatarPrazo, formatarValor } from "../lib/comercial";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { MarcosProjeto } from "../components/MarcosProjeto";
@@ -9,7 +12,7 @@ import { TextoExpansivel } from "../components/TextoExpansivel";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Select, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Progress, Select, Stack, Text, Title } from "@mantine/core";
 
 type Projeto = DadosProjeto & {
     id: string;
@@ -50,7 +53,14 @@ export function MeusProjetos() {
         proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco");
         setParams(proximo);
     }
-    const projetosVisiveis = projetos.filter(p => (!alvoNotificacao || p.id === alvoNotificacao) && (status === "todos" || p.status === status));
+    const [busca, setBusca] = useState("");
+    const projetosVisiveis = projetos.filter(p => alvoNotificacao ? p.id === alvoNotificacao : (status === "todos" || p.status === status) && correspondeBusca(busca,p.titulo,p.descricao));
+    function abrirProjeto(id: string) {
+        const proximo = new URLSearchParams(params);
+        proximo.set("projeto", id);
+        proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco");
+        setParams(proximo);
+    }
     function limparAtalho() {
         const proximo = new URLSearchParams(params);
         proximo.delete("projeto");
@@ -85,25 +95,35 @@ export function MeusProjetos() {
     }, [eventoNotificacao]);
 
     return (
-        <Stack gap="md">
+        <Stack gap="md" className={classes.pagina}>
 
             <Title order={1} className={estrutura.heading}>Meus projetos</Title>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
-            {!carregando && !erro && !focoValidacao && !focoPagamento && projetosPendentes.length > 0 && <Card withBorder padding="md"><Stack gap="sm">
+            {!carregando && !erro && !alvoNotificacao && projetosPendentes.length > 0 && <Card withBorder padding="md"><Stack gap="sm">
                 <Group justify="space-between"><Title order={4}>Entregas aguardando validação</Title><Badge color="yellow">{projetosPendentes.reduce((n, p) => n + p.entregasPendentes, 0)}</Badge></Group>
                 {projetosPendentes.map(p => <Group key={p.id} justify="space-between" wrap="wrap">
                     <Stack gap={2} style={{minWidth: 0, flex: 1}}><Text fw={500} style={{overflowWrap: "anywhere"}}>{p.titulo}</Text><Text size="xs" c="dimmed">{p.entregasPendentes} {p.entregasPendentes === 1 ? "entrega pendente" : "entregas pendentes"}</Text></Stack>
                     <Button size="xs" variant="light" onClick={() => abrirValidacao(p.id)}>Validar entregas</Button>
                 </Group>)}
             </Stack></Card>}
-            {!focoValidacao && !focoPagamento && <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco"); setParams(proximo);}}/>}
-            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">{focoValidacao ? "Entregas para validar" : focoPagamento ? "Pagamentos pendentes" : "Exibindo projeto selecionado."}</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
+            {!alvoNotificacao && <FiltrosTrabalho busca={busca} onBusca={setBusca} total={projetos.length} visiveis={projetosVisiveis.length} carregando={carregando || !!erro}><Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco"); setParams(proximo);}}/></FiltrosTrabalho>}
+            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">{focoValidacao ? "Entregas para validar" : focoPagamento ? "Pagamentos pendentes" : "Exibindo projeto selecionado."}</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Voltar à lista</Button></Group>}
             {carregando && <Carregamento/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}
 
-            {!carregando && !erro && projetosVisiveis.map((projeto) => (
+            {!carregando && !erro && !alvoNotificacao && <div className={classes.grade}>
+                {projetosVisiveis.map(projeto=><Card key={projeto.id} withBorder padding="sm" className={classes.card}>
+                    <div className={classes.cardTopo}><Text fw={650} className={classes.quebra}>{projeto.titulo}</Text><Badge variant="light" color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge></div>
+                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{projeto.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={500}>{formatarValor(projeto.valorAcordado)}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></div></div>
+                    <Group justify="space-between"><Text size="xs" c="dimmed">Progresso</Text><Text size="xs">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
+                    {projeto.progresso != null && <Progress value={projeto.progresso} aria-label="Progresso do projeto" size="sm"/>}
+                    <div className={classes.cardAcoes}>{projeto.entregasPendentes > 0 && <Button size="xs" color="yellow" variant="light" onClick={()=>abrirValidacao(projeto.id)}>Validar ({projeto.entregasPendentes})</Button>}<Button size="xs" variant="light" onClick={()=>abrirProjeto(projeto.id)}>Ver projeto</Button></div>
+                </Card>)}
+            </div>}
+            {!carregando && !erro && !!alvoNotificacao && projetosVisiveis.map((projeto) => (
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">

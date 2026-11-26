@@ -1,3 +1,5 @@
+import classes from "../styles/Trabalho.module.css";
+import { correspondeBusca, FiltrosTrabalho } from "../components/FiltrosTrabalho";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { formatarValor, formatarPrazo } from "../lib/comercial";
@@ -19,7 +21,8 @@ export function MinhasSolicitacoes() {
     const status = filtroStatus(params, statusSolicitacoes);
     const alvoNotificacao = params.get("solicitacao");
     const eventoNotificacao = params.get("notificacao");
-    const solicitacoesVisiveis = solicitacoes.filter(s => (!alvoNotificacao || s.id === alvoNotificacao) && (status === "todos" || s.status === status));
+    const [busca, setBusca] = useState("");
+    const solicitacoesVisiveis = solicitacoes.filter(s => alvoNotificacao ? s.id === alvoNotificacao : (status === "todos" || s.status === status) && correspondeBusca(busca, s.titulo, s.descricao, s.clienteNome));
     function limparAtalho() {
         const proximo = new URLSearchParams(params);
         proximo.delete("solicitacao");
@@ -100,6 +103,7 @@ export function MinhasSolicitacoes() {
             setTitulo("");
             setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
             setErroEnvio(null);
+            setBusca("");
             const proximo = comStatus(params, "todos");
             proximo.delete("solicitacao");
             proximo.delete("notificacao");
@@ -113,7 +117,7 @@ export function MinhasSolicitacoes() {
     }
 
     return (
-        <Stack gap="md">
+        <Stack gap="md" className={classes.pagina}>
 
             <Group justify="space-between">
                 <Title order={1} className={estrutura.heading}>Minhas solicitações</Title>
@@ -128,8 +132,10 @@ export function MinhasSolicitacoes() {
                     <TextInput label="Título" placeholder="Sobre o que é sua solicitação?" value={titulo} onChange={(evento) => setTitulo(evento.currentTarget.value)} maxLength={150} disabled={enviando} required/>
                     <Textarea label="Descrição" placeholder="Descreva o que você precisa..." value={descricao} onChange={(evento) => setDescricao(evento.currentTarget.value)} minRows={5} maxLength={5000} disabled={enviando} required/>
 
+                    <div className={classes.campos}>
                     <TextInput label="Orçamento esperado (R$)" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
                     <TextInput label="Prazo esperado" type="date" value={prazoEsperado} onChange={evento => setPrazoEsperado(evento.currentTarget.value)} disabled={enviando}/>
+                    </div>
 
                     {erroEnvio && <Alert color="red">{erroEnvio}</Alert>}
 
@@ -137,30 +143,29 @@ export function MinhasSolicitacoes() {
                 </Stack>
             </Modal>
 
+            <FiltrosTrabalho busca={busca} onBusca={setBusca} total={solicitacoes.length} visiveis={solicitacoesVisiveis.length} carregando={carregando || !!erro} foco={!!alvoNotificacao}>
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
+            </FiltrosTrabalho>
             {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
             {carregando && <Carregamento/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>}
 
-            {!carregando && !erro && solicitacoesVisiveis.map((solicitacao) => (
-                <Card key={solicitacao.id} withBorder padding="md">
-                    <Stack gap="xs">
-                        <Group justify="space-between">
-                            <Text fw={600} lineClamp={2} style={{overflowWrap: "anywhere", minWidth: 0}}>{solicitacao.titulo}</Text>
-                            <Badge color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
-                        </Group>
-
-                        <Text size="sm" lineClamp={4} style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>
-                        <Text size="xs" c="dimmed">Orçamento: {formatarValor(solicitacao.orcamentoEsperado)} · Prazo: {formatarPrazo(solicitacao.prazoEsperado)}</Text>
-                        <Text size="xs" c="dimmed">Enviada em: {new Date(solicitacao.criadaEm).toLocaleString("pt-BR")}</Text>
-                        <Group justify="flex-end" gap="xs">
-                            <Button size="xs" variant="subtle" onClick={() => setDetalhesId(solicitacao.id)}>Ver detalhes</Button>
-                            {solicitacao.projetoId && <Button size="xs" variant="light" onClick={() => navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto</Button>}
-                        </Group>
-                    </Stack>
-                </Card>
-            ))}
+            {!carregando && !erro && <div className={classes.grade}>
+                {solicitacoesVisiveis.map(solicitacao=><Card key={solicitacao.id} withBorder padding="sm" className={classes.card}>
+                    <div className={classes.cardTopo}>
+                        <Stack gap={4} className={classes.minimo}>
+                            <Text fw={650} className={classes.quebra}>{solicitacao.titulo}</Text>
+                            
+                        </Stack>
+                        <Badge variant="light" color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
+                    </div>
+                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{solicitacao.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{formatarValor(solicitacao.orcamentoEsperado)}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
+                    <Text size="xs" c="dimmed">Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
+                    <div className={classes.cardAcoes}><Button size="xs" variant="subtle" onClick={()=>setDetalhesId(solicitacao.id)}>Ver detalhes</Button>{solicitacao.projetoId && <Button size="xs" variant="light" onClick={()=>navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto</Button>}</div>
+                </Card>)}
+            </div>}
 
         </Stack>
     );

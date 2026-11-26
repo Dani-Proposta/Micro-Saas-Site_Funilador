@@ -2,6 +2,7 @@ import { Carregamento } from "./Carregamento";
 import { useCallback, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
 import classes from "../styles/Estrutura.module.css";
+import visual from "../styles/Dashboard.module.css";
 import { useNavigate } from "react-router";
 import { formatarValor } from "../lib/comercial";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
@@ -44,13 +45,44 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando financeiro..."/>}
         {dados && <>
             {consulta?.revisao !== revisao && <Text size="xs" c="dimmed">Atualizando valores...</Text>}
-            <SimpleGrid cols={{base: 1, xs: 2, lg: completo ? 4 : 3}} spacing="xs" className={classes.safeGrid}>
+            {!completo ? <div className={visual.financeiro}>
+                <div className={visual.resumo}>
+                    <Card withBorder padding="sm" className={`${visual.financeCard} ${visual.destaque}`}>
+                        <Text size="xs" fw={500}>Total estimado do mês</Text>
+                        <Text fw={700} className={visual.numero}>{formatarValor(dados.totalMes)}</Text>
+                        <Text size="xs" c="dimmed">Recebido + previsto no mês, sem atrasados</Text>
+                    </Card>
+                    {[{nome:"Recebido no mês",valor:dados.recebidoMes,cor:"green",categoria:"recebidos"},{nome:"A receber no mês",valor:dados.aReceberMes,cor:undefined,categoria:"mes"}].map(item => <Card withBorder padding="sm" className={visual.financeCard} key={item.categoria}>
+                        <Text size="xs" c="dimmed">{item.nome}</Text>
+                        <Text fw={700} c={item.cor} className={visual.numero}>{formatarValor(item.valor)}</Text>
+                        <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria)}>Consultar</Button>
+                    </Card>)}
+                </div>
+                <Card withBorder padding="sm" className={visual.grafico}><Stack gap="xs">
+                    <Group justify="space-between" wrap="wrap" gap={4}><Text fw={600} size="sm">Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
+                    <Group gap={6} wrap="wrap"><Badge color="teal" variant="light" size="sm">Recebido</Badge><Badge color="violet" variant="light" size="sm">Previsto</Badge></Group>
+                    {dados.meses.length ? <>
+                        <div className={visual.barras} aria-hidden="true">{dados.meses.map(m => <div key={m.mes} title={`${mes(m.mes)} · Recebido: ${formatarValor(m.recebido)} · Previsto: ${formatarValor(m.previsto)}`} className={`${visual.coluna} ${m.mes === dados.hoje.slice(0,7) ? visual.colunaAtual : ""}`}>
+                            <div className={visual.trilho}><div className={visual.previsto} style={{height:`${Math.max(0,100 * Number(m.previsto) / maior)}%`}}/><div className={visual.recebido} style={{height:`${Math.max(0,100 * Number(m.recebido) / maior)}%`}}/></div>
+                            <span className={visual.rotuloMes}>{mes(m.mes).slice(0,2)}/{m.mes.slice(2,4)}</span>
+                        </div>)}</div>
+                        {dados.meses.every(m => Number(m.recebido) === 0 && Number(m.previsto) === 0) && <Text size="xs" c="dimmed">Sem recebimentos ou previsões neste período.</Text>}
+                        <details className={visual.detalhesGrafico}><summary>Valores por mês</summary>
+                            <div className={visual.linhaGrafico}><strong>Mês</strong><strong>Recebido</strong><strong>Previsto</strong></div>
+                            {dados.meses.map(m => <div key={m.mes} className={visual.linhaGrafico}><span>{mes(m.mes)}</span><span>{formatarValor(m.recebido)}</span><span>{formatarValor(m.previsto)}</span></div>)}
+                        </details>
+                    </> : <Text size="xs" c="dimmed">Nenhuma previsão disponível.</Text>}
+                    <Text size="xs" c="dimmed">Recebido por data de pagamento; previsto por vencimento, sem atrasados ou valores sem data.</Text>
+                </Stack></Card>
+            </div> : (
+                <SimpleGrid cols={{base: 1, xs: 2, lg: 4}} spacing="xs" className={classes.safeGrid}>
                 {[{nome: "Recebido no mês", valor: dados.recebidoMes, cor: "green", categoria: "recebidos", ajuda: "Pagamentos registrados neste mês, sem os anulados."},
                   {nome: "A receber no mês", valor: dados.aReceberMes, cor: undefined, categoria: "mes", ajuda: "Saldos com vencimento de hoje até o fim do mês."},
                   {nome: "Total estimado do mês", valor: dados.totalMes, cor: undefined, categoria: null, ajuda: "Recebido mais previsto no mês. Não inclui atrasados."},
-                  ...(completo ? [{nome: "Pagamentos atrasados", valor: dados.atrasado, cor: Number(dados.atrasado) > 0 ? "red" : undefined, categoria: "atrasado", ajuda: "Saldos com vencimento ultrapassado."}] : [])].map(item =>
+                  {nome: "Pagamentos atrasados", valor: dados.atrasado, cor: Number(dados.atrasado) > 0 ? "red" : undefined, categoria: "atrasado", ajuda: "Saldos com vencimento ultrapassado."}].map(item =>
                     <Card key={item.nome} withBorder padding="sm" className={classes.metric}><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text className={classes.metricValue} size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
             </SimpleGrid>
+            )}
             {completo && <Card withBorder padding="md"><Stack gap="md">
                 <Group justify="space-between"><Text fw={600}>Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
                 <Group gap="md"><Badge variant="light" color="green">Recebido</Badge><Badge variant="light" color="violet">Previsto</Badge></Group>
