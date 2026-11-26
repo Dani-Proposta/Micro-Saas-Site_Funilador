@@ -427,6 +427,39 @@ function lerNotificacoes(lado: "admin" | "cliente") {
     };
 }
 
+//validar valor em reais
+function valorComercial(valor: unknown): string | null {
+    if (valor === undefined || valor === null || valor === "") return null;
+    if (typeof valor !== "string" || !/^\d{1,10}(?:[.,]\d{1,2})?$/.test(valor.trim())) {
+        throw new ErroConversa(400, "Informe um valor válido em reais");
+    }
+    return valor.trim().replace(",", ".");
+}
+
+//validar prazo
+function prazoComercial(valor: unknown): string | null {
+    if (valor === undefined || valor === null || valor === "") return null;
+    if (typeof valor !== "string" || !/^[1-9]\d{3}-\d{2}-\d{2}$/.test(valor)) throw new ErroConversa(400, "Prazo inválido");
+    const data = new Date(valor + "T00:00:00Z");
+    if (Number.isNaN(data.getTime()) || data.toISOString().slice(0, 10) !== valor) throw new ErroConversa(400, "Prazo inválido");
+    return valor;
+}
+
+//validar dados do projeto
+function dadosComerciaisProjeto(corpo: Record<string, unknown>) {
+    const valor = valorComercial(corpo.valorAcordado);
+    const prazo = prazoComercial(corpo.prazoAcordado);
+    const prioridade = corpo.prioridade ?? null;
+    const progresso = corpo.progresso ?? null;
+    const tecnologias = corpo.tecnologias ?? [];
+    const observacoes = corpo.observacoesInternas ?? null;
+    if (prioridade !== null && prioridade !== "baixa" && prioridade !== "normal" && prioridade !== "alta") throw new ErroConversa(400, "Prioridade inválida");
+    if (progresso !== null && (typeof progresso !== "number" || !Number.isInteger(progresso) || progresso < 0 || progresso > 100)) throw new ErroConversa(400, "Progresso deve estar entre 0 e 100");
+    if (!Array.isArray(tecnologias) || tecnologias.length > 30 || tecnologias.some(t => typeof t !== "string" || !t.trim() || t.trim().length > 60)) throw new ErroConversa(400, "Tecnologias inválidas");
+    if (observacoes !== null && (typeof observacoes !== "string" || observacoes.length > 5000)) throw new ErroConversa(400, "Observações inválidas");
+    return [valor, prazo, prioridade, progresso, [...new Set(tecnologias.map(t => t.trim()))], typeof observacoes === "string" ? observacoes.trim() || null : null];
+}
+
 //rotas GET
 
 //verificar conexão com api
@@ -596,6 +629,8 @@ app.get("/api/solicitacoes", async (_req, res) => {
             s.descricao,
             s.status,
             s.criada_em AS "criadaEm",
+                s.orcamento_esperado::text AS "orcamentoEsperado",
+                to_char(s.prazo_esperado, 'YYYY-MM-DD') AS "prazoEsperado",
             (SELECT p.id FROM projetos p WHERE p.solicitacao_id = s.id ORDER BY p.id LIMIT 1) AS "projetoId",
             COALESCE((SELECT json_agg(json_build_object('id', h.id, 'anterior', h.status_anterior, 'status', h.status_novo, 'criadaEm', h.criada_em) ORDER BY h.criada_em, h.id)
                 FROM solicitacoes_decisoes h WHERE h.solicitacao_id = s.id), '[]'::json) AS historico
@@ -629,6 +664,8 @@ app.get("/api/me/solicitacoes", async (_req, res) => {
                 s.descricao,
                 s.status,
                 s.criada_em AS "criadaEm",
+                s.orcamento_esperado::text AS "orcamentoEsperado",
+                to_char(s.prazo_esperado, 'YYYY-MM-DD') AS "prazoEsperado",
                 (SELECT p.id FROM projetos p WHERE p.solicitacao_id = s.id AND p.cliente_id = s.cliente_id AND p.arquivada_em IS NULL ORDER BY p.id LIMIT 1) AS "projetoId",
                 COALESCE((SELECT json_agg(json_build_object('id', h.id, 'anterior', h.status_anterior, 'status', h.status_novo, 'criadaEm', h.criada_em) ORDER BY h.criada_em, h.id)
                     FROM solicitacoes_decisoes h WHERE h.solicitacao_id = s.id), '[]'::json) AS historico
@@ -696,7 +733,13 @@ app.get("/api/projetos/:id", async (req, res) => {
             p.status,
             p.criada_em AS "criadaEm",
             p.atualizada_em AS "atualizadaEm",
-            p.arquivada_em AS "arquivadaEm"
+            p.arquivada_em AS "arquivadaEm",
+            p.valor_acordado::text AS "valorAcordado",
+            to_char(p.prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
+            p.tecnologias,
+            p.progresso,
+            p.prioridade,
+            p.observacoes_internas AS "observacoesInternas"
             FROM projetos AS p
             INNER JOIN clientes AS c
             ON c.id = p.cliente_id
@@ -729,7 +772,11 @@ app.get("/api/me/projetos", async (_req, res) => {
             descricao,
             status,
             criada_em AS "criadaEm",
-            atualizada_em AS "atualizadaEm"
+            atualizada_em AS "atualizadaEm",
+            valor_acordado::text AS "valorAcordado",
+            to_char(prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
+            tecnologias,
+            progresso
             FROM projetos
             WHERE cliente_id = $1
             AND arquivada_em IS NULL
@@ -1017,20 +1064,28 @@ app.post("/api/solicitacoes", async (req, res) => {
     }
 
     try {
+        const orcamento = valorComercial(req.body?.orcamentoEsperado);
+        const prazo = prazoComercial(req.body?.prazoEsperado);
         const resultado = await pool.query(
-            `INSERT INTO solicitacoes (cliente_id, titulo, descricao)   
-            VALUES ($1, $2, $3) 
+            `INSERT INTO solicitacoes (cliente_id, titulo, descricao, orcamento_esperado, prazo_esperado)
+            VALUES ($1, $2, $3, $4, $5) 
             RETURNING 
             id,
             cliente_id AS "clienteId",
             titulo,
             descricao,
             status,
-            criada_em AS "criadaEm"`,
-            [clienteId, titulo.trim(), descricao.trim()],
+            criada_em AS "criadaEm",
+            orcamento_esperado::text AS "orcamentoEsperado",
+            to_char(prazo_esperado, 'YYYY-MM-DD') AS "prazoEsperado"`,
+            [clienteId, titulo.trim(), descricao.trim(), orcamento, prazo],
         );
         res.status(201).json(resultado.rows[0]);
     } catch (erro) {
+        if (erro instanceof ErroConversa) {
+            res.status(erro.status).json({erro: erro.message});
+            return;
+        }
         console.error("Erro ao criar solicitação:", erro);
 
         res.status(500).json({ erro: "Dessa vez não foi sua culpa" });
@@ -1065,25 +1120,33 @@ app.post("/api/me/solicitacoes", async (req, res) => {
     }
 
     try {
+        const orcamento = valorComercial(req.body?.orcamentoEsperado);
+        const prazo = prazoComercial(req.body?.prazoEsperado);
         const resultado = await pool.query(
             `
             WITH criada AS (
-                INSERT INTO solicitacoes (cliente_id, titulo, descricao, status)
-                VALUES ($1, $2, $3, 'pendente')
-                RETURNING id, cliente_id, titulo, descricao, status, criada_em
+                INSERT INTO solicitacoes (cliente_id, titulo, descricao, status, orcamento_esperado, prazo_esperado)
+                VALUES ($1, $2, $3, 'pendente', $4, $5)
+                RETURNING id, cliente_id, titulo, descricao, status, criada_em, orcamento_esperado, prazo_esperado
             ), notificada AS (
                 INSERT INTO notificacoes (publico, cliente_id, tipo, referencia_id, titulo, resumo)
                 SELECT 'admin', s.cliente_id, 'solicitacao', s.id, 'Nova solicitação',
                     left(c.nome || ' · ' || s.titulo, 180)
                 FROM criada s JOIN clientes c ON c.id = s.cliente_id
             )
-            SELECT id, titulo, descricao, status, criada_em AS "criadaEm" FROM criada
+            SELECT id, titulo, descricao, status, criada_em AS "criadaEm",
+                orcamento_esperado::text AS "orcamentoEsperado",
+                to_char(prazo_esperado, 'YYYY-MM-DD') AS "prazoEsperado" FROM criada
         `,
-            [clienteId, titulo.trim(), descricao.trim()],
+            [clienteId, titulo.trim(), descricao.trim(), orcamento, prazo],
         );
 
         res.status(201).json(resultado.rows[0]);
     } catch (erro) {
+        if (erro instanceof ErroConversa) {
+            res.status(erro.status).json({erro: erro.message});
+            return;
+        }
         console.error("Erro ao criar solicitação do cliente:", erro);
         res.status(500).json({ erro: "Não foi possível criar sua solicitação." });
     }
@@ -1852,6 +1915,48 @@ app.patch("/api/projetos/:id", async (req, res) => {
         console.error("Erro ao editar projeto", erro);
 
         res.status(500).json({ erro: "Não foi possível editar o projeto" });
+    }
+});
+
+//admin: editar dados comerciais do projeto
+app.patch("/api/projetos/:id/comercial", async (req, res) => {
+    const {id} = req.params;
+    if (typeof id !== "string" || !uuidConversa.test(id)) {
+        res.status(400).json({erro: "Projeto inválido"});
+        return;
+    }
+    try {
+        const corpo = req.body;
+        const campos = ["valorAcordado", "prazoAcordado", "prioridade", "progresso", "tecnologias", "observacoesInternas"];
+        if (!corpo || typeof corpo !== "object" || Array.isArray(corpo) || campos.some(campo => !Object.hasOwn(corpo, campo))) {
+            throw new ErroConversa(400, "Dados incompletos");
+        }
+        const dados = dadosComerciaisProjeto(corpo);
+        const resultado = await pool.query(`
+            UPDATE projetos SET
+                valor_acordado = $2,
+                prazo_acordado = $3,
+                prioridade = $4,
+                progresso = $5,
+                tecnologias = $6,
+                observacoes_internas = $7,
+                atualizada_em = NOW()
+            WHERE id = $1 AND arquivada_em IS NULL
+            RETURNING id, atualizada_em AS "atualizadaEm",
+                valor_acordado::text AS "valorAcordado",
+                to_char(prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
+                prioridade, progresso, tecnologias,
+                observacoes_internas AS "observacoesInternas"
+        `, [id, ...dados]);
+        if (!resultado.rows.length) throw new ErroConversa(404, "Projeto não encontrado ou arquivado");
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        if (erro instanceof ErroConversa) {
+            res.status(erro.status).json({erro: erro.message});
+            return;
+        }
+        console.error("Erro ao editar dados comerciais:", erro);
+        res.status(500).json({erro: "Não foi possível salvar os dados"});
     }
 });
 

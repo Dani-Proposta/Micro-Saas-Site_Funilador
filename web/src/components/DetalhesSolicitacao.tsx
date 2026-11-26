@@ -1,3 +1,4 @@
+import { formatarValor, formatarPrazo } from "../lib/comercial";
 import { Badge, Button, Divider, Group, Modal, ScrollArea, Stack, Text } from "@mantine/core";
 import type { ReactNode } from "react";
 
@@ -18,6 +19,8 @@ export function DetalhesSolicitacao({solicitacao, onClose, acoes, ocupado = fals
                         </Group>
                         {solicitacao.clienteNome && <Text size="sm" c="dimmed">Cliente: {solicitacao.clienteNome}</Text>}
                         <Text size="xs" c="dimmed">Criada em: {new Date(solicitacao.criadaEm).toLocaleString("pt-BR")}</Text>
+                        <Text size="sm">Orçamento esperado: {formatarValor(solicitacao.orcamentoEsperado)}</Text>
+                        <Text size="sm">Prazo esperado: {formatarPrazo(solicitacao.prazoEsperado)}</Text>
                         <Divider/>
                         <Text fw={600} size="sm">Descrição</Text>
                         <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>

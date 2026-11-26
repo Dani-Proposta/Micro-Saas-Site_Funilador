@@ -1,3 +1,5 @@
+import { ResumoProjeto } from "../components/DadosComerciaisProjeto";
+import type { DadosProjeto } from "../lib/comercial";
 import { TextoExpansivel } from "../components/TextoExpansivel";
 
 import { useEffect, useState } from "react";
@@ -5,7 +7,7 @@ import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Select, Stack, Text, Title } from "@mantine/core";
 
-type Projeto = {
+type Projeto = DadosProjeto & {
     id: string;
     titulo: string;
     descricao: string;
@@ -84,6 +86,7 @@ export function MeusProjetos() {
                         </Group>
 
                         <TextoExpansivel texto={projeto.descricao} linhas={5}/>
+                        <ResumoProjeto projeto={projeto}/>
                         <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
                         <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
                         <Group justify="flex-end"><Button size="xs" variant="light" onClick={() => navigate(`/portal/mensagens?projeto=${encodeURIComponent(projeto.id)}`, {state: {voltarPara: location.pathname + location.search}})}>Conversa do projeto</Button></Group>

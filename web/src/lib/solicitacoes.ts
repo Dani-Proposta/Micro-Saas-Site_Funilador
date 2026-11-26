@@ -1,3 +1,5 @@
+import type { DadosSolicitacao } from "./comercial";
+
 export type StatusSolicitacao = "pendente" | "aprovada" | "recusada";
 
 export type DecisaoSolicitacao = {
@@ -7,7 +9,7 @@ export type DecisaoSolicitacao = {
     criadaEm: string;
 };
 
-export type SolicitacaoDetalhada = {
+export type SolicitacaoDetalhada = DadosSolicitacao & {
     id: string;
     titulo: string;
     descricao: string;

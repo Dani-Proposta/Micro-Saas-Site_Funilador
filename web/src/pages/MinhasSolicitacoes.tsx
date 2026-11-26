@@ -1,6 +1,7 @@
+import { formatarValor, formatarPrazo } from "../lib/comercial";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
 import { statusSolicitacao } from "../lib/solicitacoes";
-import type { SolicitacaoDetalhada } from "../components/DetalhesSolicitacao";
+import type { SolicitacaoDetalhada } from "../lib/solicitacoes";
 
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -32,6 +33,8 @@ export function MinhasSolicitacoes() {
     const detalhes = solicitacoes.find(s => s.id === detalhesId);
     const [titulo, setTitulo] = useState("");
     const [descricao, setDescricao] = useState("");
+    const [orcamentoEsperado, setOrcamentoEsperado] = useState("");
+    const [prazoEsperado, setPrazoEsperado] = useState("");
 
     const [enviando, setEnviando] = useState(false);
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -64,7 +67,7 @@ export function MinhasSolicitacoes() {
 
         setModalAberto(false);
         setTitulo("");
-        setDescricao("");
+        setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
         setErroEnvio(null);
     }
 
@@ -83,7 +86,7 @@ export function MinhasSolicitacoes() {
             const resposta = await fetch("/api/me/solicitacoes", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({titulo, descricao}),
+                body: JSON.stringify({titulo, descricao, orcamentoEsperado, prazoEsperado}),
             });
 
             const dados = await resposta.json();
@@ -93,7 +96,7 @@ export function MinhasSolicitacoes() {
             setSolicitacoes((anteriores) => [dados, ...anteriores]);
             setModalAberto(false);
             setTitulo("");
-            setDescricao("");
+            setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
             setErroEnvio(null);
             const proximo = comStatus(params, "todos");
             proximo.delete("solicitacao");
@@ -123,6 +126,9 @@ export function MinhasSolicitacoes() {
                     <TextInput label="Título" placeholder="Sobre o que é sua solicitação?" value={titulo} onChange={(evento) => setTitulo(evento.currentTarget.value)} maxLength={150} disabled={enviando} required/>
                     <Textarea label="Descrição" placeholder="Descreva o que você precisa..." value={descricao} onChange={(evento) => setDescricao(evento.currentTarget.value)} minRows={5} maxLength={5000} disabled={enviando} required/>
 
+                    <TextInput label="Orçamento esperado (R$)" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
+                    <TextInput label="Prazo esperado" type="date" value={prazoEsperado} onChange={evento => setPrazoEsperado(evento.currentTarget.value)} disabled={enviando}/>
+
                     {erroEnvio && <Alert color="red">{erroEnvio}</Alert>}
 
                     <Button loading={enviando} onClick={() => void criarSolicitacao()}>Enviar solicitação</Button>
@@ -144,6 +150,7 @@ export function MinhasSolicitacoes() {
                         </Group>
 
                         <Text size="sm" lineClamp={4} style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>
+                        <Text size="xs" c="dimmed">Orçamento: {formatarValor(solicitacao.orcamentoEsperado)} · Prazo: {formatarPrazo(solicitacao.prazoEsperado)}</Text>
                         <Text size="xs" c="dimmed">Enviada em: {new Date(solicitacao.criadaEm).toLocaleString("pt-BR")}</Text>
                         <Group justify="flex-end" gap="xs">
                             <Button size="xs" variant="subtle" onClick={() => setDetalhesId(solicitacao.id)}>Ver detalhes</Button>

@@ -1,10 +1,12 @@
+import { DadosComerciaisProjeto } from "../components/DadosComerciaisProjeto";
+import type { DadosProjetoAdmin } from "../lib/comercial";
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
 
-type Projeto = {
+type Projeto = DadosProjetoAdmin & {
     id: string;
     clienteId: string;
     clienteNome: string;
@@ -236,7 +238,7 @@ export function ProjetoDetalhes() {
             </Modal>
             <Group justify="space-between" align="start">
                 <Stack gap="xs" style={{ minWidth: 0, flex: "1 1 220px" }}>
-                    <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
+                    <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
                     <Title order={2} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
                 </Stack>
 
@@ -276,6 +278,8 @@ export function ProjetoDetalhes() {
                     </Group>
                 </Stack>
             </Card>
+
+            <DadosComerciaisProjeto key={projeto.id} projeto={projeto} onSalvo={dados => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, ...dados} : anterior)}/>
 
             <Card withBorder padding="lg">
                 <Stack gap="sm">

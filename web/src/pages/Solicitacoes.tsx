@@ -1,3 +1,4 @@
+import { formatarValor, formatarPrazo } from "../lib/comercial";
 import { SeletorCliente } from "../components/SeletorCliente";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
 import { statusSolicitacao } from "../lib/solicitacoes";
@@ -42,6 +43,8 @@ export function Solicitacoes(){
     
     const [titulo, setTitulo] = useState('');
     const [descricao, setDescricao] = useState('');
+    const [orcamentoEsperado, setOrcamentoEsperado] = useState("");
+    const [prazoEsperado, setPrazoEsperado] = useState("");
     
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -134,12 +137,15 @@ export function Solicitacoes(){
                     clienteId,
                     titulo,
                     descricao,
+                    orcamentoEsperado,
+                    prazoEsperado,
                 }),
             
 
         });
         if(!resposta.ok){
-            throw new Error("falha ao criar solicitação");
+            const dados = await resposta.json();
+            throw new Error(dados.erro ?? "Falha ao criar solicitação");
         }
 
         const novaSolicitacao: Solicitacao = await resposta.json();
@@ -155,7 +161,7 @@ export function Solicitacoes(){
         ]);
         setClienteId(null);
         setTitulo("");
-        setDescricao("");
+        setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
         setModalAberto(false);
         const proximo = comStatus(params, "todos");
             proximo.delete("solicitacao");
@@ -163,7 +169,7 @@ export function Solicitacoes(){
             setParams(proximo);
     }catch(erro){
         console.error(erro);
-        setErroEnvio("Não deu pra enviar a solicitação");
+        setErroEnvio(erro instanceof Error ? erro.message : "Não deu pra enviar a solicitação");
     }finally{
         setEnviando(false);
     }
@@ -224,7 +230,7 @@ export function Solicitacoes(){
             {detalhes && <DetalhesSolicitacao key={detalhes.id} solicitacao={detalhes} onClose={() => setDetalhesId(null)} ocupado={atualizandoId !== null} acoes={<>{erroDecisao && <Text size="xs" c="red">{erroDecisao}</Text>}{acoesSolicitacao(detalhes)}</>}/>}
             <Modal 
             opened={modalAberto}
-            onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo("");setDescricao("");setErroEnvio(null);}}
+            onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo("");setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");setErroEnvio(null);}}
             title= "Nova solicitação"
             centered
             size={"md"} closeOnEscape={!cadastroClienteAberto && !enviando} closeOnClickOutside={!cadastroClienteAberto && !enviando} withCloseButton={!cadastroClienteAberto && !enviando}>
@@ -245,6 +251,9 @@ export function Solicitacoes(){
                     value={descricao}
                     onChange={(event) => setDescricao(event.currentTarget.value)}></Textarea>
 
+                    <TextInput label="Orçamento esperado (R$)" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
+                    <TextInput label="Prazo esperado" type="date" value={prazoEsperado} onChange={evento => setPrazoEsperado(evento.currentTarget.value)} disabled={enviando}/>
+
                     {erroEnvio && ( <Alert color="red" title="Erro">{erroEnvio}</Alert>)}
                     <Button type="submit" loading={enviando} disabled={cadastroClienteAberto}>Criar Solicitação</Button>
                 </Stack>
@@ -260,6 +269,7 @@ export function Solicitacoes(){
                         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                             <Text fw={700} lineClamp={2} style={{overflowWrap: "anywhere"}}>{solicitacao.titulo}</Text>
                             <Text size="sm" lineClamp={4} style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{solicitacao.descricao}</Text>
+                            <Text size="xs" c="dimmed">Orçamento: {formatarValor(solicitacao.orcamentoEsperado)} · Prazo: {formatarPrazo(solicitacao.prazoEsperado)}</Text>
                         </Stack>
 
                         <Stack align="flex-end" style={{maxWidth: "40%"}}>
