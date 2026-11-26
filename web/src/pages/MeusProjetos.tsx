@@ -28,7 +28,15 @@ export function MeusProjetos() {
     const navigate = useNavigate();
     const location = useLocation();
     const status = filtroStatus(params, statusProjetos);
-    const projetosVisiveis = projetos.filter(p => status === "todos" || p.status === status);
+    const alvoNotificacao = params.get("projeto");
+    const eventoNotificacao = params.get("notificacao");
+    const projetosVisiveis = projetos.filter(p => (!alvoNotificacao || p.id === alvoNotificacao) && (status === "todos" || p.status === status));
+    function limparAtalho() {
+        const proximo = new URLSearchParams(params);
+        proximo.delete("projeto");
+        proximo.delete("notificacao");
+        setParams(proximo);
+    }
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -53,7 +61,7 @@ export function MeusProjetos() {
 
         void carregarProjetos();
         return () => controller.abort();
-    }, []);
+    }, [eventoNotificacao]);
 
     return (
         <Stack gap="md">
@@ -61,7 +69,8 @@ export function MeusProjetos() {
             <Title order={2}>Meus projetos</Title>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
-            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); setParams(proximo);}}/>
+            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}

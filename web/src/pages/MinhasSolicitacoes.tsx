@@ -24,7 +24,15 @@ export function MinhasSolicitacoes() {
     const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
     const [params, setParams] = useSearchParams();
     const status = filtroStatus(params, statusSolicitacoes);
-    const solicitacoesVisiveis = solicitacoes.filter(s => status === "todos" || s.status === status);
+    const alvoNotificacao = params.get("solicitacao");
+    const eventoNotificacao = params.get("notificacao");
+    const solicitacoesVisiveis = solicitacoes.filter(s => (!alvoNotificacao || s.id === alvoNotificacao) && (status === "todos" || s.status === status));
+    function limparAtalho() {
+        const proximo = new URLSearchParams(params);
+        proximo.delete("solicitacao");
+        proximo.delete("notificacao");
+        setParams(proximo);
+    }
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -56,7 +64,7 @@ export function MinhasSolicitacoes() {
 
         void carregarSolicitacoes();
         return () => controller.abort();
-    }, []);
+    }, [eventoNotificacao]);
 
     function fecharModal() {
         if (enviando) return;
@@ -91,7 +99,10 @@ export function MinhasSolicitacoes() {
 
             setSolicitacoes((anteriores) => [dados, ...anteriores]);
             fecharModal();
-            setParams(comStatus(params, "todos"));
+            const proximo = comStatus(params, "todos");
+            proximo.delete("solicitacao");
+            proximo.delete("notificacao");
+            setParams(proximo);
 
         } catch (erroRecebido) {
             setErroEnvio(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao enviar solicitação.");
@@ -121,7 +132,8 @@ export function MinhasSolicitacoes() {
                 </Stack>
             </Modal>
 
-            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => setParams(comStatus(params, valor))}/>
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
+            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>}

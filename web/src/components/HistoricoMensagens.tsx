@@ -1,6 +1,7 @@
 import classes from "../styles/Usabilidade.module.css";
 import { TextoExpansivel } from "./TextoExpansivel";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
@@ -63,9 +64,10 @@ type HistoricoProps = {
     arquivada?: boolean;
     lado?: "admin" | "cliente";
     onAtualizarConversas?: () => void;
+    acoesArquivada?: ReactNode;
 };
 
-export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin", onAtualizarConversas}: HistoricoProps) {
+export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada}: HistoricoProps) {
 
     const [mensagens, setMensagens] = useState<Mensagem[]>([]);
     const [carregando, setCarregando] = useState(true);
@@ -483,7 +485,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
             {erroEnvio && !somenteLeitura && <Alert color="red">{erroEnvio}</Alert>}
 
             {somenteLeitura ? (
-                <Alert color="gray" title="Conversa arquivada">{lado === "cliente" ? "Esta conversa foi arquivada pela administração. Você pode consultar o histórico, mas não enviar novas mensagens." : "Esta conversa está arquivada e disponível somente para consulta."}</Alert>
+                <Alert color="gray" title="Conversa arquivada"><Stack gap="xs"><Text size="sm">{lado === "cliente" ? "Esta conversa foi arquivada pela administração. Você pode consultar o histórico, mas não enviar novas mensagens." : "Esta conversa está arquivada e disponível somente para consulta."}</Text>{acoesArquivada}</Stack></Alert>
             ) : (
                 <form onSubmit={evento => {
                     evento.preventDefault();

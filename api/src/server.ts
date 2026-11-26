@@ -1,5 +1,6 @@
 //precisa pra se quer existir
 import express from "express";
+import type { PoolClient } from "pg";
 import { pool } from "./db.ts";
 import { randomUUID, randomBytes } from "node:crypto";
 import { Kysely, PostgresDialect, sql } from "kysely";
@@ -97,6 +98,7 @@ app.use(
         "/api/dashboard",
         "/api/convites",
         "/api/conversas",
+        "/api/notificacoes",
     ],
     exigirAdmin,
 );
@@ -535,7 +537,8 @@ app.get("/api/conversas", async (req, res) => {
                     'projetoId', c.projeto_id, 'criadaEm', c.criada_em,
                     'arquivadaEm', c.arquivada_em,
                     'naoLidas', COALESCE(n.total, 0),
-                    'ultimaAtividadeEm', COALESCE(u.enviada_em, c.criada_em)
+                    'ultimaAtividadeEm', COALESCE(u.enviada_em, c.criada_em),
+                    'reabertura', reab.dados
                 ) ORDER BY CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END,
                     c.criada_em DESC, c.id) FILTER (WHERE c.id IS NOT NULL), '[]'::json) AS conversas
             FROM clientes cl
@@ -551,6 +554,14 @@ app.get("/api/conversas", async (req, res) => {
                 SELECT enviada_em FROM mensagens WHERE conversa_id = c.id
                 ORDER BY enviada_em DESC, id DESC LIMIT 1
             ) u ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_build_object('id', r.id, 'status', r.status,
+                    'solicitadaEm', r.solicitada_em, 'decididaEm', r.decidida_em,
+                    'justificativa', r.justificativa) AS dados
+                FROM conversas_reaberturas r
+                WHERE r.conversa_id = c.id AND r.ciclo_arquivamento = c.arquivada_em
+                ORDER BY r.solicitada_em DESC, r.id DESC LIMIT 1
+            ) reab ON TRUE
             GROUP BY cl.id, cl.nome
             HAVING $2::boolean OR NOT $1::boolean OR COUNT(c.id) > 0
             ORDER BY cl.nome, cl.id
@@ -657,7 +668,10 @@ app.get("/api/me/conversas", async (req, res) => {
             SELECT c.id, c.titulo, c.tipo, c.projeto_id AS "projetoId",
                 c.criada_em AS "criadaEm", c.arquivada_em AS "arquivadaEm",
                 COALESCE(n.total, 0) AS "naoLidas",
-                COALESCE(u.enviada_em, c.criada_em) AS "ultimaAtividadeEm"
+                COALESCE(u.enviada_em, c.criada_em) AS "ultimaAtividadeEm",
+                reab.dados AS reabertura,
+                (c.tipo <> 'geral' AND c.arquivada_em IS NULL AND o.usuario_id IS NOT NULL
+                    AND o.ultima_admin_id IS NOT DISTINCT FROM ua.id) AS "ocultada"
             FROM conversas c
             LEFT JOIN LATERAL (
                 SELECT COUNT(*)::int AS total FROM mensagens m
@@ -669,6 +683,19 @@ app.get("/api/me/conversas", async (req, res) => {
                 SELECT enviada_em FROM mensagens WHERE conversa_id = c.id
                 ORDER BY enviada_em DESC, id DESC LIMIT 1
             ) u ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_build_object('id', r.id, 'status', r.status,
+                    'solicitadaEm', r.solicitada_em, 'decididaEm', r.decidida_em,
+                    'justificativa', r.justificativa) AS dados
+                FROM conversas_reaberturas r
+                WHERE r.conversa_id = c.id AND r.ciclo_arquivamento = c.arquivada_em
+                ORDER BY r.solicitada_em DESC, r.id DESC LIMIT 1
+            ) reab ON TRUE
+            LEFT JOIN conversas_ocultas o ON o.conversa_id = c.id AND o.usuario_id = $4
+            LEFT JOIN LATERAL (
+                SELECT id FROM mensagens WHERE conversa_id = c.id AND remetente_tipo = 'admin'
+                ORDER BY enviada_em DESC, id DESC LIMIT 1
+            ) ua ON TRUE
             WHERE c.cliente_id = $1
                 AND ($3::boolean OR (c.arquivada_em IS NOT NULL) = $2::boolean)
             ORDER BY CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END, c.criada_em DESC, c.id
@@ -898,14 +925,17 @@ app.post("/api/me/solicitacoes", async (req, res) => {
     try {
         const resultado = await pool.query(
             `
-            INSERT INTO solicitacoes (cliente_id, titulo, descricao, status)
-            VALUES ($1, $2, $3, 'pendente')
-            RETURNING
-                id,
-                titulo,
-                descricao,
-                status,
-                criada_em AS "criadaEm"
+            WITH criada AS (
+                INSERT INTO solicitacoes (cliente_id, titulo, descricao, status)
+                VALUES ($1, $2, $3, 'pendente')
+                RETURNING id, cliente_id, titulo, descricao, status, criada_em
+            ), notificada AS (
+                INSERT INTO notificacoes (publico, cliente_id, tipo, referencia_id, titulo, resumo)
+                SELECT 'admin', s.cliente_id, 'solicitacao', s.id, 'Nova solicitação',
+                    left(c.nome || ' · ' || s.titulo, 180)
+                FROM criada s JOIN clientes c ON c.id = s.cliente_id
+            )
+            SELECT id, titulo, descricao, status, criada_em AS "criadaEm" FROM criada
         `,
             [clienteId, titulo.trim(), descricao.trim()],
         );
@@ -1689,9 +1719,9 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
                 conversa_id,
                 remetente_id,
                 remetente_tipo,
-                conteudo
+                conteudo, enviada_em
             )
-            SELECT id, $2, 'admin', $3
+            SELECT id, $2, 'admin', $3, clock_timestamp()
             FROM conversa_disponivel
             RETURNING
                 id,
@@ -1767,41 +1797,131 @@ app.patch("/api/conversas/:id/arquivar", async (req, res) => {
     }
 });
 
-//restaurar conversa
-app.patch("/api/conversas/:id/restaurar", async (req, res) => {
-    const { id } = req.params;
+// Todas as mudanças de reabertura bloqueiam a conversa antes de consultar o pedido.
+const uuidConversa = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    const uuidValido =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+class ErroConversa extends Error {
+    public status: number;
+    constructor(status: number, mensagem: string) {
+        super(mensagem);
+        this.status = status;
+    }
+}
 
-    if (!uuidValido.test(id)) {
-        res.status(400).json({ erro: "Conversa inválida." });
+async function transacaoConversa<T>(acao: (db: PoolClient) => Promise<T>): Promise<T> {
+    const db = await pool.connect();
+    try {
+        await db.query("BEGIN");
+        const resultado = await acao(db);
+        await db.query("COMMIT");
+        return resultado;
+    } catch (erro) {
+        await db.query("ROLLBACK");
+        throw erro;
+    } finally {
+        db.release();
+    }
+}
+
+function responderErroConversa(res: Response, erro: unknown) {
+    if (erro instanceof ErroConversa) {
+        res.status(erro.status).json({erro: erro.message});
         return;
     }
+    console.error("Erro ao gerenciar conversa:", erro);
+    res.status(500).json({erro: "Não foi possível concluir a operação."});
+}
 
+// Cliente: pedir reabertura da própria conversa arquivada.
+app.post("/api/me/conversas/:id/reaberturas", async (req, res) => {
+    const {id} = req.params;
+    if (!uuidConversa.test(id)) {res.status(400).json({erro: "Conversa inválida."}); return;}
     try {
-        const resultado = await pool.query(
-            `
-            UPDATE conversas
-            SET arquivada_em = NULL
-            WHERE id = $1
-                AND tipo <> 'geral'
-                AND arquivada_em IS NOT NULL
-            RETURNING id, arquivada_em AS "arquivadaEm"
-        `,
-            [id],
-        );
+        const pedido = await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND cliente_id = $2
+                AND tipo <> 'geral' AND arquivada_em IS NOT NULL FOR UPDATE`, [id, res.locals.cliente.id]);
+            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa arquivada não encontrada.");
+            const resultado = await db.query(`INSERT INTO conversas_reaberturas (conversa_id, ciclo_arquivamento, solicitada_por)
+                SELECT id, arquivada_em, $2 FROM conversas WHERE id = $1
+                ON CONFLICT (conversa_id) WHERE status = 'pendente' DO NOTHING
+                RETURNING id, status, solicitada_em AS "solicitadaEm", decidida_em AS "decididaEm", justificativa`, [id, res.locals.usuarioId]);
+            if (!resultado.rowCount) throw new ErroConversa(409, "Já existe uma solicitação de reabertura pendente.");
+            return resultado.rows[0];
+        });
+        res.status(201).json({reabertura: pedido});
+    } catch (erro) {responderErroConversa(res, erro);}
+});
 
-        if (resultado.rows.length === 0) {
-            res.status(404).json({ erro: "Conversa indisponível para restauração." });
-            return;
-        }
-
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        console.error("Erro ao restaurar conversa:", erro);
-        res.status(500).json({ erro: "Não foi possível restaurar a conversa." });
+// Admin: decidir um pedido específico. Aprovação e restauração são atômicas.
+app.patch("/api/conversas/:id/reaberturas/:pedidoId", async (req, res) => {
+    const {id, pedidoId} = req.params;
+    const {status, justificativa} = req.body ?? {};
+    if (!uuidConversa.test(id) || !uuidConversa.test(pedidoId) || !["aprovada", "recusada"].includes(status) ||
+        (justificativa != null && (typeof justificativa !== "string" || justificativa.trim().length > 1000))) {
+        res.status(400).json({erro: "Pedido, decisão ou justificativa inválida."}); return;
     }
+    try {
+        const dados = await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
+                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
+            if (!conversa.rowCount) throw new ErroConversa(409, "Conversa já restaurada ou indisponível.");
+            const resultado = await db.query(`UPDATE conversas_reaberturas r SET status = $3,
+                decidida_por = $4, decidida_em = clock_timestamp(), justificativa = $5
+                FROM conversas c WHERE r.id = $2 AND r.conversa_id = $1 AND c.id = r.conversa_id
+                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'
+                RETURNING r.id, r.status, r.solicitada_em AS "solicitadaEm", r.decidida_em AS "decididaEm", r.justificativa`,
+                [id, pedidoId, status, res.locals.usuarioId, justificativa?.trim() || null]);
+            if (!resultado.rowCount) throw new ErroConversa(409, "Pedido já decidido ou indisponível.");
+            if (status === "aprovada") await db.query("UPDATE conversas SET arquivada_em = NULL WHERE id = $1", [id]);
+            return {reabertura: resultado.rows[0], restaurada: status === "aprovada"};
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+// Restauração manual também resolve um pedido pendente, sem deixá-lo órfão.
+app.patch("/api/conversas/:id/restaurar", async (req, res) => {
+    const {id} = req.params;
+    if (!uuidConversa.test(id)) {res.status(400).json({erro: "Conversa inválida."}); return;}
+    try {
+        const dados = await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND tipo <> 'geral'
+                AND arquivada_em IS NOT NULL FOR UPDATE`, [id]);
+            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa indisponível para restauração.");
+            await db.query(`UPDATE conversas_reaberturas r SET status = 'aprovada',
+                decidida_por = $2, decidida_em = clock_timestamp(), justificativa = 'Restauração administrativa'
+                FROM conversas c WHERE c.id = $1 AND r.conversa_id = c.id
+                AND r.ciclo_arquivamento = c.arquivada_em AND r.status = 'pendente'`, [id, res.locals.usuarioId]);
+            const resultado = await db.query(`UPDATE conversas SET arquivada_em = NULL WHERE id = $1
+                RETURNING id, arquivada_em AS "arquivadaEm"`, [id]);
+            return resultado.rows[0];
+        });
+        res.json(dados);
+    } catch (erro) {responderErroConversa(res, erro);}
+});
+
+// Preferência pessoal do cliente; nunca altera arquivada_em.
+app.patch("/api/me/conversas/:id/ocultar", async (req, res) => {
+    const {id} = req.params;
+    const {ocultada} = req.body ?? {};
+    if (!uuidConversa.test(id) || typeof ocultada !== "boolean") {res.status(400).json({erro: "Preferência inválida."}); return;}
+    try {
+        await transacaoConversa(async db => {
+            const conversa = await db.query(`SELECT id FROM conversas WHERE id = $1 AND cliente_id = $2
+                AND tipo <> 'geral' AND arquivada_em IS NULL FOR UPDATE`, [id, res.locals.cliente.id]);
+            if (!conversa.rowCount) throw new ErroConversa(404, "Conversa ativa não encontrada.");
+            if (ocultada) {
+                await db.query(`INSERT INTO conversas_ocultas (conversa_id, usuario_id, ultima_admin_id)
+                    VALUES ($1, $2, (SELECT id FROM mensagens WHERE conversa_id = $1 AND remetente_tipo = 'admin'
+                        ORDER BY enviada_em DESC, id DESC LIMIT 1))
+                    ON CONFLICT (conversa_id, usuario_id) DO UPDATE SET ocultada_em = clock_timestamp(),
+                        ultima_admin_id = EXCLUDED.ultima_admin_id`, [id, res.locals.usuarioId]);
+            } else {
+                await db.query("DELETE FROM conversas_ocultas WHERE conversa_id = $1 AND usuario_id = $2", [id, res.locals.usuarioId]);
+            }
+        });
+        res.json({id, ocultada});
+    } catch (erro) {responderErroConversa(res, erro);}
 });
 
 //cliente mandar mensagem
@@ -1891,6 +2011,83 @@ app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
         res.status(500).json({ erro: "Não foi possível enviar a mensagem." });
     }
 });
+
+// Notificações persistentes: visibilidade por papel e cliente autenticado.
+// Cada conversa é um grupo de mensagens; outros eventos mantêm histórico individual.
+for (const lado of ["admin", "cliente"] as const) {
+    const prefixo = lado === "admin" ? "/api/notificacoes" : "/api/me/notificacoes";
+
+    app.get(prefixo, async (req, res) => {
+        const pagina = req.query.pagina === undefined ? 0 : Number(req.query.pagina);
+        if (!Number.isSafeInteger(pagina) || pagina < 0 || pagina > 1000000) {
+            res.status(400).json({erro: "Página inválida."}); return;
+        }
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            const resultado = await pool.query(`
+                WITH eventos AS (
+                    SELECT n.*, l.notificacao_id IS NULL AS nao_lida,
+                        CASE WHEN n.tipo = 'mensagem' THEN 'm:' || n.referencia_id::text ELSE 'e:' || n.id::text END AS grupo
+                    FROM notificacoes n
+                    LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
+                    WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
+                ), agrupadas AS (
+                    SELECT *, (COUNT(*) FILTER (WHERE nao_lida) OVER (PARTITION BY grupo))::int AS quantidade,
+                        ROW_NUMBER() OVER (PARTITION BY grupo ORDER BY criada_em DESC, id DESC) AS ordem
+                    FROM eventos
+                ), grupos AS (
+                    SELECT id, tipo, referencia_id AS "referenciaId", titulo, resumo,
+                        criada_em AS "criadaEm", quantidade FROM agrupadas WHERE ordem = 1
+                ), pagina AS (
+                    SELECT * FROM grupos ORDER BY "criadaEm" DESC, id DESC LIMIT 20 OFFSET $4
+                )
+                SELECT (SELECT COUNT(*)::int FROM grupos WHERE quantidade > 0) AS total,
+                    (SELECT COUNT(*)::int FROM grupos) AS "totalGrupos",
+                    COALESCE((SELECT json_agg(p ORDER BY p."criadaEm" DESC, p.id DESC) FROM pagina p), '[]'::json) AS itens
+            `, [lado, clienteId, res.locals.usuarioId, pagina * 20]);
+            res.set("Cache-Control", "no-store").json(resultado.rows[0]);
+        } catch (erro) {
+            console.error("Erro ao consultar notificações:", erro);
+            res.status(500).json({erro: "Não foi possível consultar notificações."});
+        }
+    });
+
+    app.post(`${prefixo}/leituras`, async (req, res) => {
+        const {id, todas} = req.body ?? {};
+        const marcarTodas = todas === true;
+        if (!marcarTodas && (typeof id !== "string" || !uuidConversa.test(id))) {
+            res.status(400).json({erro: "Notificação inválida."}); return;
+        }
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            // A âncora é verificada no mesmo escopo de autorização da leitura.
+            // Novas mensagens posteriores à âncora não são marcadas por este clique.
+            const resultado = await pool.query(`
+                WITH autorizadas AS (
+                    SELECT * FROM notificacoes WHERE publico = $1 AND ($2::uuid IS NULL OR cliente_id = $2)
+                ), ancora AS (
+                    SELECT * FROM autorizadas WHERE id = $4::uuid
+                ), gravadas AS (
+                    INSERT INTO notificacoes_leituras (notificacao_id, usuario_id)
+                    SELECT n.id, $3 FROM autorizadas n
+                    WHERE $5::boolean OR EXISTS (
+                        SELECT 1 FROM ancora a WHERE n.id = a.id OR (
+                            a.tipo = 'mensagem' AND n.tipo = 'mensagem' AND n.referencia_id = a.referencia_id
+                            AND (n.criada_em, n.id) <= (a.criada_em, a.id)
+                        )
+                    ) ON CONFLICT DO NOTHING RETURNING notificacao_id
+                )
+                SELECT ($5::boolean OR EXISTS (SELECT 1 FROM ancora)) AS encontrada,
+                    (SELECT COUNT(*)::int FROM gravadas) AS marcadas
+            `, [lado, clienteId, res.locals.usuarioId, marcarTodas ? null : id, marcarTodas]);
+            if (!resultado.rows[0].encontrada) {res.status(404).json({erro: "Notificação não encontrada."}); return;}
+            res.json({marcadas: resultado.rows[0].marcadas});
+        } catch (erro) {
+            console.error("Erro ao registrar leitura de notificações:", erro);
+            res.status(500).json({erro: "Não foi possível registrar a leitura."});
+        }
+    });
+}
 
 //acesso a API
 app.listen(3001, () => {

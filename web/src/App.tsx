@@ -1,5 +1,5 @@
 //import externos
-import { NavLink as MantineNavLink, Stack, Badge } from '@mantine/core';
+import { NavLink as MantineNavLink, Badge } from '@mantine/core';
 import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 
 // imports importantes sksksksksskksk
@@ -7,6 +7,7 @@ import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, L
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
 import { authClient } from "./lib/auth-client";
+import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
 
 function PainelAdmin() {
@@ -88,7 +89,8 @@ function PainelAdmin() {
           />
           <Text fw={1000}>Organizador</Text>
 
-          <Stack justify='flex-end'>
+          <Group gap="xs" wrap="nowrap">
+          <CentralNotificacoes key={sessao.user.id} lado="admin"/>
           <Menu shadow="md" width={200} position="bottom-end">
             <Menu.Target>
               <Button variant='subtle'>
@@ -102,7 +104,7 @@ function PainelAdmin() {
                 <Menu.Item variant="" color='red' onClick={() => void sair()}>Sair</Menu.Item>
             </Menu.Dropdown>
           </Menu>
-          </Stack>
+          </Group>
         </Group>
 
       </AppShell.Header>

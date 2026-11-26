@@ -4,6 +4,7 @@ import { AppShell, Alert, Badge, Burger, Button, Center, Group, Loader, Menu, Na
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
+import { CentralNotificacoes } from "../components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
 
 //por dps em um index proprio
@@ -98,6 +99,8 @@ function PortalCliente() {
                     <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Barra lateral"/>
                     <Text fw={1000}>Portal do cliente</Text>
 
+                    <Group gap="xs" wrap="nowrap">
+                    {cliente && <CentralNotificacoes lado="cliente"/>}
                     <Menu shadow="md" width={200} position="bottom-end">
                         <Menu.Target>
                             <Button variant="subtle">☰</Button>
@@ -110,6 +113,7 @@ function PortalCliente() {
                             <Menu.Item color="red" disabled={saindo} onClick={() => void sair()}>Sair</Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
+                    </Group>
                 </Group>
             </AppShell.Header>
 

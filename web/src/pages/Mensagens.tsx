@@ -3,6 +3,8 @@ import { useCallback, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { destinoRetorno, estadoRetorno } from "../lib/navegacaoContextual";
 import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
+import { ReaberturaConversa } from "../components/ReaberturaConversa";
+import type { PedidoReabertura } from "../components/ReaberturaConversa";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { ordenarConversas, totalNaoLidas, atividadeMaisRecente } from "../lib/ordenarConversas";
@@ -15,6 +17,7 @@ type Conversa = {
     projetoId: string | null;
     criadaEm: string;
     arquivadaEm: string | null;
+    reabertura?: PedidoReabertura | null;
     naoLidas?: number;
     ultimaAtividadeEm?: string;
 };
@@ -48,6 +51,7 @@ function CentralMensagens() {
     const params = new URLSearchParams(location.search);
     const clienteAlvo = params.get("cliente");
     const projetoAlvo = params.get("projeto");
+    const conversaAlvo = params.get("conversa");
     const voltarPara = destinoRetorno(location.state, "");
     const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
     const origemProjeto = destinoRetorno({voltarPara: location.state?.origemProjeto}, "/projetos");
@@ -59,8 +63,8 @@ function CentralMensagens() {
     const [expandidos, setExpandidos] = useState<string[]>(clienteAlvo ? [clienteAlvo] : []);
     // undefined: seguir o atalho inicial; null: nenhuma seleção por escolha do usuário.
     const [escolha, setConversaId] = useState<string | null | undefined>(undefined);
-    const clienteAtalho = clientes.find(c => c.clienteId === clienteAlvo);
-    const conversaAtalho = clienteAtalho?.conversas.find(c => projetoAlvo ? c.projetoId === projetoAlvo : c.tipo === "geral");
+    const clienteAtalho = clientes.find(c => conversaAlvo ? c.conversas.some(conversa => conversa.id === conversaAlvo) : c.clienteId === clienteAlvo);
+    const conversaAtalho = clienteAtalho?.conversas.find(c => conversaAlvo ? c.id === conversaAlvo : projetoAlvo ? c.projetoId === projetoAlvo : c.tipo === "geral");
     const conversaId = escolha === undefined ? conversaAtalho?.id ?? null : escolha;
     const [projetoCriacao, setProjetoCriacao] = useState<string | null>(null);
 
@@ -82,11 +86,12 @@ function CentralMensagens() {
 
     const clientesFiltrados = clientes.map(cliente => ({
         ...cliente,
-        conversas: ordenarConversas(cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas)),
+        conversas: ordenarConversas(cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas)).sort((a, b) => Number(b.reabertura?.status === "pendente") - Number(a.reabertura?.status === "pendente")),
     })).filter(cliente =>
         (!arquivadas || cliente.conversas.length > 0) &&
         cliente.clienteNome.toLowerCase().includes(busca.trim().toLowerCase())
     ).sort((a, b) =>
+        Number(b.conversas.some(c => c.reabertura?.status === "pendente")) - Number(a.conversas.some(c => c.reabertura?.status === "pendente")) ||
         Number(totalNaoLidas(b.conversas) > 0) - Number(totalNaoLidas(a.conversas) > 0) ||
         atividadeMaisRecente(b.conversas) - atividadeMaisRecente(a.conversas) ||
         a.clienteNome.localeCompare(b.clienteNome, "pt-BR")
@@ -94,6 +99,7 @@ function CentralMensagens() {
     const todasConversas = clientes.flatMap(cliente => cliente.conversas);
     const naoLidasAtivas = totalNaoLidas(todasConversas.filter(c => !c.arquivadaEm));
     const naoLidasArquivadas = totalNaoLidas(todasConversas.filter(c => !!c.arquivadaEm));
+    const pedidosPendentes = todasConversas.filter(c => c.reabertura?.status === "pendente").length;
     const [conversaArquivo, setConversaArquivo] = useState<{
         conversa: Conversa;
         acao: "arquivar" | "restaurar";
@@ -182,9 +188,15 @@ function CentralMensagens() {
         setClientes(anteriores => anteriores.map(cliente => ({
             ...cliente,
             conversas: cliente.conversas.map(conversa =>
-                conversa.id === id ? {...conversa, arquivadaEm} : conversa
+                conversa.id === id ? {...conversa, arquivadaEm, reabertura: null} : conversa
             ),
         })));
+        atualizarConversas();
+    }
+
+    function atualizarPedido(id: string, pedido: PedidoReabertura, restaurada: boolean) {
+        revisao.current++;
+        setClientes(anteriores => anteriores.map(cliente => ({...cliente, conversas: cliente.conversas.map(c => c.id === id ? {...c, reabertura: restaurada ? null : pedido, arquivadaEm: restaurada ? null : c.arquivadaEm} : c)})));
         atualizarConversas();
     }
 
@@ -206,6 +218,7 @@ function CentralMensagens() {
         <Stack gap="md" className={classes.chatPagina}>
             <Group justify="space-between"><Title order={2}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}</Group>
             {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
+            {pedidosPendentes > 0 && <Alert color="yellow"><Group justify="space-between" gap="xs"><Text size="sm">{pedidosPendentes} pedido(s) de reabertura pendente(s).</Text>{!arquivadas && <Button variant="light" color="yellow" size="compact-xs" onClick={() => alternarVisualizacao("arquivadas")}>Ver pedidos</Button>}</Group></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
             {clienteCriacao && (
                 <NovaConversa
@@ -283,8 +296,8 @@ function CentralMensagens() {
                                             <Box flex={1} miw={0}>
                                                 <NavLink
                                                     label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
-                                                    description={`${cliente.conversas.length} conversa(s)`}
-                                                    opened={expandidos.includes(cliente.clienteId)}
+                                                    description={`${cliente.conversas.length} conversa(s)${cliente.conversas.some(c => c.reabertura?.status === "pendente") ? ` · ${cliente.conversas.filter(c => c.reabertura?.status === "pendente").length} pedido(s)` : ""}`}
+                                                    opened={expandidos.includes(cliente.clienteId) || (escolha === undefined && !!conversaAlvo && cliente.clienteId === clienteAtalho?.clienteId)}
                                                     onChange={() => alternarCliente(cliente.clienteId)}
                                                     childrenOffset={16}
                                                 >
@@ -292,8 +305,9 @@ function CentralMensagens() {
                                                         <NavLink
                                                             key={conversa.id}
                                                             label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
+                                                            description={conversa.reabertura?.status === "pendente" ? "Reabertura solicitada" : undefined}
                                                             active={conversaId === conversa.id}
-                                                            onClick={() => setConversaId(conversa.id)}
+                                                            onClick={() => {setConversaId(conversa.id); setExpandidos(anteriores => anteriores.includes(cliente.clienteId) ? anteriores : [...anteriores, cliente.clienteId]);}}
                                                         />
                                                     ))}
                                                 </NavLink>
@@ -396,6 +410,7 @@ function CentralMensagens() {
                                     conversaId={conversaSelecionada.id}
                                     arquivada={!!conversaSelecionada.arquivadaEm}
                                     onAtualizarConversas={atualizarConversas}
+                                    acoesArquivada={conversaSelecionada.arquivadaEm && <ReaberturaConversa key={conversaSelecionada.id} conversaId={conversaSelecionada.id} pedido={conversaSelecionada.reabertura} lado="admin" onAlterado={(pedido, restaurada) => atualizarPedido(conversaSelecionada.id, pedido, restaurada)} onAtualizar={atualizarConversas}/>}
                                 />
                             </Stack>
                         ) : (
