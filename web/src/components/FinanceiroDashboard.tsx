@@ -1,7 +1,10 @@
 import { Carregamento } from "./Carregamento";
 import { useCallback, useState } from "react";
-import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
 import classes from "../styles/Estrutura.module.css";
+import { SaudeRecebiveis } from "./SaudeRecebiveis";
+import { GraficoFinanceiro, HistoricoFinanceiro } from "./GraficosFinanceiros";
+import fin from "../styles/Financeiro.module.css";
 import visual from "../styles/Dashboard.module.css";
 import { useNavigate } from "react-router";
 import { formatarValor } from "../lib/comercial";
@@ -11,9 +14,11 @@ type Resumo = {
     hoje: string; recebidoMes: string; aReceberMes: string; totalMes: string; futuro: string; atrasado: string; semData: string;
     totalPendente: string; aposPrevisao: string; naoDistribuido: string; excedente: string;
     meses: {mes: string; recebido: string; previsto: string}[];
+    proximos7?:string; atraso7?:string; atraso15?:string; atraso30?:string; atrasoMaior30?:string;
+    historico?: {mes: string; recebido: string}[];
 };
 
-export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0, esconderAlerta = false}: {completo?: boolean; esconderAlerta?: boolean; onSelecionar?: (categoria: string) => void; revisao?: number}) {
+export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0, esconderAlerta = false}: {completo?: boolean; esconderAlerta?: boolean; onSelecionar?: (categoria: string, periodo?:{mes?:string;inicio?:string;fim?:string}) => void; revisao?: number}) {
     const navigate = useNavigate();
     const [consulta, setConsulta] = useState<{dados: Resumo; revisao: number} | null>(null);
     const [erro, setErro] = useState<string | null>(null);
@@ -30,6 +35,12 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
     }, [revisao]);
     const atualizar = useAtualizacaoPeriodica(carregar, 30000);
     const selecionar = (categoria: string) => onSelecionar ? onSelecionar(categoria) : navigate(`/financeiro?categoria=${categoria}`);
+    function selecionarMes(mes:string, previsao:boolean) {
+        if (!previsao) {onSelecionar?.("recebidos",{mes});return;}
+        const [ano,numeroMes] = mes.split("-").map(Number);
+        const ultimoDia = new Date(Date.UTC(ano,numeroMes,0)).getUTCDate();
+        onSelecionar?.("agenda",{inicio:`${mes}-01`,fim:`${mes}-${String(ultimoDia).padStart(2,"0")}`});
+    }
     const maior = Math.max(1, ...(dados?.meses.map(m => Number(m.recebido) + Number(m.previsto)) ?? []));
     const mes = (valor: string) => valor.split("-").reverse().join("/");
 
@@ -83,19 +94,20 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
                     <Card key={item.nome} withBorder padding="sm" className={classes.metric}><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text className={classes.metricValue} size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
             </SimpleGrid>
             )}
-            {completo && <Card withBorder padding="md"><Stack gap="md">
-                <Group justify="space-between"><Text fw={600}>Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
-                <Group gap="md"><Badge variant="light" color="green">Recebido</Badge><Badge variant="light" color="violet">Previsto</Badge></Group>
-                {dados.meses.map(m => <Stack key={m.mes} gap={4}>
-                    <Group justify="space-between"><Text size="sm" fw={500}>{mes(m.mes)}</Text><Group gap="xs"><Text size="xs" c="green">{formatarValor(m.recebido)}</Text><Text size="xs" c="violet">{formatarValor(m.previsto)}</Text></Group></Group>
-                    <Progress.Root size="md" aria-label={`Recebido e previsto em ${mes(m.mes)}`}><Progress.Section color="green" value={100 * Number(m.recebido) / maior}/><Progress.Section color="violet" value={100 * Number(m.previsto) / maior}/></Progress.Root>
-                </Stack>)}
+            {completo && <>
+                <div className={fin.graficos}>
+                    <GraficoFinanceiro titulo="Previsão de recebimentos" subtitulo="Este mês + 5 meses" meses={dados.meses} previsao onMes={onSelecionar ? m=>selecionarMes(m,true) : undefined}/>
+                    <HistoricoFinanceiro meses={dados.historico} onMes={onSelecionar ? m=>selecionarMes(m,false) : undefined}/>
+                </div>
+                <SaudeRecebiveis dados={dados} onAgenda={()=>selecionar("agenda")} onAtrasados={()=>selecionar("atrasado")}/>
+                <Card withBorder padding="sm"><Stack gap="sm">
+                <Text fw={600}>Composição e valores fora da previsão</Text>
                 <SimpleGrid cols={{base: 1, sm: 2, lg: 3}}>
                     {[{nome:"Recebimentos futuros",valor:dados.futuro,categoria:"futuro"},{nome:"Total pendente",valor:dados.totalPendente,categoria:"todos"},{nome:"Sem vencimento definido",valor:dados.semData,categoria:"sem_data"},{nome:"Após o período exibido",valor:dados.aposPrevisao},{nome:"Valor acordado não distribuído",valor:dados.naoDistribuido}].map(item => <Stack key={item.nome} gap={2}><Text size="xs" c="dimmed">{item.nome}</Text><Text fw={600}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Stack>)}
                 </SimpleGrid>
                 {Number(dados.excedente) > 0 && <Alert color="yellow" title="Marcos acima do valor acordado">{formatarValor(dados.excedente)} de excedente. Revise os acordos dos projetos.</Alert>}
                 <Text size="xs" c="dimmed">Previsão baseada nos vencimentos. Atrasados, valores sem data, propostas pendentes e saldos dispensados não entram no total estimado do mês.</Text>
-            </Stack></Card>}
+            </Stack></Card></>}
         </>}
     </Stack>;
 }

@@ -968,8 +968,12 @@ app.get("/api/dashboard/financeiro", async (_req, res) => {
                 SELECT projeto_id, SUM(distribuido) AS total FROM marcos GROUP BY projeto_id
             ), meses AS (
                 SELECT g::date AS mes FROM periodo, LATERAL generate_series(inicio::timestamp, (limite - interval '1 month')::timestamp, interval '1 month') g
+            ), meses_historico AS (
+                SELECT g::date AS mes FROM periodo, LATERAL generate_series((inicio - interval '11 months')::timestamp, inicio::timestamp, interval '1 month') g
             )
             SELECT to_char(hoje,'YYYY-MM-DD') AS hoje,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('mes',to_char(mes,'YYYY-MM'),
+                    'recebido',COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= mes AND recebido_em < mes + interval '1 month'),0)::text) ORDER BY mes),'[]'::jsonb) FROM meses_historico) AS historico,
                 COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo),0)::text AS "recebidoMes",
                 COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'mes'),0)::text AS "aReceberMes",
                 (COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo),0) + COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'mes'),0))::text AS "totalMes",
@@ -977,6 +981,11 @@ app.get("/api/dashboard/financeiro", async (_req, res) => {
                 COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'atrasado'),0)::text AS atrasado,
                 COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'sem_data'),0)::text AS "semData",
                 COALESCE((SELECT SUM(saldo) FROM pendentes),0)::text AS "totalPendente",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE vencimento >= hoje AND vencimento < hoje + 7),0)::text AS "proximos7",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE hoje - vencimento BETWEEN 1 AND 7),0)::text AS "atraso7",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE hoje - vencimento BETWEEN 8 AND 15),0)::text AS "atraso15",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE hoje - vencimento BETWEEN 16 AND 30),0)::text AS "atraso30",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE hoje - vencimento > 30),0)::text AS "atrasoMaior30",
                 COALESCE((SELECT SUM(saldo) FROM pendentes WHERE vencimento >= limite),0)::text AS "aposPrevisao",
                 COALESCE((SELECT SUM(GREATEST(p.valor_acordado - COALESCE(d.total,0),0)) FROM projetos p LEFT JOIN distribuicao d ON d.projeto_id = p.id
                     WHERE p.status IN ('planejado','em_andamento','concluido') AND p.arquivada_em IS NULL AND p.valor_acordado IS NOT NULL),0)::text AS "naoDistribuido",
@@ -1007,12 +1016,17 @@ app.get("/api/dashboard/financeiro", async (_req, res) => {
 //admin: consultar registros financeiros
 app.get("/api/dashboard/financeiro/detalhes", async (req, res) => {
     try {
-        const {categoria = "todos", mes, cliente, projeto, pagina = "1"} = req.query;
-        if (typeof categoria !== "string" || !["todos", "atrasado", "mes", "futuro", "sem_data", "cobrados", "nao_cobrados", "recebidos", "cancelados"].includes(categoria)) throw new ErroConversa(400, "Categoria inválida");
+        const {categoria = "todos", mes, cliente, projeto, pagina = "1", inicio, fim, exportar} = req.query;
+        if (typeof categoria !== "string" || !["todos", "atrasado", "mes", "futuro", "sem_data", "cobrados", "nao_cobrados", "recebidos", "cancelados", "agenda"].includes(categoria)) throw new ErroConversa(400, "Categoria inválida");
         if (mes !== undefined && (typeof mes !== "string" || !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(mes))) throw new ErroConversa(400, "Mês inválido");
         if (cliente !== undefined && (typeof cliente !== "string" || !uuidConversa.test(cliente))) throw new ErroConversa(400, "Cliente inválido");
         if (projeto !== undefined && (typeof projeto !== "string" || !uuidConversa.test(projeto))) throw new ErroConversa(400, "Projeto inválido");
         if (typeof pagina !== "string" || !/^[1-9]\d{0,5}$/.test(pagina)) throw new ErroConversa(400, "Página inválida");
+        const de = prazoComercial(inicio);
+        const ate = prazoComercial(fim);
+        if (de && ate && de > ate) throw new ErroConversa(400, "O início deve ser anterior ou igual ao fim");
+        if (exportar !== undefined && exportar !== "true") throw new ErroConversa(400, "Exportação inválida");
+        const exportacao = exportar === "true";
         const resultado = await pool.query(`
             WITH periodo AS (
                 SELECT hoje, (date_trunc('month', hoje::timestamp) + interval '1 month')::date AS proximo,
@@ -1036,22 +1050,43 @@ app.get("/api/dashboard/financeiro/detalhes", async (req, res) => {
                     m.vencimento AS data, m.saldo AS valor, m.categoria, m.arquivado, m.cobranca_iniciada,
                     m.bloqueia_progresso, m.status, m.projeto_status, m.saldo_dispensado, NULL::timestamptz AS anulado_em,
                     m.valor AS valor_marco, m.recebido
-                FROM marcos m WHERE $1 <> 'recebidos' AND (
+                FROM marcos m CROSS JOIN periodo WHERE $1 <> 'recebidos'
+                    AND ($6::date IS NULL OR m.vencimento >= $6::date)
+                    AND ($7::date IS NULL OR m.vencimento <= $7::date)
+                    AND (
                     ($1 = 'cancelados' AND (m.status = 'cancelado' OR m.projeto_status = 'cancelado')) OR
                     (m.saldo > 0 AND ($1 = 'todos' OR $1 = m.categoria OR
+                        ($1 = 'agenda' AND m.vencimento >= hoje AND ($6::date IS NOT NULL OR $7::date IS NOT NULL OR m.vencimento < hoje + 30)) OR
                         ($1 = 'cobrados' AND m.cobranca_iniciada) OR ($1 = 'nao_cobrados' AND NOT m.cobranca_iniciada))))
                 UNION ALL
                 SELECT pg.id, m.id, m.projeto_id, m.cliente_id, m.marco, m.projeto, m.cliente,
                     pg.recebido_em, pg.valor, 'recebidos', m.arquivado, m.cobranca_iniciada,
                     m.bloqueia_progresso, m.status, m.projeto_status, m.saldo_dispensado, pg.anulado_em, m.valor, m.recebido
                 FROM marcos_pagamentos pg JOIN marcos m ON m.id = pg.marco_id CROSS JOIN periodo
-                WHERE $1 = 'recebidos' AND pg.recebido_em >= inicio AND pg.recebido_em < inicio + interval '1 month'
+                WHERE $1 = 'recebidos' AND (
+                    ($6::date IS NULL AND $7::date IS NULL AND pg.recebido_em >= inicio AND pg.recebido_em < inicio + interval '1 month') OR
+                    (($6::date IS NOT NULL OR $7::date IS NOT NULL) AND
+                     ($6::date IS NULL OR pg.recebido_em >= $6::date) AND ($7::date IS NULL OR pg.recebido_em <= $7::date)))
+            ), grupos AS (
+                SELECT 'cliente' AS tipo, cliente_id AS id, cliente AS nome, SUM(valor) AS total
+                FROM registros WHERE anulado_em IS NULL AND valor > 0 GROUP BY cliente_id, cliente
+                UNION ALL
+                SELECT 'projeto', projeto_id, projeto || ' · ' || cliente, SUM(valor)
+                FROM registros WHERE anulado_em IS NULL AND valor > 0 GROUP BY projeto_id, projeto, cliente
+            ), grupos_ordenados AS (
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY tipo ORDER BY total DESC, id) AS ordem FROM grupos
+            ), grupos_resumo AS (
+                SELECT tipo, id::text AS id, nome, total, ordem FROM grupos_ordenados WHERE ordem <= 8
+                UNION ALL
+                SELECT tipo, 'outros', 'Outros', SUM(total), 9 FROM grupos_ordenados WHERE ordem > 8 GROUP BY tipo
             ), itens AS (
                 SELECT * FROM registros ORDER BY CASE WHEN $1 = 'recebidos' THEN data END DESC NULLS LAST,
-                    CASE WHEN $1 <> 'recebidos' THEN data END ASC NULLS LAST, id LIMIT 25 OFFSET $5
+                    CASE WHEN $1 <> 'recebidos' THEN data END ASC NULLS LAST, id LIMIT $8 OFFSET $5
             )
             SELECT (SELECT COUNT(*)::int FROM registros) AS quantidade,
                 COALESCE((SELECT SUM(valor) FROM registros WHERE anulado_em IS NULL),0)::text AS total,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'nome',nome,'valor',total::text) ORDER BY ordem),'[]'::jsonb) FROM grupos_resumo WHERE tipo = 'cliente') AS "porCliente",
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'nome',nome,'valor',total::text) ORDER BY ordem),'[]'::jsonb) FROM grupos_resumo WHERE tipo = 'projeto') AS "porProjeto",
                 (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'marcoId',marco_id,'projetoId',projeto_id,'clienteId',cliente_id,
                     'marco',marco,'projeto',projeto,'cliente',cliente,'data',to_char(data,'YYYY-MM-DD'),'valor',valor::text,
                     'categoria',categoria,'arquivado',arquivado,'cobrancaIniciada',cobranca_iniciada,'bloqueiaProgresso',bloqueia_progresso,
@@ -1063,8 +1098,9 @@ app.get("/api/dashboard/financeiro/detalhes", async (req, res) => {
                 (SELECT COALESCE(jsonb_agg(jsonb_build_object('value',p.id,'label',p.titulo || ' · ' || c.nome,'clienteId',c.id) ORDER BY p.titulo,p.id),'[]'::jsonb)
                     FROM projetos p JOIN clientes c ON c.id = p.cliente_id) AS projetos,
                 (SELECT to_char(inicio,'YYYY-MM') FROM periodo) AS mes
-        `, [categoria, mes ? `${mes}-01` : null, cliente ?? null, projeto ?? null, (Number(pagina) - 1) * 25]);
+        `, [categoria, mes ? `${mes}-01` : null, cliente ?? null, projeto ?? null, exportacao ? 0 : (Number(pagina) - 1) * 25, de, ate, exportacao ? 10001 : 25]);
         res.set("Cache-Control", "no-store");
+        if (exportacao && resultado.rows[0].quantidade > 10000) throw new ErroConversa(400, "A exportação admite até 10.000 registros. Reduza o período ou refine os filtros");
         res.json(resultado.rows[0]);
     } catch (erro) {responderErroMarco(res, erro);}
 });
