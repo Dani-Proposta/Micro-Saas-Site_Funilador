@@ -1,7 +1,8 @@
+import classes from "../styles/Usabilidade.module.css";
 import { useCallback, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { destinoRetorno } from "../lib/navegacaoContextual";
-import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Grid, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
+import { destinoRetorno, estadoRetorno } from "../lib/navegacaoContextual";
+import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { ordenarConversas, totalNaoLidas, atividadeMaisRecente } from "../lib/ordenarConversas";
@@ -48,6 +49,7 @@ function CentralMensagens() {
     const clienteAlvo = params.get("cliente");
     const projetoAlvo = params.get("projeto");
     const voltarPara = destinoRetorno(location.state, "");
+    const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
     const origemProjeto = destinoRetorno({voltarPara: location.state?.origemProjeto}, "/projetos");
     const [clientes, setClientes] = useState<ClienteConversas[]>([]);
     const [carregando, setCarregando] = useState(true);
@@ -201,8 +203,8 @@ function CentralMensagens() {
     }
 
     return (
-        <Stack gap="md">
-            <Group justify="space-between"><Title order={2}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined})}>← Voltar à origem</Button>}</Group>
+        <Stack gap="md" className={classes.chatPagina}>
+            <Group justify="space-between"><Title order={2}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}</Group>
             {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
             {clienteCriacao && (
@@ -234,10 +236,10 @@ function CentralMensagens() {
                 />
             )}
 
-            <Grid align="stretch">
-                <Grid.Col span={{ base: 12, md: 4, lg: 3 }}>
-                    <Card withBorder padding="sm" h="100%">
-                        <Stack gap="sm">
+            <div className={classes.chatGrid}>
+                <div className={classes.chatColuna}>
+                    <Card withBorder padding="sm" className={classes.chatCard}>
+                        <Stack gap="sm" className={classes.chatPilha}>
                             <SegmentedControl
                                 fullWidth
                                 size="sm"
@@ -257,7 +259,7 @@ function CentralMensagens() {
 
                             <Divider />
 
-                            <ScrollArea h={480}>
+                            <ScrollArea className={classes.chatLista} offsetScrollbars>
                                 <Stack gap={4}>
                                     {carregando && (
                                         <Center>
@@ -280,7 +282,7 @@ function CentralMensagens() {
                                         >
                                             <Box flex={1} miw={0}>
                                                 <NavLink
-                                                    label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
+                                                    label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
                                                     description={`${cliente.conversas.length} conversa(s)`}
                                                     opened={expandidos.includes(cliente.clienteId)}
                                                     onChange={() => alternarCliente(cliente.clienteId)}
@@ -289,7 +291,7 @@ function CentralMensagens() {
                                                     {cliente.conversas.map((conversa) => (
                                                         <NavLink
                                                             key={conversa.id}
-                                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
+                                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                                             active={conversaId === conversa.id}
                                                             onClick={() => setConversaId(conversa.id)}
                                                         />
@@ -314,12 +316,12 @@ function CentralMensagens() {
                             </ScrollArea>
                         </Stack>
                     </Card>
-                </Grid.Col>
+                </div>
 
-                <Grid.Col span={{ base: 12, md: 8, lg: 9 }}>
-                    <Card withBorder padding="md" h="100%">
+                <div className={classes.chatColuna}>
+                    <Card withBorder padding="md" className={classes.chatCard}>
                         {clienteSelecionado && conversaSelecionada ? (
-                            <Stack gap="md">
+                            <Stack gap="sm" className={classes.chatPilha}>
                                 <Group justify="space-between">
                                     <Stack gap={2}>
                                         <Title order={4}>{clienteSelecionado.clienteNome}</Title>
@@ -397,13 +399,13 @@ function CentralMensagens() {
                                 />
                             </Stack>
                         ) : (
-                            <Center h={500}>
+                            <Center style={{flex: 1, minHeight: 0}}>
                                 <Text c="dimmed">Selecione uma conversa para começar.</Text>
                             </Center>
                         )}
                     </Card>
-                </Grid.Col>
-            </Grid>
+                </div>
+            </div>
         </Stack>
     );
 }

@@ -1,3 +1,5 @@
+import { SeletorCliente } from "../components/SeletorCliente";
+import { TextoExpansivel } from "../components/TextoExpansivel";
 import { useState, useEffect, } from "react";
 import { useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
@@ -40,6 +42,7 @@ export function Solicitacoes(){
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [clienteId, setClienteId] = useState<string | null>(null);
+    const [cadastroClienteAberto, setCadastroClienteAberto] = useState(false);
 
     const [atualizandoId, setAtualizandoId] = useState<string | null>(null);
 
@@ -107,6 +110,7 @@ export function Solicitacoes(){
     //criar solicição e mandar pro DB
     async function criarSolicitacao(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (enviando || cadastroClienteAberto) return;
         if (!clienteId) {
             setErroEnvio('Selecione um cliente.');
             return;
@@ -206,21 +210,14 @@ export function Solicitacoes(){
             )}
             <Modal 
             opened={modalAberto}
-            onClose={() => {setModalAberto(false); setClienteId(null); setTitulo("");setDescricao("");setErroEnvio(null);}}
+            onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo("");setDescricao("");setErroEnvio(null);}}
             title= "Nova solicitação"
             centered
-            size={"md"}>
+            size={"md"} closeOnEscape={!cadastroClienteAberto && !enviando} closeOnClickOutside={!cadastroClienteAberto && !enviando} withCloseButton={!cadastroClienteAberto && !enviando}>
 
             <form onSubmit={criarSolicitacao}>
                 <Stack gap={"sm"}>
-                    <Select label="Cliente"
-                    placeholder="Selecione um cliente"
-                    searchable
-                    required
-                    nothingFoundMessage="Achei foi ninguem"
-                    data={clientes.map((cliente) => ({value : cliente.id, label: cliente.nome}))}
-                    value={clienteId}
-                    onChange={setClienteId}/>
+                    <SeletorCliente clientes={clientes} value={clienteId} onChange={setClienteId} disabled={enviando} onBloqueio={setCadastroClienteAberto} onCriado={cliente => setClientes(anteriores => [...anteriores.filter(c => c.id !== cliente.id), cliente])}/>
 
                     <TextInput label="Titulo"
                     placeholder = "Nome da solicitação(Ex: Desenvolvimento de X, Edição de video)"
@@ -235,7 +232,7 @@ export function Solicitacoes(){
                     onChange={(event) => setDescricao(event.currentTarget.value)}></Textarea>
 
                     {erroEnvio && ( <Alert color="red" title="Erro">{erroEnvio}</Alert>)}
-                    <Button type="submit" loading={enviando}>Criar Solicitação</Button>
+                    <Button type="submit" loading={enviando} disabled={cadastroClienteAberto}>Criar Solicitação</Button>
                 </Stack>
             </form>
             </Modal>
@@ -247,8 +244,8 @@ export function Solicitacoes(){
                 <Card key={solicitacao.id} withBorder padding="lg" mt="lg">
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
                         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={700}>{solicitacao.titulo}</Text>
-                            <Text size="sm" lineClamp={4}>{solicitacao.descricao}</Text>
+                            <Text fw={700} style={{overflowWrap: "anywhere"}}>{solicitacao.titulo}</Text>
+                            <TextoExpansivel texto={solicitacao.descricao} linhas={4}/>
                         </Stack>
 
                         <Stack align="flex-end" style={{maxWidth: "40%"}}>

@@ -44,3 +44,17 @@ export function comStatus(params: URLSearchParams, valor: string | null): URLSea
     else proximo.set("status", valor);
     return proximo;
 }
+
+// Preserva a cadeia de origem sem aceitar destinos externos ou cadeias ilimitadas.
+export type EstadoRetorno = {voltarPara: string; estadoAnterior?: EstadoRetorno};
+export function estadoRetorno(state: unknown, profundidade = 0): EstadoRetorno | undefined {
+    if (profundidade >= 8) return undefined;
+    const voltarPara = destinoRetorno(state, "");
+    if (!voltarPara || !state || typeof state !== "object") return undefined;
+    const anterior = "estadoAnterior" in state ? estadoRetorno(state.estadoAnterior, profundidade + 1) : undefined;
+    return anterior ? {voltarPara, estadoAnterior: anterior} : {voltarPara};
+}
+export function registrarOrigem(caminho: string, state: unknown): EstadoRetorno {
+    const anterior = estadoRetorno(state);
+    return anterior ? {voltarPara: caminho, estadoAnterior: anterior} : {voltarPara: caminho};
+}

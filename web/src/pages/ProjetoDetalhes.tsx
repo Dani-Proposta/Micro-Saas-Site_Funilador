@@ -1,8 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { caminhoMensagens, destinoRetorno } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput } from "@mantine/core";
+import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
+import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
 
 type Projeto = {
     id: string;
@@ -36,6 +36,7 @@ export function ProjetoDetalhes() {
     const navigate = useNavigate();
     const location = useLocation();
     const voltarPara = destinoRetorno(location.state, "/projetos");
+    const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
     const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : "Voltar aos projetos";
 
     const [projeto, setProjeto] = useState<Projeto | null>(null);
@@ -51,6 +52,8 @@ export function ProjetoDetalhes() {
     const [confirmarArquivamento, setConfirmarArquivamento] = useState(false);
     const [processandoArquivo, setProcessandoArquivo] = useState(false);
     const [erroArquivo, setErroArquivo] = useState<string | null>(null);
+    const [alterandoStatus, setAlterandoStatus] = useState(false);
+    const [erroStatus, setErroStatus] = useState<string | null>(null);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -177,6 +180,19 @@ export function ProjetoDetalhes() {
 
 
 
+    async function alterarStatus(status: Projeto["status"]) {
+        if (!projeto || projeto.arquivadaEm || alterandoStatus || processandoArquivo || projeto.status === status) return;
+        setAlterandoStatus(true);
+        setErroStatus(null);
+        try {
+            const resposta = await fetch(`/api/projetos/${projeto.id}/status`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({status})});
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível atualizar o status.");
+            setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, status: dados.status, atualizadaEm: dados.atualizadaEm} : anterior);
+        } catch (e) {setErroStatus(e instanceof Error ? e.message : "Falha ao atualizar status.");}
+        finally {setAlterandoStatus(false);}
+    }
+
     if (carregando) {
         return <Loader size="sm" />;
     }
@@ -187,7 +203,7 @@ export function ProjetoDetalhes() {
                 <Alert color="red">
                     {erro ?? "Projeto não encontrado"}
                 </Alert>
-                <Button variant="light" onClick={() => navigate(voltarPara)}>
+                <Button variant="light" onClick={() => navigate(voltarPara, {state: origemAnterior})}>
                     {rotuloVoltar}
                 </Button>
             </Stack>
@@ -219,20 +235,21 @@ export function ProjetoDetalhes() {
                 </Stack>
             </Modal>
             <Group justify="space-between" align="start">
-                <Stack gap="xs" style={{ minWidth: 0 }}>
-                    <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}> ← {rotuloVoltar}</Button>
+                <Stack gap="xs" style={{ minWidth: 0, flex: "1 1 220px" }}>
+                    <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
                     <Title order={2} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
                 </Stack>
 
-                <Group gap="xs">
-                    <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {voltarPara: `/projetos/${projeto.id}`, origemProjeto: voltarPara, projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
+                <Group gap="xs" wrap="wrap">
+                    <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {...registrarOrigem(`/projetos/${projeto.id}`, location.state), projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
                     {projeto.arquivadaEm && (<Badge color="gray">Arquivado</Badge>)}
-                    <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge>
+                    {projeto.arquivadaEm ? <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge> : <Select aria-label="Status do projeto" size="xs" w={150} allowDeselect={false} value={projeto.status} disabled={alterandoStatus || processandoArquivo || confirmarArquivamento} data={Object.entries(nomesStatus).map(([value, label]) => ({value, label}))} onChange={valor => {if (valor === "planejado" || valor === "em_andamento" || valor === "concluido" || valor === "cancelado") void alterarStatus(valor);}}/>}
                     {!projeto.arquivadaEm && (<Button size="xs" variant="light" onClick={abrirEdicao}>Editar</Button>)}
-                    {projeto.arquivadaEm ? (<Button size="xs" variant="light" color="green" loading={processandoArquivo} onClick={() => void alterarArquivamento("restaurar")}>Restaurar</Button>) : (<Button size="xs" variant="light" color="gray" onClick={() => {setErroArquivo(null); setConfirmarArquivamento(true);}}>Arquivar</Button>)}
+                    {projeto.arquivadaEm ? (<Button size="xs" variant="light" color="green" loading={processandoArquivo} onClick={() => void alterarArquivamento("restaurar")}>Restaurar</Button>) : (<Button size="xs" variant="light" color="gray" disabled={alterandoStatus} onClick={() => {setErroArquivo(null); setConfirmarArquivamento(true);}}>Arquivar</Button>)}
                 </Group>
             </Group>
 
+            {erroStatus && <Alert color="red">{erroStatus}</Alert>}
             {erroArquivo && !confirmarArquivamento && (<Alert color="red">{erroArquivo}</Alert>)}
             
             <Card withBorder padding="lg">
@@ -240,7 +257,7 @@ export function ProjetoDetalhes() {
                     <Title order={4}>Informações gerais</Title>
                     <Group justify="space-between">
                         <Text c="dimmed">Cliente</Text>
-                        <Button variant="subtle" size="sm" onClick={() => navigate(`/clientes/${projeto.clienteId}`)}>{projeto.clienteNome}</Button>
+                        <Button variant="subtle" size="sm" onClick={() => navigate(`/clientes/${projeto.clienteId}`, {state: registrarOrigem(`/projetos/${projeto.id}`, location.state)})}>{projeto.clienteNome}</Button>
                     </Group>
 
                     <Group justify="space-between">

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { caminhoMensagens } from "../lib/navegacaoContextual";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Divider, Group, Loader, Stack, Text, Title, Modal, TextInput } from "@mantine/core";
 
 type ProjetoRelacionado = {
@@ -29,6 +29,10 @@ type ClienteDetalhado = {
 export function ClienteDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const voltarPara = destinoRetorno(location.state, "/clientes");
+  const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
+  const rotuloVoltar = voltarPara.startsWith("/projetos/") ? "Voltar ao projeto" : "Voltar aos clientes";
 
   const [cliente, setCliente] = useState<ClienteDetalhado | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -136,8 +140,8 @@ export function ClienteDetalhes() {
         <Alert color="red">
           {erro ?? "Cliente não encontrado"}
         </Alert>
-        <Button variant="light" onClick={() => navigate("/clientes")}>
-          Voltar aos clientes
+        <Button variant="light" onClick={() => navigate(voltarPara, {state: origemAnterior})}>
+          {rotuloVoltar}
         </Button>
       </Stack>
     );
@@ -162,12 +166,12 @@ export function ClienteDetalhes() {
 
       <Stack gap="xs">
         <Group>
-          <Button variant="subtle" size="xs"onClick={() => navigate("/clientes")}> ← Voltar aos clientes</Button>
+          <Button variant="subtle" size="xs"onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
         </Group>
 
         <Group justify="space-between" align="center">
             <Title order={2} style={{ overflowWrap: "anywhere" }}>{cliente.nome}</Title>
-            <Group gap="xs"><Button size="xs" onClick={() => navigate(caminhoMensagens(cliente.id), {state: {voltarPara: `/clientes/${cliente.id}`}})}>Enviar mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button></Group>
+            <Group gap="xs"><Button size="xs" onClick={() => navigate(caminhoMensagens(cliente.id), {state: registrarOrigem(`/clientes/${cliente.id}`, location.state)})}>Enviar mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button></Group>
         </Group>
 
         <Text c="dimmed" size="sm">
@@ -234,7 +238,7 @@ export function ClienteDetalhes() {
                   size="xs"
                   variant="light"
                   onClick={() =>
-                    navigate(`/projetos/${projeto.id}`, {state: {voltarPara: `/clientes/${cliente.id}`}})
+                    navigate(`/projetos/${projeto.id}`, {state: registrarOrigem(`/clientes/${cliente.id}`, location.state)})
                   }
                 >
                   Abrir

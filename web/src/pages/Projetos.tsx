@@ -1,3 +1,5 @@
+import { SeletorCliente } from "../components/SeletorCliente";
+import { TextoExpansivel } from "../components/TextoExpansivel";
 
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
@@ -30,6 +32,7 @@ export function Projetos() {
 
     const [modalAberto, setModalAberto] = useState(false);
     const [clienteId, setClienteId] = useState<string | null>(null);
+    const [cadastroClienteAberto, setCadastroClienteAberto] = useState(false);
     const [titulo, setTitulo] = useState("");
     const [descricao, setDescricao] = useState("");
 
@@ -116,6 +119,7 @@ export function Projetos() {
 
     async function criarProjeto(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (enviando || cadastroClienteAberto) return;
 
         if (!clienteId) {
             setErroEnvio("Selecione um cliente");
@@ -202,14 +206,14 @@ export function Projetos() {
 
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
             <SegmentedControl value={filtro} onChange={(valor) => { if (valor === "ativos" || valor === "arquivados") setFiltro(valor);}} data={[{ value: "ativos", label: "Ativos" },{ value: "arquivados", label: "Arquivados" },]}/>
-            <Modal opened={modalAberto} onClose={() => {setModalAberto(false); setClienteId(null); setTitulo(""); setDescricao(""); setErroEnvio(null);}} title="Novo Projeto" centered>
+            <Modal opened={modalAberto} onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo(""); setDescricao(""); setErroEnvio(null);}} title="Novo Projeto" centered closeOnEscape={!cadastroClienteAberto && !enviando} closeOnClickOutside={!cadastroClienteAberto && !enviando} withCloseButton={!cadastroClienteAberto && !enviando}>
                 <form onSubmit={criarProjeto}>
                     <Stack gap="sm">
-                        <Select label="Cliente" placeholder="Escolha um cliente existente" searchable required data={clientes.map((cliente) => ({ value: cliente.id, label: cliente.nome }))} value={clienteId} onChange={setClienteId}/>
+                        <SeletorCliente clientes={clientes} value={clienteId} onChange={setClienteId} disabled={enviando} onBloqueio={setCadastroClienteAberto} onCriado={cliente => setClientes(anteriores => [...anteriores.filter(c => c.id !== cliente.id), cliente])}/>
                         <TextInput label="Título" required value={titulo} onChange={(event) => setTitulo(event.currentTarget.value)}/>
                         <Textarea label="Descrição" required minRows={3} value={descricao} onChange={(event) => setDescricao(event.currentTarget.value)}/>
                         {erroEnvio && <Alert color="red">{erroEnvio}</Alert>}
-                        <Button type="submit" loading={enviando}>Criar projeto</Button>
+                        <Button type="submit" loading={enviando} disabled={cadastroClienteAberto}>Criar projeto</Button>
                     </Stack>
                 </form>
             </Modal>
@@ -223,7 +227,7 @@ export function Projetos() {
                         <Group justify="space-between" wrap="nowrap">
                             <Stack gap="xs" style={{ minWidth: 0, flex: 1 }}>
                                 <Text fw={700} lineClamp={1} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Text>
-                                <Text size="sm" lineClamp={2} style={{ overflowWrap: "anywhere" }}>{projeto.descricao}</Text>
+                                <TextoExpansivel texto={projeto.descricao} linhas={3}/>
                             </Stack>
 
                             <Stack gap="xs" align="flex-end" style={{ flexShrink: 0 }}>{filtro === "ativos" ? (

@@ -1,3 +1,5 @@
+import classes from "../styles/Usabilidade.module.css";
+import { TextoExpansivel } from "./TextoExpansivel";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
@@ -346,6 +348,10 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
             if (quadro !== undefined) return;
             quadro = requestAnimationFrame(() => {quadro = undefined; capturar();});
         }
+        const observer = new ResizeObserver(agendarCaptura);
+        observer.observe(viewport);
+        const conteudoViewport = viewport.firstElementChild;
+        if (conteudoViewport) observer.observe(conteudoViewport);
         capturarLeituras.current = agendarCaptura;
         viewport.addEventListener("scroll", capturar, {passive: true});
         window.addEventListener("scroll", capturar, {passive: true, capture: true});
@@ -358,6 +364,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
             clearTimeout(timer);
             if (quadro !== undefined) cancelAnimationFrame(quadro);
             capturarLeituras.current = null;
+            observer.disconnect();
             viewport.removeEventListener("scroll", capturar);
             window.removeEventListener("scroll", capturar, true);
             window.removeEventListener("focus", agendarCaptura);
@@ -433,21 +440,21 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     }
 
     return (
-        <Stack gap="sm">
+        <Stack gap="sm" className={classes.chatHistorico}>
             <Group justify="space-between" gap="xs">
                 <Button variant="subtle" size="compact-xs" disabled={!mensagens.some(m => m.remetenteTipo !== lado && !m.lida)} onClick={irParaNaoLida}>Ir à não lida ({mensagens.filter(m => m.remetenteTipo !== lado && !m.lida).length})</Button>
                 <Button variant="subtle" size="compact-xs" loading={marcandoTodas} disabled={carregando || !!erro} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Button>
             </Group>
             {erroLeitura && <Alert color="red">{erroLeitura}</Alert>}
-            <Box pos="relative">
-                <ScrollArea h={440} viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
+            <Box pos="relative" className={classes.chatArea}>
+                <ScrollArea className={classes.chatScroll} offsetScrollbars viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
                     <Stack gap="sm">
 
                         {carregando && <Center><Loader size="sm"/></Center>}
 
                         {erro && <Alert color="red">{erro}</Alert>}
 
-                        {!carregando && !erro && mensagens.length === 0 && <Center h={400}><Text c="dimmed" size="sm">Nenhuma mensagem por enquanto.</Text></Center>}
+                        {!carregando && !erro && mensagens.length === 0 && <Center py="xl"><Text c="dimmed" size="sm">Nenhuma mensagem por enquanto.</Text></Center>}
 
                         {!carregando && mensagens.length > 0 && <Center h={36}>
                             {temMaisAntigas ? <Button size="compact-xs" variant="subtle" loading={carregandoAntigas} onClick={() => void carregarAnteriores()}>{erroAntigas ? "Tentar carregar anteriores novamente" : "↑ Carregar mensagens anteriores"}</Button> : <Text size="xs" c="dimmed">Início da conversa</Text>}
@@ -458,7 +465,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                                 {marcadorInicial === mensagem.id && <Divider my="sm" color="violet" label="Mensagens não lidas" labelPosition="center"/>}
                                 <Group data-mensagem-id={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
                                     <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12, outline: mensagem.remetenteTipo !== lado && !mensagem.lida ? "1px solid var(--mantine-color-violet-5)" : undefined}}>
-                                        <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{mensagem.conteudo}</Text>
+                                        <TextoExpansivel texto={mensagem.conteudo} linhas={7}/>
                                         <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
                                     </Box>
                                 </Group>

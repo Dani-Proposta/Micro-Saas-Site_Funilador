@@ -1,3 +1,4 @@
+import { TextoExpansivel } from "../components/TextoExpansivel";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -129,11 +130,11 @@ export function MinhasSolicitacoes() {
                 <Card key={solicitacao.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">
-                            <Text fw={600}>{solicitacao.titulo}</Text>
+                            <Text fw={600} style={{overflowWrap: "anywhere", minWidth: 0}}>{solicitacao.titulo}</Text>
                             <Badge color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
                         </Group>
 
-                        <Text size="sm" style={{whiteSpace: "pre-wrap"}}>{solicitacao.descricao}</Text>
+                        <TextoExpansivel texto={solicitacao.descricao} linhas={5}/>
                         <Text size="xs" c="dimmed">Enviada em: {new Date(solicitacao.criadaEm).toLocaleString("pt-BR")}</Text>
                     </Stack>
                 </Card>

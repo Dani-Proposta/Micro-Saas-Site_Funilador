@@ -1,3 +1,4 @@
+import classes from "../styles/Usabilidade.module.css";
 import { Group, Text, Card, SimpleGrid, Stack, Title, Badge, UnstyledButton} from "@mantine/core";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
@@ -109,7 +110,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
             {/*cards gerais*/}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/projetos?status=em_andamento")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Group justify="space-between" mb="sm">
                         <Text c="dimmed" size="sm">Projetos em andamento</Text>
                     </Group>
@@ -117,21 +118,21 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
 
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/solicitacoes?status=pendente")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Solicitações Pendentes</Text>
                     <Text fw={700} size="32px">{resumo?.solicitacoesPendentes ?? "—"}</Text>
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/clientes")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/clientes")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Clientes cadastrados</Text>
                     <Text fw={700} size="32px">{resumo?.totalClientes ?? "—"}</Text>
                 </Card>
 
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/projetos?status=concluido")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Projetos concluidos</Text>
                     <Text fw={700} size="32px">{resumo?.projetosConcluidos ?? "—"}</Text>
                 </Card>
-                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
+                <Card withBorder padding="lg" shadow="sm" className={classes.interativo} component="button" type="button" onClick={() => navigate("/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
                     <Text c="dimmed" size="sm">Mensagens não lidas</Text>
                     <Text fw={700} size="32px" c={mensagensNaoLidas ? "red" : undefined}>{mensagensNaoLidas ?? "—"}</Text>
                     <Text size="xs" c="dimmed">Abrir central de mensagens</Text>
@@ -149,12 +150,12 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                     {erroProjetos && (<Text c="red" size="sm">{erroProjetos}</Text>)}
                     {!carregandoProjetos && !erroProjetos && projetosRecentes.length === 0 && (<Text c="dimmed" size="sm">nenhum projeto cadastrado ainda.</Text>)}
                     {!carregandoProjetos && !erroProjetos && projetosRecentes.map((projeto) => (
-                        <UnstyledButton key={projeto.id} onClick={() => navigate(`/projetos/${projeto.id}`, {state: {voltarPara: "/"}})} style={{textAlign: "left", width: "100%"}}><Group justify="space-between" wrap="nowrap"> 
+                        <UnstyledButton className={`${classes.interativo} ${classes.atividade}`} key={projeto.id} onClick={() => navigate(`/projetos/${projeto.id}`, {state: {voltarPara: "/"}})} style={{textAlign: "left", width: "100%"}}><Group justify="space-between" wrap="nowrap"> 
                             <Stack gap={2} style={{ minWidth: 0 }}>
                                 <Text fw={500} lineClamp={1}>{projeto.titulo}</Text>
                                 <Text c="dimmed" size="xs" lineClamp={1}>{projeto.clienteNome}</Text>
                             </Stack>
-                        <Badge style={{ flexShrink: 0 }}  color={ projeto.status === "concluido"  ? "green" : projeto.status === "em_andamento" ? "blue" : projeto.status === "cancelado" ? "red" : "violet" }> {projeto.status === "em_andamento" ? "Em andamento" : projeto.status === "concluido" ? "Concluído" : projeto.status === "cancelado" ? "Cancelado" :  "Planejado"}</Badge>
+                        <Badge style={{ flexShrink: 0 }}  color={ projeto.status === "concluido"  ? "green" : projeto.status === "em_andamento" ? "blue" : projeto.status === "cancelado" ? "red" : "violet" }> {projeto.status === "em_andamento" ? "Em andamento" : projeto.status === "concluido" ? "Concluído" : projeto.status === "cancelado" ? "Cancelado" :  "Planejado"}</Badge><Text size="sm" c="dimmed" aria-hidden="true">›</Text>
                     </Group></UnstyledButton>))}
                 </Stack>
             </Card>

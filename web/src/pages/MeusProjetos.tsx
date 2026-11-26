@@ -1,3 +1,4 @@
+import { TextoExpansivel } from "../components/TextoExpansivel";
 
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
@@ -69,11 +70,11 @@ export function MeusProjetos() {
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">
                         <Group justify="space-between">
-                            <Text fw={600}>{projeto.titulo}</Text>
+                            <Text fw={600} style={{overflowWrap: "anywhere", minWidth: 0}}>{projeto.titulo}</Text>
                             <Badge color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge>
                         </Group>
 
-                        <Text size="sm" style={{whiteSpace: "pre-wrap"}}>{projeto.descricao}</Text>
+                        <TextoExpansivel texto={projeto.descricao} linhas={5}/>
                         <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
                         <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
                         <Group justify="flex-end"><Button size="xs" variant="light" onClick={() => navigate(`/portal/mensagens?projeto=${encodeURIComponent(projeto.id)}`, {state: {voltarPara: location.pathname + location.search}})}>Conversa do projeto</Button></Group>

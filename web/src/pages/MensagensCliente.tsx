@@ -1,3 +1,4 @@
+import classes from "../styles/Usabilidade.module.css";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { destinoRetorno } from "../lib/navegacaoContextual";
@@ -8,7 +9,6 @@ import {
     Card,
     Center,
     Divider,
-    Grid,
     Group,
     Loader,
     NavLink,
@@ -108,21 +108,21 @@ function CentralMensagensCliente() {
     }
 
     return (
-        <Stack gap="md">
+        <Stack gap="md" className={classes.chatPagina}>
             <Group justify="space-between"><Title order={2}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}</Group>
             {!carregando && !erro && !selecionou && projetoAlvo && !conversaSelecionada && <Alert color="gray" title="Conversa do projeto">Ainda não há uma conversa disponível para este projeto. Você pode entrar em contato pela conversa Geral.</Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
 
-            <Grid align="stretch">
-                <Grid.Col span={{ base: 12, md: 4, lg: 3 }}>
-                    <Card withBorder padding="sm" h="100%">
-                        <Stack gap="sm">
+            <div className={classes.chatGrid}>
+                <div className={classes.chatColuna}>
+                    <Card withBorder padding="sm" className={classes.chatCard}>
+                        <Stack gap="sm" className={classes.chatPilha}>
                             <Text fw={600} size="sm">
                                 Conversas
                             </Text>
                             <SegmentedControl fullWidth size="sm" value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} data={[{label: naoLidasAtivas ? `Ativas (${naoLidasAtivas})` : "Ativas", value: "ativas"}, {label: naoLidasArquivadas ? `Arquivadas (${naoLidasArquivadas})` : "Arquivadas", value: "arquivadas"}]}/>
                             <Divider />
-                            <ScrollArea h={480}>
+                            <ScrollArea className={classes.chatLista} offsetScrollbars>
                                 <Stack gap={4}>
                                     {carregando && (
                                         <Center>
@@ -137,7 +137,7 @@ function CentralMensagensCliente() {
                                     {conversasVisiveis.map((conversa) => (
                                         <NavLink
                                             key={conversa.id}
-                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
+                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                             description={tipoConversa[conversa.tipo].label}
                                             active={conversaSelecionada?.id === conversa.id}
                                             onClick={() => selecionarConversa(conversa.id)}
@@ -147,11 +147,11 @@ function CentralMensagensCliente() {
                             </ScrollArea>
                         </Stack>
                     </Card>
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 8, lg: 9 }}>
-                    <Card withBorder padding="md" h="100%">
+                </div>
+                <div className={classes.chatColuna}>
+                    <Card withBorder padding="md" className={classes.chatCard}>
                         {conversaSelecionada ? (
-                            <Stack gap="md">
+                            <Stack gap="sm" className={classes.chatPilha}>
                                 <Group justify="space-between">
                                     <Title order={4}>{conversaSelecionada.titulo}</Title>
                                     <Group gap="xs">
@@ -169,13 +169,13 @@ function CentralMensagensCliente() {
                                 />
                             </Stack>
                         ) : (
-                            <Center h={500}>
+                            <Center style={{flex: 1, minHeight: 0}}>
                                 <Text c="dimmed">Selecione uma conversa para começar.</Text>
                             </Center>
                         )}
                     </Card>
-                </Grid.Col>
-            </Grid>
+                </div>
+            </div>
         </Stack>
     );
 }
