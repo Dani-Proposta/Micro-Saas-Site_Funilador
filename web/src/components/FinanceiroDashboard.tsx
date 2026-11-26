@@ -36,15 +36,15 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
         {!completo && !esconderAlerta && dados && Number(dados.atrasado) > 0 && <Alert color="red" title="Pagamentos atrasados">
             <Group justify="space-between" align="center"><Text fw={600}>{formatarValor(dados.atrasado)}</Text><Button size="xs" color="red" variant="light" onClick={() => selecionar("atrasado")}>Ver cobranças</Button></Group>
         </Alert>}
-        <Group justify="space-between" align="center">
-            <Stack gap={2}><Title order={3}>{completo ? "Resumo geral" : "Resumo do mês"}</Title><Text size="sm" c="dimmed">{dados ? mes(dados.hoje.slice(0,7)) : "Recebimentos e previsão"}</Text></Stack>
+        <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={classes.sectionHeader}>
+            <Stack gap={2} className={classes.sectionHeading}><Title order={3}>{completo ? "Resumo geral" : "Resumo do mês"}</Title><Text size="sm" c="dimmed">{dados ? mes(dados.hoje.slice(0,7)) : "Recebimentos e previsão"}</Text></Stack>
             {completo ? <Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button> : <Button size="xs" variant="light" onClick={() => navigate("/financeiro")}>Financeiro completo</Button>}
         </Group>
         {erro && <Alert color="red">{erro}{dados && " · Exibindo a última consulta disponível."}</Alert>}
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando financeiro..."/>}
         {dados && <>
             {consulta?.revisao !== revisao && <Text size="xs" c="dimmed">Atualizando valores...</Text>}
-            <SimpleGrid cols={{base: 1, xs: 2, lg: completo ? 4 : 3}} spacing="xs">
+            <SimpleGrid cols={{base: 1, xs: 2, lg: completo ? 4 : 3}} spacing="xs" className={classes.safeGrid}>
                 {[{nome: "Recebido no mês", valor: dados.recebidoMes, cor: "green", categoria: "recebidos", ajuda: "Pagamentos registrados neste mês, sem os anulados."},
                   {nome: "A receber no mês", valor: dados.aReceberMes, cor: undefined, categoria: "mes", ajuda: "Saldos com vencimento de hoje até o fim do mês."},
                   {nome: "Total estimado do mês", valor: dados.totalMes, cor: undefined, categoria: null, ajuda: "Recebido mais previsto no mês. Não inclui atrasados."},

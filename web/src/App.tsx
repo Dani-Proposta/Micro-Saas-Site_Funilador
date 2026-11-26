@@ -82,7 +82,7 @@ function PainelAdmin() {
 
       <AppShell.Header className={classes.header}>
         <div className={classes.headerInner}>
-          <Group gap="xs" wrap="nowrap" style={{minWidth:0}}>
+          <Group gap="xs" wrap="nowrap" className={classes.headerIdentity}>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
             <MarcaPainel lado="admin"/>
           </Group>

@@ -64,17 +64,17 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
     }
 
     return <Stack gap="sm">
-        <Group justify="space-between" align="center">
-            <Stack gap={2}><Title order={3}>Precisam de atenção</Title><Text c="dimmed" size="sm">{lado === "admin" ? "Organize o que precisa fazer primeiro." : "Ações pendentes dos seus projetos."}</Text></Stack>
+        <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={classes.sectionHeader}>
+            <Stack gap={2} className={classes.sectionHeading}><Title order={3}>Precisam de atenção</Title><Text c="dimmed" size="sm">{lado === "admin" ? "Organize o que precisa fazer primeiro." : "Ações pendentes dos seus projetos."}</Text></Stack>
             <Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button>
         </Group>
         {erro && <Alert color="red">{erro}{dados && " Exibindo a última consulta."}</Alert>}
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando pendências..."/>}
         {dados && <>
-            <SimpleGrid cols={{base: 1, xs: 2, lg: 3, xl: 4}} spacing="xs">
+            <SimpleGrid cols={{base: 1, xs: 2, lg: 3, xl: 4}} spacing="xs" className={classes.safeGrid}>
                 {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={classes.metric}>
-                    <Group justify="space-between" wrap="nowrap"><Text size="sm" fw={500}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
-                    <Group justify="space-between" align="center"><Stack gap={0}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
+                    <Group justify="space-between" gap="xs" wrap="nowrap"><Text size="sm" fw={500} style={{minWidth:0, overflowWrap:"anywhere"}}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
+                    <Group justify="space-between" align="center" gap="xs" wrap="wrap"><Stack gap={0} style={{minWidth:0}}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
                 </Card>)}
             </SimpleGrid>
             {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}

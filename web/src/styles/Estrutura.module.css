@@ -70,3 +70,40 @@
 }
 
 .heading + :global(.mantine-Text-root) { font-size: var(--mantine-font-size-sm); line-height: 1.45; }
+
+/* limites de largura e quebra de linha */
+:global(html), :global(body), :global(#root) { min-width: 0; max-width: 100%; }
+.shell, .main, .dashboard { min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.dashboard { max-width: 1520px; }
+.header { min-width: 0; }
+.headerInner { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.headerIdentity { flex: 1 1 0; min-width: 0; }
+.headerIdentity > :global(.mantine-Burger-root) { flex-shrink: 0; }
+.brand { flex: 1 1 0; min-width: 0; }
+.brandText { flex: 1 1 0; min-width: 0; }
+.headerActions { flex: 0 0 auto; min-width: 0; }
+.sectionHeader, .sectionHeading { min-width: 0; max-width: 100%; }
+.sectionHeading { flex: 1 1 10rem; }
+.sectionHeader > :global(.mantine-Button-root) { max-width: 100%; height: auto; min-height: var(--mantine-button-height, 30px); }
+.sectionHeader :global(.mantine-Button-label) { white-space: normal; overflow-wrap: anywhere; }
+.safeGrid, .safeGrid > *, .metric > *, .dashboard > *, .main > :global(.mantine-Stack-root) { min-width: 0; max-width: 100%; }
+.metric :global(.mantine-Group-root) > :global(.mantine-Text-root) { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 47.99em) {
+  .headerInner { padding-inline: 8px; gap: 6px; }
+  .headerIdentity { gap: 6px; }
+  .headerActions { gap: 4px; }
+  .sectionHeader { align-items: flex-start; }
+}
+@media (max-width: 25em) {
+  .brandMark { display: none; }
+  .brandText > :global(.mantine-Text-root):first-child { font-size: var(--mantine-font-size-sm); }
+  .brandText > :global(.mantine-Text-root):last-child { font-size: 10px; }
+  .sectionHeader { flex-direction: column; align-items: flex-start; }
+  .sectionHeading { flex: 0 1 auto; width: 100%; }
+  .sectionHeader > :global(.mantine-Button-root) { align-self: flex-start; }
+}
+@media (max-width: 18em) {
+  .brandText > :global(.mantine-Text-root):last-child { display: none; }
+  .headerInner { padding-inline: 6px; gap: 4px; }
+  .headerIdentity, .headerActions { gap: 3px; }
+}
