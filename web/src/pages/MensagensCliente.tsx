@@ -1,3 +1,5 @@
+import chat from "../styles/Chat.module.css";
+import { ControleChat, type OpcoesChat } from "../components/ControleChat";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
@@ -17,6 +19,8 @@ import {
     SegmentedControl,
     Stack,
     Text,
+    TextInput,
+    Menu,
     Title,
 } from "@mantine/core";
 import { ReaberturaConversa } from "../components/ReaberturaConversa";
@@ -45,12 +49,13 @@ const tipoConversa = {
     avulsa: { label: "Avulsa", color: "gray" },
 };
 
-export function MensagensCliente() {
+export function MensagensCliente(opcoes: OpcoesChat) {
     const location = useLocation();
-    return <CentralMensagensCliente key={location.search}/>;
+    return <CentralMensagensCliente key={location.search} {...opcoes}/>;
 }
 
-function CentralMensagensCliente() {
+function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
+    const [listaRecolhida, setListaRecolhida] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const params = new URLSearchParams(location.search);
@@ -61,6 +66,7 @@ function CentralMensagensCliente() {
     const [conversaId, setConversaId] = useState<string | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+    const [busca, setBusca] = useState("");
     const [aba, setAba] = useState<"ativas" | "arquivadas" | "ocultadas">("ativas");
     const [alterandoOculta, setAlterandoOculta] = useState(false);
     const [erroAcao, setErroAcao] = useState<string | null>(null);
@@ -68,11 +74,11 @@ function CentralMensagensCliente() {
     const [selecionou, setSelecionou] = useState(false);
 
     const conversaSelecionada = conversas.find(conversa => conversa.id === conversaId)
-        ?? (!selecionou ? (conversaAlvo ? conversas.find(c => c.id === conversaAlvo) : projetoAlvo ? conversas.find(c => c.projetoId === projetoAlvo) : (conversas.find(conversa => conversa.tipo === "geral" && !conversa.arquivadaEm) ?? conversas.find(conversa => !conversa.arquivadaEm))) : undefined);
+        ?? (!selecionou ? (conversaAlvo ? conversas.find(c => c.id === conversaAlvo) : projetoAlvo ? conversas.find(c => c.projetoId === projetoAlvo) : undefined) : undefined);
 
     function categoria(c: Conversa) {return c.arquivadaEm ? "arquivadas" : c.ocultada ? "ocultadas" : "ativas";}
     const abaAtual = conversaSelecionada ? categoria(conversaSelecionada) : aba;
-    const conversasVisiveis = ordenarConversas(conversas.filter(c => categoria(c) === abaAtual));
+    const conversasVisiveis = ordenarConversas(conversas.filter(c => categoria(c) === abaAtual && c.titulo.toLocaleLowerCase("pt-BR").includes(busca.trim().toLocaleLowerCase("pt-BR"))));
     const naoLidasAtivas = totalNaoLidas(conversas.filter(c => categoria(c) === "ativas"));
     const naoLidasArquivadas = totalNaoLidas(conversas.filter(c => categoria(c) === "arquivadas"));
     const naoLidasOcultadas = totalNaoLidas(conversas.filter(c => categoria(c) === "ocultadas"));
@@ -145,20 +151,21 @@ function CentralMensagensCliente() {
     }
 
     return (
-        <Stack gap="md" className={classes.chatPagina}>
-            <Group justify="space-between"><Title order={1} className={estrutura.heading}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}</Group>
+        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
+            <Group justify="space-between" gap="xs" className={chat.topo}><Title order={1} className={estrutura.heading}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}<ControleChat foco={foco} alternarFoco={alternarFoco}/></Group>
             {!carregando && !erro && !selecionou && projetoAlvo && !conversaSelecionada && <Alert color="gray" title="Conversa do projeto">Ainda não há uma conversa disponível para este projeto. <Button size="compact-xs" variant="light" onClick={() => {const geral = conversas.find(c => c.tipo === "geral"); if (geral) selecionarConversa(geral.id);}}>Abrir conversa Geral</Button></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
             {erroAcao && <Alert color="red">{erroAcao}</Alert>}
 
-            <div className={classes.chatGrid}>
-                <div className={classes.chatColuna}>
+            <div className={`${classes.chatGrid} ${chat.grid}`}>
+                <div className={`${classes.chatColuna} ${chat.lista}`}>
                     <Card withBorder padding="sm" className={classes.chatCard}>
                         <Stack gap="sm" className={classes.chatPilha}>
                             <Text fw={600} size="sm">
                                 Conversas
                             </Text>
                             <SegmentedControl fullWidth size="xs" disabled={alterandoOculta} value={abaAtual} onChange={alternarVisualizacao} data={[{label: naoLidasAtivas ? `Ativas (${naoLidasAtivas})` : "Ativas", value: "ativas"}, {label: naoLidasArquivadas ? `Arquivadas (${naoLidasArquivadas})` : "Arquivadas", value: "arquivadas"}, {label: naoLidasOcultadas ? `Ocultas (${naoLidasOcultadas})` : "Ocultas", value: "ocultadas"}]}/>
+                            <TextInput size="sm" placeholder="Buscar conversa..." aria-label="Buscar conversa" value={busca} onChange={e => setBusca(e.currentTarget.value)}/>
                             <Divider />
                             <ScrollArea className={classes.chatLista} offsetScrollbars>
                                 <Stack gap={4}>
@@ -187,32 +194,24 @@ function CentralMensagensCliente() {
                         </Stack>
                     </Card>
                 </div>
-                <div className={classes.chatColuna}>
-                    <Card withBorder padding="md" className={classes.chatCard}>
+                <div className={`${classes.chatColuna} ${chat.conversa}`}>
+                    <Card withBorder padding="sm" className={`${classes.chatCard} ${chat.painel}`}>
                         {conversaSelecionada ? (
-                            <Stack gap="sm" className={classes.chatPilha}>
-                                <Group justify="space-between">
-                                    <Title order={4}>{conversaSelecionada.titulo}</Title>
-                                    <Group gap="xs">
-                                        {!conversaSelecionada.arquivadaEm && conversaSelecionada.tipo !== "geral" && <Button size="compact-xs" variant="light" color="gray" loading={alterandoOculta} onClick={() => void alterarOcultacao(conversaSelecionada)}>{conversaSelecionada.ocultada ? "Exibir na lista" : "Ocultar"}</Button>}
-                                        {conversaSelecionada.arquivadaEm && <Badge color="gray">Arquivada</Badge>}
-                                        <Badge color={tipoConversa[conversaSelecionada.tipo].color}>{tipoConversa[conversaSelecionada.tipo].label}</Badge>
-                                    </Group>
-                                </Group>
-                                <Divider />
-                                <HistoricoMensagens
+                            <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
                                     projetoId={conversaSelecionada.projetoId}
                                     lado="cliente"
                                     arquivada={!!conversaSelecionada.arquivadaEm}
                                     onAtualizarConversas={atualizarConversas}
+                                    identidade={<Group gap={4} wrap="nowrap" className={chat.identidade}><ControleChat voltar={() => {setAba(abaAtual); setSelecionou(true); setConversaId(null); setErroAcao(null);}} listaRecolhida={listaRecolhida} alternarLista={() => setListaRecolhida(v => !v)}/><Title order={4} className={chat.titulo}>{conversaSelecionada.titulo}</Title></Group>}
+                                    estadoConversa={<>{conversaSelecionada.arquivadaEm && <Badge size="sm" color="gray">Arquivada</Badge>}<Badge size="sm" color={tipoConversa[conversaSelecionada.tipo].color}>{tipoConversa[conversaSelecionada.tipo].label}</Badge></>}
+                                    acoesConversa={!conversaSelecionada.arquivadaEm && conversaSelecionada.tipo !== "geral" ? <><Menu.Label>Organização</Menu.Label><Menu.Item disabled={alterandoOculta} onClick={() => void alterarOcultacao(conversaSelecionada)}>{conversaSelecionada.ocultada ? "Exibir na lista" : "Ocultar conversa"}</Menu.Item></> : null}
                                     acoesArquivada={conversaSelecionada.arquivadaEm && <ReaberturaConversa key={conversaSelecionada.id} conversaId={conversaSelecionada.id} pedido={conversaSelecionada.reabertura} lado="cliente" onAlterado={pedido => atualizarPedido(conversaSelecionada.id, pedido)} onAtualizar={atualizarConversas}/>}
-                                />
-                            </Stack>
+                            />
                         ) : (
                             <Center style={{flex: 1, minHeight: 0}}>
-                                <Text c="dimmed">Selecione uma conversa para começar.</Text>
+                                <Stack align="center" gap="xs" p="md"><Text fw={600}>Suas conversas</Text><Text c="dimmed" size="sm" ta="center">Selecione uma conversa na lista para começar.</Text></Stack>
                             </Center>
                         )}
                     </Card>

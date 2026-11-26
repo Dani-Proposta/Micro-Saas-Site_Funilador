@@ -1,3 +1,4 @@
+import chat from "../styles/Chat.module.css";
 import { Carregamento } from "./Carregamento";
 import classes from "../styles/Usabilidade.module.css";
 import { CartaoProposta, FormularioProposta, ResumoProjetoChat } from "./NegociacaoProjeto";
@@ -8,7 +9,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
-import { Alert, Box, Button, Center, Divider, Group, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
+import { ActionIcon, Alert, Box, Button, Center, Divider, Group, Menu, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
 
 type Mensagem = {
     id: string;
@@ -73,15 +74,19 @@ type HistoricoProps = {
     lado?: "admin" | "cliente";
     onAtualizarConversas?: () => void;
     acoesArquivada?: ReactNode;
+    identidade?: ReactNode;
+    estadoConversa?: ReactNode;
+    acoesConversa?: ReactNode;
 };
 
-export function HistoricoMensagens({conversaId, projetoId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada}: HistoricoProps) {
+export function HistoricoMensagens({conversaId, projetoId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada, identidade, estadoConversa, acoesConversa}: HistoricoProps) {
 
     const [mensagens, setMensagens] = useState<Mensagem[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
     const [novaProposta, setNovaProposta] = useState(false);
+    const [dadosProjeto, setDadosProjeto] = useState(false);
     const [conteudo, setConteudo] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -452,18 +457,32 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
         }
     }
 
+    const totalNaoLidas = mensagens.filter(m => m.remetenteTipo !== lado && !m.lida).length;
+
     return (
-        <Stack gap="sm" className={classes.chatHistorico}>
-            <Group justify="space-between" gap="xs">
-                <Button variant="subtle" size="compact-xs" disabled={!mensagens.some(m => m.remetenteTipo !== lado && !m.lida)} onClick={irParaNaoLida}>Ir à não lida ({mensagens.filter(m => m.remetenteTipo !== lado && !m.lida).length})</Button>
-                <Button variant="subtle" size="compact-xs" loading={marcandoTodas} disabled={carregando || !!erro} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Button>
+        <Stack gap={4} className={classes.chatHistorico}>
+            <Group justify="space-between" gap={4} className={chat.cabecalho} wrap="nowrap">
+                {identidade}
+                <Group gap={4} wrap="nowrap" className={chat.ferramentas}>
+                    {estadoConversa}
+                    <Menu withinPortal position="bottom-end" shadow="md" width={220}>
+                        <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" aria-label="Gerenciar conversa" title="Gerenciar conversa">⋮</ActionIcon></Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Gerenciar conversa</Menu.Label>
+                            <Menu.Item disabled={!totalNaoLidas} onClick={irParaNaoLida}>Ir à não lida ({totalNaoLidas})</Menu.Item>
+                            <Menu.Item disabled={carregando || !!erro || marcandoTodas} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Menu.Item>
+                            {projetoId && <><Menu.Divider/><Menu.Label>Projeto</Menu.Label><Menu.Item onClick={() => setDadosProjeto(true)}>Dados do projeto</Menu.Item>{!somenteLeitura && <Menu.Item disabled={carregando || !!erro} onClick={() => setNovaProposta(true)}>Nova proposta</Menu.Item>}</>}
+                            {acoesConversa && <><Menu.Divider/>{acoesConversa}</>}
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
             </Group>
-            {projetoId && <Group gap="xs"><ResumoProjetoChat projetoId={projetoId} lado={lado}/>{!somenteLeitura && <Button size="compact-xs" variant="light" disabled={carregando || !!erro} onClick={() => setNovaProposta(true)}>+ Proposta</Button>}</Group>}
+            {projetoId && dadosProjeto && <ResumoProjetoChat projetoId={projetoId} lado={lado} onFechar={() => setDadosProjeto(false)}/>}
             {novaProposta && !somenteLeitura && <FormularioProposta endpoint={endpointPropostas} lado={lado} onAlterado={atualizarNegociacao} onFechar={() => setNovaProposta(false)}/>}
             {erroLeitura && <Alert color="red">{erroLeitura}</Alert>}
             <Box pos="relative" className={classes.chatArea}>
-                <ScrollArea className={classes.chatScroll} offsetScrollbars viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
-                    <Stack gap="sm">
+                <ScrollArea className={`${classes.chatScroll} ${chat.historico}`} offsetScrollbars viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
+                    <Stack gap={4}>
 
                         {carregando && <Center><Carregamento tipo="compacto" texto="Carregando mensagens..."/></Center>}
 
@@ -471,15 +490,15 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
 
                         {!carregando && !erro && mensagens.length === 0 && <Center py="xl"><Text c="dimmed" size="sm">Nenhuma mensagem por enquanto.</Text></Center>}
 
-                        {!carregando && mensagens.length > 0 && <Center h={36}>
+                        {!carregando && mensagens.length > 0 && <Center h={26}>
                             {temMaisAntigas ? <Button size="compact-xs" variant="subtle" loading={carregandoAntigas} onClick={() => void carregarAnteriores()}>{erroAntigas ? "Tentar carregar anteriores novamente" : "↑ Carregar mensagens anteriores"}</Button> : <Text size="xs" c="dimmed">Início da conversa</Text>}
                         </Center>}
                         {mensagens.map((mensagem, indice) => (
                             <Box key={mensagem.id}>
-                                {(indice === 0 || diaMensagem(mensagens[indice - 1].enviadaEm) !== diaMensagem(mensagem.enviadaEm)) && <Divider my="sm" label={diaMensagem(mensagem.enviadaEm)} labelPosition="center"/>}
-                                {marcadorInicial === mensagem.id && <Divider my="sm" color="violet" label="Mensagens não lidas" labelPosition="center"/>}
+                                {(indice === 0 || diaMensagem(mensagens[indice - 1].enviadaEm) !== diaMensagem(mensagem.enviadaEm)) && <Divider my={5} label={diaMensagem(mensagem.enviadaEm)} labelPosition="center"/>}
+                                {marcadorInicial === mensagem.id && <Divider my={5} color="violet" label="Mensagens não lidas" labelPosition="center"/>}
                                 <Group data-mensagem-id={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
-                                    <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12, outline: mensagem.remetenteTipo !== lado && !mensagem.lida ? "1px solid var(--mantine-color-violet-5)" : undefined}}>
+                                    <Box className={chat.balao} data-propria={mensagem.remetenteTipo === lado} data-proposta={!!mensagem.proposta} data-balao-nao-lido={mensagem.remetenteTipo !== lado && !mensagem.lida} p={mensagem.proposta ? 0 : 6}>
                                         {mensagem.proposta ? <CartaoProposta proposta={mensagem.proposta} endpoint={endpointPropostas} lado={lado} somenteLeitura={somenteLeitura} onAlterado={atualizarNegociacao}/> : <TextoExpansivel texto={mensagem.conteudo} linhas={7}/>} 
                                         <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
                                     </Box>
@@ -489,10 +508,8 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
 
                     </Stack>
                 </ScrollArea>
-            {longeDoFinal && <Button pos="absolute" bottom={8} right={16} size="xs" radius="xl" onClick={rolarAoFinal}>{novasMensagens > 0 ? `${novasMensagens} ${novasMensagens === 1 ? "nova mensagem" : "novas mensagens"} ↓` : "↓ Ir ao final"}</Button>}
+            {longeDoFinal && <Button pos="absolute" bottom={6} right={12} size="compact-xs" radius="xl" onClick={rolarAoFinal}>{novasMensagens > 0 ? `${novasMensagens} ${novasMensagens === 1 ? "nova mensagem" : "novas mensagens"} ↓` : "↓ Ir ao final"}</Button>}
             </Box>
-
-            <Divider/>
 
             {erroAntigas && <Alert color="yellow">{erroAntigas}</Alert>}
             {erroEnvio && !somenteLeitura && <Alert color="red">{erroEnvio}</Alert>}
@@ -504,8 +521,8 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                     evento.preventDefault();
                     void enviarMensagem();
                 }}>
-                    <Group align="flex-end" wrap="nowrap">
-                        <Textarea flex={1} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}/>
+                    <Group align="flex-end" wrap="nowrap" gap={4} className={chat.compositor}>
+                        <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}/>
                         <Button type="submit" loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}>Enviar</Button>
                     </Group>
                 </form>

@@ -1,3 +1,4 @@
+import chat from "../styles/Chat.module.css";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from "@mantine/core";
 import { Link } from "react-router";
@@ -76,7 +77,7 @@ export function CartaoProposta({proposta, endpoint, lado, somenteLeitura, onAlte
         } catch (e) {setErro(e instanceof Error ? e.message : "Falha ao responder proposta"); onAlterado();}
         finally {bloqueio.current = false; setSalvando(false);}
     }
-    return <Card withBorder padding="sm" c="var(--mantine-color-text)" miw={0} style={{overflowWrap: "anywhere"}}><Stack gap="xs">
+    return <Card className={chat.proposta} withBorder padding="sm" c="var(--mantine-color-text)" miw={0} style={{overflowWrap: "anywhere"}}><Stack gap="xs">
         <Group justify="space-between" gap="xs"><Text size="xs" fw={600}>{proposta.anteriorId ? "Contraproposta" : proposta.tipo === "marco" ? "Proposta de marco" : "Proposta comercial"}</Text><Badge color={cores[status]} variant="light" size="sm">{estados[status]}</Badge></Group>
         <Text fw={600}>{proposta.titulo}</Text>
         {proposta.descricao && <Text size="sm" style={{whiteSpace: "pre-wrap"}}>{proposta.descricao}</Text>}
@@ -90,13 +91,11 @@ export function CartaoProposta({proposta, endpoint, lado, somenteLeitura, onAlte
 }
 
 //consultar projeto sem sair da conversa
-export function ResumoProjetoChat({projetoId, lado}: {projetoId: string; lado: "admin" | "cliente"}) {
-    const [aberto, setAberto] = useState(false);
+export function ResumoProjetoChat({projetoId, lado, onFechar}: {projetoId: string; lado: "admin" | "cliente"; onFechar: () => void}) {
     const [dados, setDados] = useState<{valorAcordado: string | null; prazoAcordado: string | null; totalPago: string; progresso: number | null; marcos: {id: string; titulo: string; status: string}[]} | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const endpoint = lado === "admin" ? `/api/projetos/${projetoId}/marcos` : `/api/me/projetos/${projetoId}/marcos`;
     useEffect(() => {
-        if (!aberto) return;
         const controller = new AbortController();
         async function carregar() {
             try {
@@ -107,6 +106,6 @@ export function ResumoProjetoChat({projetoId, lado}: {projetoId: string; lado: "
             } catch (e) {if (!controller.signal.aborted) setErro(e instanceof Error ? e.message : "Falha ao carregar projeto");}
         }
         void carregar(); return () => controller.abort();
-    }, [aberto, endpoint]);
-    return <><Button size="compact-xs" variant="light" onClick={() => {setDados(null); setErro(null); setAberto(true);}}>Dados do projeto</Button>{aberto && <Modal opened onClose={() => setAberto(false)} title="Dados do projeto" centered><Stack gap="sm">{erro ? <Alert color="red">{erro}</Alert> : !dados ? <Text size="sm">Carregando...</Text> : <><Text size="sm">Valor acordado: {formatarValor(dados.valorAcordado)}</Text><Text size="sm">Prazo acordado: {formatarPrazo(dados.prazoAcordado)}</Text><Text size="sm">{lado === "admin" ? "Recebido" : "Total pago"}: {formatarValor(dados.totalPago)}</Text><Text size="sm">Progresso: {dados.progresso == null ? "Não definido" : `${dados.progresso}%`}</Text><Text size="sm">Marcos concluídos: {dados.marcos.filter(m => m.status === "concluido").length}/{dados.marcos.filter(m => m.status !== "cancelado").length}</Text></>}<Button component={Link} to={lado === "admin" ? `/projetos/${projetoId}` : `/portal/projetos?projeto=${projetoId}`} variant="light">Abrir projeto</Button></Stack></Modal>}</>;
+    }, [endpoint]);
+    return <Modal opened onClose={onFechar} title="Dados do projeto" centered><Stack gap="sm">{erro ? <Alert color="red">{erro}</Alert> : !dados ? <Text size="sm">Carregando...</Text> : <><Text size="sm">Valor acordado: {formatarValor(dados.valorAcordado)}</Text><Text size="sm">Prazo acordado: {formatarPrazo(dados.prazoAcordado)}</Text><Text size="sm">{lado === "admin" ? "Recebido" : "Total pago"}: {formatarValor(dados.totalPago)}</Text><Text size="sm">Progresso: {dados.progresso == null ? "Não definido" : `${dados.progresso}%`}</Text><Text size="sm">Marcos concluídos: {dados.marcos.filter(m => m.status === "concluido").length}/{dados.marcos.filter(m => m.status !== "cancelado").length}</Text></>}<Button component={Link} to={lado === "admin" ? `/projetos/${projetoId}` : `/portal/projetos?projeto=${projetoId}`} variant="light">Abrir projeto</Button></Stack></Modal>;
 }

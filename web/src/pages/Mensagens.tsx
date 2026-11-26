@@ -1,3 +1,5 @@
+import chat from "../styles/Chat.module.css";
+import { ControleChat, type OpcoesChat } from "../components/ControleChat";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
@@ -42,12 +44,13 @@ type Projeto = {
     titulo: string;
 };
 
-export function Mensagens() {
+export function Mensagens(opcoes: OpcoesChat) {
     const location = useLocation();
-    return <CentralMensagens key={location.search}/>;
+    return <CentralMensagens key={location.search} {...opcoes}/>;
 }
 
-function CentralMensagens() {
+function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
+    const [listaRecolhida, setListaRecolhida] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const params = new URLSearchParams(location.search);
@@ -88,10 +91,10 @@ function CentralMensagens() {
 
     const clientesFiltrados = clientes.map(cliente => ({
         ...cliente,
-        conversas: ordenarConversas(cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas)).sort((a, b) => Number(b.reabertura?.status === "pendente") - Number(a.reabertura?.status === "pendente")),
+        conversas: ordenarConversas(cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas && (cliente.clienteNome.toLocaleLowerCase("pt-BR").includes(busca.trim().toLocaleLowerCase("pt-BR")) || conversa.titulo.toLocaleLowerCase("pt-BR").includes(busca.trim().toLocaleLowerCase("pt-BR"))))).sort((a, b) => Number(b.reabertura?.status === "pendente") - Number(a.reabertura?.status === "pendente")),
     })).filter(cliente =>
         (!arquivadas || cliente.conversas.length > 0) &&
-        cliente.clienteNome.toLowerCase().includes(busca.trim().toLowerCase())
+        (cliente.clienteNome.toLocaleLowerCase("pt-BR").includes(busca.trim().toLocaleLowerCase("pt-BR")) || cliente.conversas.length > 0)
     ).sort((a, b) =>
         Number(b.conversas.some(c => c.reabertura?.status === "pendente")) - Number(a.conversas.some(c => c.reabertura?.status === "pendente")) ||
         Number(totalNaoLidas(b.conversas) > 0) - Number(totalNaoLidas(a.conversas) > 0) ||
@@ -217,8 +220,8 @@ function CentralMensagens() {
     }
 
     return (
-        <Stack gap="md" className={classes.chatPagina}>
-            <Group justify="space-between"><Title order={1} className={estrutura.heading}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}</Group>
+        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
+            <Group justify="space-between" gap="xs" className={chat.topo}><Title order={1} className={estrutura.heading}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}<ControleChat foco={foco} alternarFoco={alternarFoco}/></Group>
             {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
             {pedidosPendentes > 0 && <Alert color="yellow"><Group justify="space-between" gap="xs"><Text size="sm">{pedidosPendentes} pedido(s) de reabertura pendente(s).</Text>{!arquivadas && <Button variant="light" color="yellow" size="compact-xs" onClick={() => alternarVisualizacao("arquivadas")}>Ver pedidos</Button>}</Group></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
@@ -251,8 +254,8 @@ function CentralMensagens() {
                 />
             )}
 
-            <div className={classes.chatGrid}>
-                <div className={classes.chatColuna}>
+            <div className={`${classes.chatGrid} ${chat.grid}`}>
+                <div className={`${classes.chatColuna} ${chat.lista}`}>
                     <Card withBorder padding="sm" className={classes.chatCard}>
                         <Stack gap="sm" className={classes.chatPilha}>
                             <SegmentedControl
@@ -267,7 +270,7 @@ function CentralMensagens() {
                             />
 
                             <TextInput
-                                placeholder="Buscar cliente..."
+                                placeholder="Buscar cliente ou conversa..." aria-label="Buscar cliente ou conversa" size="sm"
                                 value={busca}
                                 onChange={(evento) => setBusca(evento.currentTarget.value)}
                             />
@@ -299,7 +302,7 @@ function CentralMensagens() {
                                                 <NavLink
                                                     label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
                                                     description={`${cliente.conversas.length} conversa(s)${cliente.conversas.some(c => c.reabertura?.status === "pendente") ? ` · ${cliente.conversas.filter(c => c.reabertura?.status === "pendente").length} pedido(s)` : ""}`}
-                                                    opened={expandidos.includes(cliente.clienteId) || (escolha === undefined && !!conversaAlvo && cliente.clienteId === clienteAtalho?.clienteId)}
+                                                    opened={!!busca.trim() || expandidos.includes(cliente.clienteId) || (escolha === undefined && !!conversaAlvo && cliente.clienteId === clienteAtalho?.clienteId)}
                                                     onChange={() => alternarCliente(cliente.clienteId)}
                                                     childrenOffset={16}
                                                 >
@@ -334,91 +337,26 @@ function CentralMensagens() {
                     </Card>
                 </div>
 
-                <div className={classes.chatColuna}>
-                    <Card withBorder padding="md" className={classes.chatCard}>
+                <div className={`${classes.chatColuna} ${chat.conversa}`}>
+                    <Card withBorder padding="sm" className={`${classes.chatCard} ${chat.painel}`}>
                         {clienteSelecionado && conversaSelecionada ? (
-                            <Stack gap="sm" className={classes.chatPilha}>
-                                <Group justify="space-between">
-                                    <Stack gap={2}>
-                                        <Title order={4}>{clienteSelecionado.clienteNome}</Title>
-                                        <Text size="sm" c="dimmed">
-                                            {conversaSelecionada.titulo}
-                                        </Text>
-                                    </Stack>
-
-                                    <Group gap="xs">
-                                        <Badge color={tipoConversa[conversaSelecionada.tipo].color}>
-                                            {tipoConversa[conversaSelecionada.tipo].label}
-                                        </Badge>
-
-                                        {conversaSelecionada.arquivadaEm && <Badge color="gray">Arquivada</Badge>}
-                                        {conversaSelecionada.tipo !== "geral" && (
-                                            <Menu shadow="md" width={200} position="bottom-end">
-                                                <Menu.Target>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="gray"
-                                                        aria-label="Opções da conversa"
-                                                    >
-                                                        ⋮
-                                                    </ActionIcon>
-                                                </Menu.Target>
-
-                                                <Menu.Dropdown>
-                                                    <Menu.Label>Gerenciar conversa</Menu.Label>
-                                                    {arquivadas ? (
-                                                        <Menu.Item
-                                                            color="green"
-                                                            onClick={() =>
-                                                                setConversaArquivo({
-                                                                    conversa: conversaSelecionada,
-                                                                    acao: "restaurar",
-                                                                })
-                                                            }
-                                                        >
-                                                            Restaurar conversa
-                                                        </Menu.Item>
-                                                    ) : (
-                                                        <>
-                                                            <Menu.Item
-                                                                onClick={() =>
-                                                                    setConversaEdicao(conversaSelecionada)
-                                                                }
-                                                            >
-                                                                Renomear conversa
-                                                            </Menu.Item>
-                                                            <Menu.Item
-                                                                onClick={() =>
-                                                                    setConversaArquivo({
-                                                                        conversa: conversaSelecionada,
-                                                                        acao: "arquivar",
-                                                                    })
-                                                                }
-                                                            >
-                                                                Arquivar conversa
-                                                            </Menu.Item>
-                                                        </>
-                                                    )}
-                                                </Menu.Dropdown>
-                                            </Menu>
-                                        )}
-                                    </Group>
-                                </Group>
-
-                                <Divider />
-
-                                <HistoricoMensagens
+                            <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
                                     projetoId={conversaSelecionada.projetoId}
                                     arquivada={!!conversaSelecionada.arquivadaEm}
                                     onAtualizarConversas={atualizarConversas}
+                                    identidade={<Group gap={4} wrap="nowrap" className={chat.identidade}>
+                                        <ControleChat voltar={() => {setAbaArquivadas(arquivadas); setConversaId(null);}} listaRecolhida={listaRecolhida} alternarLista={() => setListaRecolhida(v => !v)}/>
+                                        <Stack gap={0} miw={0}><Title order={4} className={chat.titulo}>{clienteSelecionado.clienteNome}</Title><Text size="xs" c="dimmed" className={chat.subtitulo}>{conversaSelecionada.titulo}</Text></Stack>
+                                    </Group>}
+                                    estadoConversa={<><Badge size="sm" color={tipoConversa[conversaSelecionada.tipo].color}>{tipoConversa[conversaSelecionada.tipo].label}</Badge>{conversaSelecionada.arquivadaEm && <Badge size="sm" color="gray">Arquivada</Badge>}</>}
+                                    acoesConversa={conversaSelecionada.tipo !== "geral" ? <><Menu.Label>Organização</Menu.Label>{arquivadas ? <Menu.Item color="green" onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "restaurar"})}>Restaurar conversa</Menu.Item> : <><Menu.Item onClick={() => setConversaEdicao(conversaSelecionada)}>Renomear conversa</Menu.Item><Menu.Item onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "arquivar"})}>Arquivar conversa</Menu.Item></>}</> : null}
                                     acoesArquivada={conversaSelecionada.arquivadaEm && <ReaberturaConversa key={conversaSelecionada.id} conversaId={conversaSelecionada.id} pedido={conversaSelecionada.reabertura} lado="admin" onAlterado={(pedido, restaurada) => atualizarPedido(conversaSelecionada.id, pedido, restaurada)} onAtualizar={atualizarConversas}/>}
-                                />
-                            </Stack>
+                            />
                         ) : (
                             <Center style={{flex: 1, minHeight: 0}}>
-                                <Text c="dimmed">Selecione uma conversa para começar.</Text>
+                                <Stack align="center" gap="xs" p="md"><Text fw={600}>Suas conversas</Text><Text c="dimmed" size="sm" ta="center">Selecione uma conversa na lista para começar.</Text></Stack>
                             </Center>
                         )}
                     </Card>

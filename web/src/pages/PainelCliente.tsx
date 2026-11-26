@@ -3,7 +3,7 @@ import { Carregamento } from "../components/Carregamento";
 import { useEffect, useState } from "react";
 import { AppShell, Alert, Badge, Burger, Group, NavLink, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
+import { Navigate, useLocation, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
 import { IconePainel, MarcaPainel, MenuConta } from "../components/MenuConta";
 import classes from "../styles/Estrutura.module.css";
@@ -46,6 +46,12 @@ function PortalCliente() {
 
     const [opened, { toggle, close }] = useDisclosure(false);
     const navigate = useNavigate();
+    const local = useLocation();
+    const [estadoFoco, setEstadoFoco] = useState({chave: local.key, ativo: false});
+    if (estadoFoco.chave !== local.key) {
+      setEstadoFoco({chave: local.key, ativo: false});
+    }
+    const foco = local.pathname === "/portal/mensagens" && estadoFoco.chave === local.key && estadoFoco.ativo;
 
     const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
     const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -99,7 +105,7 @@ function PortalCliente() {
     if (trocaObrigatoria) return <RedefinirSenha provisoria/>;
 
     return (
-        <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: 236, breakpoint: "sm", collapsed: {mobile: !opened}}}>
+        <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: 236, breakpoint: "sm", collapsed: {mobile: !opened, desktop: foco}}}>
 
             <AppShell.Header className={classes.header}>
                 <div className={classes.headerInner}>
@@ -133,7 +139,7 @@ function PortalCliente() {
                         <Route index element={<DashboardCliente cliente={cliente} mensagensNaoLidas={mensagensNaoLidas}/>}/>
                         <Route path="projetos" element={<MeusProjetos/>}/>
                         <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
-                        <Route path="mensagens" element={<MensagensCliente/>}/>
+                        <Route path="mensagens" element={<MensagensCliente foco={foco} alternarFoco={() => setEstadoFoco({chave: local.key, ativo: !foco})}/>}/>
                         <Route path="*" element={<Navigate to="/portal" replace/>}/>
                     </Routes>
                 )}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Carregamento } from "./components/Carregamento";
 //import externos
 import { NavLink as MantineNavLink, Badge } from '@mantine/core';
@@ -21,6 +22,11 @@ function PainelAdmin() {
   const [opened, { toggle, close }] = useDisclosure(false);
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
+  const [estadoFoco, setEstadoFoco] = useState({chave: local.key, ativo: false});
+  if (estadoFoco.chave !== local.key) {
+    setEstadoFoco({chave: local.key, ativo: false});
+  }
+  const foco = local.pathname === "/mensagens" && estadoFoco.chave === local.key && estadoFoco.ativo;
   const navigate = useNavigate();
   const adminAutenticado = !isPending && !error && !!sessao?.user.role?.split(",").includes("admin") && local.pathname !== "/login";
   const mensagensNaoLidas = useMensagensNaoLidas("admin", adminAutenticado, sessao?.user.id);
@@ -78,7 +84,7 @@ function PainelAdmin() {
       navbar={{
         width: 236,
         breakpoint: "sm",
-        collapsed: { mobile: !opened },
+        collapsed: { mobile: !opened, desktop: foco },
       }}>
 
       <AppShell.Header className={classes.header}>
@@ -88,8 +94,8 @@ function PainelAdmin() {
             <MarcaPainel lado="admin"/>
           </Group>
           <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
-            <CentralNotificacoes key={sessao.user.id} lado="admin"/>
-            <MenuConta key={sessao.user.id} nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()} aoAbrir={close}/>
+            <CentralNotificacoes key={`notificacoes-${sessao.user.id}`} lado="admin"/>
+            <MenuConta key={`conta-${sessao.user.id}`} nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()} aoAbrir={close}/>
           </Group>
         </div>
       </AppShell.Header>
@@ -115,7 +121,7 @@ function PainelAdmin() {
           <Route path="/projetos/:id" element={<ProjetoDetalhes />}/>
           <Route path="/financeiro" element={<Financeiro/>}/>
           <Route path="/convites" element={<Convites />}/>
-          <Route path="/mensagens" element={<Mensagens/>}/>
+          <Route path="/mensagens" element={<Mensagens foco={foco} alternarFoco={() => setEstadoFoco({chave: local.key, ativo: !foco})}/>}/>
         </Routes>
       </AppShell.Main>
     </AppShell>

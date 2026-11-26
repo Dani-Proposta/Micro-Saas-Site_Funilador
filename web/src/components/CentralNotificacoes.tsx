@@ -1,3 +1,4 @@
+import chat from "../styles/Chat.module.css";
 import { Carregamento } from "./Carregamento";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionIcon, Alert, Badge, Box, Button, Group, Indicator, Modal, Popover, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
@@ -177,8 +178,9 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         </ActionIcon>
     );
     const conteudo = (
-        <Stack gap="sm">
+        <Stack gap="sm" className={chat.notificacoes}>
             {!mobile && <Text fw={700}>Notificações</Text>}
+            <Text size="xs" c="dimmed">{total ? `${total} grupo(s) não lido(s)` : "Nenhuma notificação não lida"}</Text>
             <Group justify="space-between" gap="xs" wrap="wrap">
                 <Button size="compact-xs" variant="subtle" disabled={!total || ocupada} onClick={() => void marcar()}>Marcar todas como lidas</Button>
                 <Button size="compact-xs" color="red" variant="subtle" disabled={!resumo?.totalGrupos || ocupada} onClick={() => setConfirmarLimpeza(true)}>Limpar todas</Button>
@@ -199,7 +201,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                         <Text size="xs" fw={700} c="dimmed">PENDÊNCIAS ATIVAS</Text>
                         {categoriasAtivas.map(a => {
                             const itens = pendencias.filter(p=>p.categoria===a.id);
-                            return <Box key={a.id} p="xs" style={{borderRadius:8,border:"1px solid var(--mantine-color-default-border)"}}>
+                            return <Box key={a.id} p="xs" className={chat.pendencia} data-urgente={a.urgente}>
                                 <Group justify="space-between" gap="xs"><Text size="sm" fw={600} c={a.urgente?"red":"orange"}>{a.nome} · {itens[0].total}</Text><Badge color={a.urgente?"red":"orange"} size="xs">{a.urgente?"Urgente":"Importante"}</Badge></Group>
                                 {itens[0].totalValor !== null && <Text size="sm" fw={600}>{formatarValor(itens[0].totalValor)}</Text>}
                                 {itens.slice(0,2).map((p,i)=><UnstyledButton key={i} w="100%" py={4} onClick={()=>abrirPendencia(p)}><Text size="sm" lineClamp={1}>{p.titulo} ›</Text><Text size="xs" c="dimmed" lineClamp={1}>{p.subtitulo}</Text></UnstyledButton>)}
@@ -212,7 +214,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                     <Text size="xs" fw={700} c="dimmed" mt="xs">NOTIFICAÇÕES</Text>
                     {paginaAtual && paginaAtual.itens.length === 0 && <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>}
                     {paginaAtual?.itens.map(n => (
-                        <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} style={{borderRadius: 8, cursor: ocupada ? "wait" : "pointer", border: "1px solid var(--mantine-color-default-border)"}}>
+                        <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} className={chat.evento} data-nova={n.quantidade > 0} style={{cursor: ocupada ? "wait" : "pointer"}}>
                             <Group align="flex-start" justify="space-between" wrap="nowrap" gap="xs">
                                 <Box miw={0} flex={1}>
                                     {n.prioridade === "importante" && <Badge color="orange" size="xs">Importante</Badge>}
@@ -247,7 +249,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     );
 
     return (
-        <Popover opened={aberta} onChange={alterarAbertura} position="bottom-end" width={380} shadow="md" withinPortal middlewares={{flip: true, shift: true}}>
+        <Popover opened={aberta} onChange={alterarAbertura} position="bottom-end" width={360} shadow="md" withinPortal middlewares={{flip: true, shift: true}}>
             <Popover.Target>{gatilho}</Popover.Target>
             <Popover.Dropdown p="sm">{conteudo}</Popover.Dropdown>
         </Popover>
