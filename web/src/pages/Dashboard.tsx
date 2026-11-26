@@ -1,5 +1,6 @@
 import { Group, Text, Card, SimpleGrid, Stack, Title, Badge} from "@mantine/core";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 
 type ResumoDashboard = {
   totalClientes: number;
@@ -15,7 +16,8 @@ type ProjetoRecente = {
   status: "planejado" | "em_andamento" | "concluido" | "cancelado";
 };
 
-export function Dashboard() {
+export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: number | null}) {
+    const navigate = useNavigate();
     //manter constantes antes do return
     //dados do painel principal
     const [resumo, setResumo] = useState<ResumoDashboard | null>(null);
@@ -128,6 +130,11 @@ export function Dashboard() {
                 <Card withBorder padding="lg" shadow="sm">
                     <Text c="dimmed" size="sm">Projetos concluidos</Text>
                     <Text fw={700} size="32px">{resumo?.projetosConcluidos ?? "—"}</Text>
+                </Card>
+                <Card withBorder padding="lg" shadow="sm" component="button" type="button" onClick={() => navigate("/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
+                    <Text c="dimmed" size="sm">Mensagens não lidas</Text>
+                    <Text fw={700} size="32px" c={mensagensNaoLidas ? "red" : undefined}>{mensagensNaoLidas ?? "—"}</Text>
+                    <Text size="xs" c="dimmed">Abrir central de mensagens</Text>
                 </Card>
             </SimpleGrid>
 

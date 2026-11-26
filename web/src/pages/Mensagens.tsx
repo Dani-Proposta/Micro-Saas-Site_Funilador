@@ -1,6 +1,8 @@
 import { useCallback, useRef, useEffect, useState } from "react";
 import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Grid, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
+import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
+import { ordenarConversas, totalNaoLidas, atividadeMaisRecente } from "../lib/ordenarConversas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 
 type Conversa = {
@@ -10,6 +12,8 @@ type Conversa = {
     projetoId: string | null;
     criadaEm: string;
     arquivadaEm: string | null;
+    naoLidas?: number;
+    ultimaAtividadeEm?: string;
 };
 
 type ClienteConversas = {
@@ -57,11 +61,18 @@ export function Mensagens() {
 
     const clientesFiltrados = clientes.map(cliente => ({
         ...cliente,
-        conversas: cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas),
+        conversas: ordenarConversas(cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas)),
     })).filter(cliente =>
         (!arquivadas || cliente.conversas.length > 0) &&
         cliente.clienteNome.toLowerCase().includes(busca.trim().toLowerCase())
+    ).sort((a, b) =>
+        Number(totalNaoLidas(b.conversas) > 0) - Number(totalNaoLidas(a.conversas) > 0) ||
+        atividadeMaisRecente(b.conversas) - atividadeMaisRecente(a.conversas) ||
+        a.clienteNome.localeCompare(b.clienteNome, "pt-BR")
     );
+    const todasConversas = clientes.flatMap(cliente => cliente.conversas);
+    const naoLidasAtivas = totalNaoLidas(todasConversas.filter(c => !c.arquivadaEm));
+    const naoLidasArquivadas = totalNaoLidas(todasConversas.filter(c => !!c.arquivadaEm));
     const [conversaArquivo, setConversaArquivo] = useState<{
         conversa: Conversa;
         acao: "arquivar" | "restaurar";
@@ -92,6 +103,10 @@ export function Mensagens() {
     }, []);
 
     const atualizarConversas = useAtualizacaoPeriodica(carregarConversas, 10000);
+    useEffect(() => {
+        window.addEventListener(EVENTO_LEITURA, atualizarConversas);
+        return () => window.removeEventListener(EVENTO_LEITURA, atualizarConversas);
+    }, [atualizarConversas]);
 
     function alternarCliente(clienteId: string) {
         setExpandidos((anteriores) =>
@@ -207,8 +222,8 @@ export function Mensagens() {
                                 value={arquivadas ? "arquivadas" : "ativas"}
                                 onChange={alternarVisualizacao}
                                 data={[
-                                    { label: "Ativas", value: "ativas" },
-                                    { label: "Arquivadas", value: "arquivadas" },
+                                    { label: naoLidasAtivas ? `Ativas (${naoLidasAtivas})` : "Ativas", value: "ativas" },
+                                    { label: naoLidasArquivadas ? `Arquivadas (${naoLidasArquivadas})` : "Arquivadas", value: "arquivadas" },
                                 ]}
                             />
 
@@ -243,7 +258,7 @@ export function Mensagens() {
                                         >
                                             <Box flex={1} miw={0}>
                                                 <NavLink
-                                                    label={cliente.clienteNome}
+                                                    label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
                                                     description={`${cliente.conversas.length} conversa(s)`}
                                                     opened={expandidos.includes(cliente.clienteId)}
                                                     onChange={() => alternarCliente(cliente.clienteId)}
@@ -252,7 +267,7 @@ export function Mensagens() {
                                                     {cliente.conversas.map((conversa) => (
                                                         <NavLink
                                                             key={conversa.id}
-                                                            label={conversa.titulo}
+                                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                                             active={conversaId === conversa.id}
                                                             onClick={() => setConversaId(conversa.id)}
                                                         />

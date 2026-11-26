@@ -1,5 +1,5 @@
 //import externos
-import { NavLink as MantineNavLink, Stack } from '@mantine/core';
+import { NavLink as MantineNavLink, Stack, Badge } from '@mantine/core';
 import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 
 // imports importantes sksksksksskksk
@@ -7,6 +7,7 @@ import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, L
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
 import { authClient } from "./lib/auth-client";
+import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
 
 function PainelAdmin() {
   //constantes importantes lmao
@@ -16,6 +17,8 @@ function PainelAdmin() {
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
   const navigate = useNavigate();
+  const adminAutenticado = !isPending && !error && !!sessao?.user.role?.split(",").includes("admin") && local.pathname !== "/login";
+  const mensagensNaoLidas = useMensagensNaoLidas("admin", adminAutenticado, sessao?.user.id);
 
   if (isPending) {
     return (<Center h="100vh"><Loader /></Center>);
@@ -110,13 +113,13 @@ function PainelAdmin() {
         <MantineNavLink label="Solicitações"  renderRoot={(props)=>(<RouterNavLink to="/solicitacoes" end {...props}/>)}/>
         <MantineNavLink label="Projetos" renderRoot={(props)=>(<RouterNavLink to="/projetos" end {...props}/>)} />
         <MantineNavLink label="Convites" renderRoot={(props)=>(<RouterNavLink to="/convites" end {...props}/>)} />
-        <MantineNavLink label="Mensagens" renderRoot={(props)=>(<RouterNavLink to="/mensagens" end {...props}/>)} />
+        <MantineNavLink label="Mensagens" rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} renderRoot={(props)=>(<RouterNavLink to="/mensagens" end {...props}/>)} />
 
       </AppShell.Navbar>
 
       <AppShell.Main>
         <Routes>
-          <Route path="/" element={<Dashboard/>} />
+          <Route path="/" element={<Dashboard mensagensNaoLidas={mensagensNaoLidas}/> } />
           <Route path="/login" element={<Login />} />
           <Route path="/clientes" element={<Clientes/>}/>
           <Route path="/clientes/:id" element={<ClienteDetalhes />}/>

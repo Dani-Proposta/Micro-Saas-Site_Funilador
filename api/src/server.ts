@@ -37,6 +37,7 @@ async function exigirAdmin(req: Request, res: Response, next: NextFunction) {
             return;
         }
 
+        res.locals.usuarioId = sessao.user.id;
         next();
     } catch (erro) {
         console.error("Erro ao verificar acesso:", erro);
@@ -78,6 +79,7 @@ async function exigirCliente(req: Request, res: Response, next: NextFunction) {
         }
 
         res.locals.cliente = resultado.rows[0];
+        res.locals.usuarioId = sessao.user.id;
 
         next();
     } catch (erro) {
@@ -526,43 +528,39 @@ app.get("/api/conversas", async (req, res) => {
     const todas = req.query.todas === "true";
 
     try {
-        const resultado = await pool.query(
-            `
-            SELECT
-                cl.id AS "clienteId",
-                cl.nome AS "clienteNome",
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'id', c.id,
-                            'titulo', c.titulo,
-                            'tipo', c.tipo,
-                            'projetoId', c.projeto_id,
-                            'criadaEm', c.criada_em,
-                            'arquivadaEm', c.arquivada_em
-                        )
-                        ORDER BY
-                            CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END,
-                            c.criada_em DESC,
-                            c.id
-                    ) FILTER (WHERE c.id IS NOT NULL),
-                    '[]'::json
-                ) AS conversas
+        const resultado = await pool.query(`
+            SELECT cl.id AS "clienteId", cl.nome AS "clienteNome",
+                COALESCE(json_agg(json_build_object(
+                    'id', c.id, 'titulo', c.titulo, 'tipo', c.tipo,
+                    'projetoId', c.projeto_id, 'criadaEm', c.criada_em,
+                    'arquivadaEm', c.arquivada_em,
+                    'naoLidas', COALESCE(n.total, 0),
+                    'ultimaAtividadeEm', COALESCE(u.enviada_em, c.criada_em)
+                ) ORDER BY CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END,
+                    c.criada_em DESC, c.id) FILTER (WHERE c.id IS NOT NULL), '[]'::json) AS conversas
             FROM clientes cl
-            LEFT JOIN conversas c
-                ON c.cliente_id = cl.id
+            LEFT JOIN conversas c ON c.cliente_id = cl.id
                 AND ($2::boolean OR (c.arquivada_em IS NOT NULL) = $1::boolean)
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS total FROM mensagens m
+                WHERE m.conversa_id = c.id AND m.remetente_tipo = 'cliente'
+                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                        WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
+            ) n ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT enviada_em FROM mensagens WHERE conversa_id = c.id
+                ORDER BY enviada_em DESC, id DESC LIMIT 1
+            ) u ON TRUE
             GROUP BY cl.id, cl.nome
             HAVING $2::boolean OR NOT $1::boolean OR COUNT(c.id) > 0
             ORDER BY cl.nome, cl.id
-        `,
-            [arquivadas, todas],
-        );
+        `, [arquivadas, todas, res.locals.usuarioId]);
 
+        res.set("Cache-Control", "no-store");
         res.json(resultado.rows);
     } catch (erro) {
         console.error("Erro ao buscar conversas:", erro);
-        res.status(500).json({ erro: "Não foi possível carregar as conversas." });
+        res.status(500).json({erro: "Não foi possível carregar as conversas."});
     }
 });
 
@@ -588,6 +586,7 @@ app.get("/api/conversas/:id/mensagens", async (req, res) => {
                         'id', m.id,
                         'remetenteTipo', m.remetente_tipo,
                         'conteudo', m.conteudo,
+                        'lida', (m.remetente_tipo = 'admin' OR EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $2)),
                         'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
                     ) ORDER BY m.enviada_em ASC, m.id ASC
                 ) AS mensagens
@@ -600,7 +599,7 @@ app.get("/api/conversas/:id/mensagens", async (req, res) => {
                 ) AS m
             ) AS h ON TRUE
             WHERE c.id = $1
-        `, [id]);
+        `, [id, res.locals.usuarioId]);
 
         const conversa = resultado.rows[0];
 
@@ -621,35 +620,36 @@ app.get("/api/conversas/:id/mensagens", async (req, res) => {
 
 //cliente carregar conversas
 app.get("/api/me/conversas", async (req, res) => {
-    const cliente = res.locals.cliente;
     const arquivadas = req.query.arquivadas === "true";
     const todas = req.query.todas === "true";
 
     try {
-        const resultado = await pool.query(
-            `
-            SELECT
-                id,
-                titulo,
-                tipo,
-                projeto_id AS "projetoId",
-                criada_em AS "criadaEm",
-                arquivada_em AS "arquivadaEm"
-            FROM conversas
-            WHERE cliente_id = $1
-                AND ($3::boolean OR (arquivada_em IS NOT NULL) = $2::boolean)
-            ORDER BY
-                CASE WHEN tipo = 'geral' THEN 0 ELSE 1 END,
-                criada_em DESC,
-                id
-        `,
-            [cliente.id, arquivadas, todas],
-        );
+        const resultado = await pool.query(`
+            SELECT c.id, c.titulo, c.tipo, c.projeto_id AS "projetoId",
+                c.criada_em AS "criadaEm", c.arquivada_em AS "arquivadaEm",
+                COALESCE(n.total, 0) AS "naoLidas",
+                COALESCE(u.enviada_em, c.criada_em) AS "ultimaAtividadeEm"
+            FROM conversas c
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS total FROM mensagens m
+                WHERE m.conversa_id = c.id AND m.remetente_tipo = 'admin'
+                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                        WHERE l.mensagem_id = m.id AND l.usuario_id = $4)
+            ) n ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT enviada_em FROM mensagens WHERE conversa_id = c.id
+                ORDER BY enviada_em DESC, id DESC LIMIT 1
+            ) u ON TRUE
+            WHERE c.cliente_id = $1
+                AND ($3::boolean OR (c.arquivada_em IS NOT NULL) = $2::boolean)
+            ORDER BY CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END, c.criada_em DESC, c.id
+        `, [res.locals.cliente.id, arquivadas, todas, res.locals.usuarioId]);
 
+        res.set("Cache-Control", "no-store");
         res.json(resultado.rows);
     } catch (erro) {
         console.error("Erro ao buscar conversas do cliente:", erro);
-        res.status(500).json({ erro: "Não foi possível carregar as conversas." });
+        res.status(500).json({erro: "Não foi possível carregar as conversas."});
     }
 });
 
@@ -675,6 +675,7 @@ app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
                         'id', m.id,
                         'remetenteTipo', m.remetente_tipo,
                         'conteudo', m.conteudo,
+                        'lida', (m.remetente_tipo = 'cliente' OR EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $3)),
                         'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
                     ) ORDER BY m.enviada_em ASC, m.id ASC
                 ) AS mensagens
@@ -688,7 +689,7 @@ app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
             ) AS h ON TRUE
             WHERE c.id = $1
                 AND c.cliente_id = $2
-        `, [id, res.locals.cliente.id]);
+        `, [id, res.locals.cliente.id, res.locals.usuarioId]);
 
         const conversa = resultado.rows[0];
 
@@ -706,6 +707,74 @@ app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
         res.status(500).json({ erro: "Não foi possível carregar as mensagens." });
     }
 });
+
+// Contadores globais e recibos individuais de leitura.
+// Cada rota já passa pelo middleware correspondente; nunca confia em IDs de usuário do JSON.
+function rotasLeitura(prefixo: string, lado: "admin" | "cliente") {
+    const recebidoDe = lado === "admin" ? "cliente" : "admin";
+
+    app.get(`${prefixo}/nao-lidas`, async (_req, res) => {
+        try {
+            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+            const resultado = await pool.query(`
+                SELECT COUNT(*)::int AS total
+                FROM mensagens m JOIN conversas c ON c.id = m.conversa_id
+                WHERE m.remetente_tipo = $1
+                    AND ($2::uuid IS NULL OR c.cliente_id = $2)
+                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                        WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
+            `, [recebidoDe, clienteId, res.locals.usuarioId]);
+            res.set("Cache-Control", "no-store");
+            res.json(resultado.rows[0]);
+        } catch (erro) {
+            console.error("Erro ao contar mensagens não lidas:", erro);
+            res.status(500).json({erro: "Não foi possível atualizar o contador."});
+        }
+    });
+
+    app.post(`${prefixo}/:id/leituras`, async (req, res) => {
+        const {id} = req.params;
+        const {mensagemIds} = req.body ?? {};
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (typeof id !== "string" || !uuid.test(id) || !Array.isArray(mensagemIds) ||
+            mensagemIds.length < 1 || mensagemIds.length > 100 ||
+            !mensagemIds.every(v => typeof v === "string" && uuid.test(v))) {
+            res.status(400).json({erro: "Informe IDs de mensagens válidos (até 100)."});
+            return;
+        }
+        try {
+            const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+            // A autorização, seleção e gravação acontecem na mesma instrução SQL.
+            const resultado = await pool.query(`
+                WITH conversa AS (
+                    SELECT id FROM conversas WHERE id = $1
+                        AND ($2::uuid IS NULL OR cliente_id = $2)
+                ), elegiveis AS (
+                    SELECT m.id FROM mensagens m JOIN conversa c ON c.id = m.conversa_id
+                    WHERE m.id = ANY($3::uuid[]) AND m.remetente_tipo = $4
+                ), gravadas AS (
+                    INSERT INTO mensagens_leituras (mensagem_id, usuario_id)
+                    SELECT id, $5 FROM elegiveis WHERE TRUE ON CONFLICT DO NOTHING
+                    RETURNING mensagem_id
+                )
+                SELECT EXISTS (SELECT 1 FROM conversa) AS autorizada,
+                    COALESCE((SELECT json_agg(id) FROM elegiveis), '[]'::json) AS "mensagemIds"
+            `, [id, clienteId, mensagemIds, recebidoDe, res.locals.usuarioId]);
+            const dados = resultado.rows[0];
+            if (!dados.autorizada) {
+                res.status(404).json({erro: "Conversa não encontrada."});
+                return;
+            }
+            res.json({mensagemIds: dados.mensagemIds});
+        } catch (erro) {
+            console.error("Erro ao registrar leitura:", erro);
+            res.status(500).json({erro: "Não foi possível registrar a leitura."});
+        }
+    });
+}
+
+rotasLeitura("/api/conversas", "admin");
+rotasLeitura("/api/me/conversas", "cliente");
 
 //rotas de atualização ou pedido ou criação
 

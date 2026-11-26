@@ -1,5 +1,6 @@
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { Alert, Box, Button, Center, Divider, Group, Loader, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
 
@@ -8,12 +9,16 @@ type Mensagem = {
     remetenteTipo: "admin" | "cliente";
     conteudo: string;
     enviadaEm: string;
+    lida?: boolean;
 };
 
 // As datas retornadas pela API são UTC com seis dígitos de precisão.
 function unirMensagens(anteriores: Mensagem[], novas: Mensagem[]) {
     const unicas = new Map(anteriores.map(mensagem => [mensagem.id, mensagem]));
-    for (const mensagem of novas) unicas.set(mensagem.id, mensagem);
+    for (const mensagem of novas) {
+        const anterior = unicas.get(mensagem.id);
+        unicas.set(mensagem.id, {...mensagem, lida: !!(anterior?.lida || mensagem.lida)});
+    }
 
     return Array.from(unicas.values()).sort((a, b) =>
         a.enviadaEm < b.enviadaEm ? -1 :
@@ -40,6 +45,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
     const [arquivadaServidor, setArquivadaServidor] = useState(false);
     const revisao = useRef(0);
+    const viewportRef = useRef<HTMLDivElement>(null);
     const somenteLeitura = arquivada || arquivadaServidor;
 
     const endpoint = lado === "admin"
@@ -94,6 +100,70 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
 
     const atualizarMensagens = useAtualizacaoPeriodica(carregarMensagens, 5000);
 
+    // Marca somente mensagens recebidas, visíveis no viewport e com a janela em foco.
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport || carregando || erro || !mensagens.some(m => m.remetenteTipo !== lado && !m.lida)) return;
+
+        const controller = new AbortController();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let executando = false;
+        const prefixo = lado === "admin" ? "/api/conversas" : "/api/me/conversas";
+
+        async function registrarVisiveis() {
+            if (!viewport || executando || controller.signal.aborted || document.hidden || !document.hasFocus()) return;
+            const area = viewport.getBoundingClientRect();
+            const mensagemIds = Array.from(viewport.querySelectorAll<HTMLElement>("[data-nao-lida]"))
+                .filter(elemento => {
+                    const rect = elemento.getBoundingClientRect();
+                    return Math.min(rect.bottom, area.bottom, window.innerHeight) > Math.max(rect.top, area.top, 0)
+                        && Math.min(rect.right, area.right, window.innerWidth) > Math.max(rect.left, area.left, 0);
+                })
+                .map(elemento => elemento.dataset.naoLida!)
+                .slice(0, 100);
+            if (!mensagemIds.length) return;
+
+            executando = true;
+            try {
+                const resposta = await fetch(`${prefixo}/${conversaId}/leituras`, {
+                    method: "POST", signal: controller.signal,
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({mensagemIds}),
+                });
+                if (!resposta.ok) throw new Error("Falha ao registrar leitura.");
+                const dados = await resposta.json();
+                if (controller.signal.aborted || !Array.isArray(dados.mensagemIds)) return;
+                const lidas = new Set<string>(dados.mensagemIds);
+                setMensagens(anteriores => anteriores.map(m => lidas.has(m.id) ? {...m, lida: true} : m));
+                window.dispatchEvent(new Event(EVENTO_LEITURA));
+            } catch (erroRecebido) {
+                if (!controller.signal.aborted) console.error("Falha ao registrar leitura:", erroRecebido);
+            } finally {
+                executando = false;
+            }
+        }
+
+        function agendar() {
+            clearTimeout(timer);
+            if (!document.hidden && document.hasFocus()) timer = setTimeout(() => {void registrarVisiveis();}, 300);
+        }
+        viewport.addEventListener("scroll", agendar, {passive: true});
+        window.addEventListener("scroll", agendar, {passive: true});
+        window.addEventListener("focus", agendar);
+        window.addEventListener("resize", agendar);
+        document.addEventListener("visibilitychange", agendar);
+        agendar();
+        return () => {
+            controller.abort();
+            clearTimeout(timer);
+            viewport.removeEventListener("scroll", agendar);
+            window.removeEventListener("scroll", agendar);
+            window.removeEventListener("focus", agendar);
+            window.removeEventListener("resize", agendar);
+            document.removeEventListener("visibilitychange", agendar);
+        };
+    }, [mensagens, conversaId, lado, carregando, erro]);
+
     async function enviarMensagem() {
         if (somenteLeitura || enviando || carregando || erro || !conteudo.trim()) return;
 
@@ -135,7 +205,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     return (
         <Stack gap="sm">
 
-            <ScrollArea h={440}>
+            <ScrollArea h={440} viewportRef={viewportRef}>
                 <Stack gap="sm">
 
                     {carregando && <Center><Loader size="sm"/></Center>}
@@ -145,7 +215,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                     {!carregando && !erro && mensagens.length === 0 && <Center h={400}><Text c="dimmed" size="sm">Nenhuma mensagem por enquanto.</Text></Center>}
 
                     {mensagens.map(mensagem => (
-                        <Group key={mensagem.id} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
+                        <Group key={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
                             <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12}}>
                                 <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{mensagem.conteudo}</Text>
                                 <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>

@@ -1,9 +1,10 @@
 
 import { useEffect, useState } from "react";
-import { AppShell, Alert, Burger, Button, Center, Group, Loader, Menu, NavLink, Stack, Text, useMantineColorScheme } from "@mantine/core";
+import { AppShell, Alert, Badge, Burger, Button, Center, Group, Loader, Menu, NavLink, Stack, Text, useMantineColorScheme } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
+import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
 
 //por dps em um index proprio
 import { MeusProjetos } from "./MeusProjetos";
@@ -48,6 +49,7 @@ function PortalCliente() {
     const [erroSaida, setErroSaida] = useState<string | null>(null);
 
     const carregando = cliente === null && erro === null;
+    const mensagensNaoLidas = useMensagensNaoLidas("cliente", !!cliente, cliente?.id);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -116,7 +118,7 @@ function PortalCliente() {
                 <NavLink label="Visão geral" renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
                 <NavLink label="Meus projetos" renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
                 <NavLink label="Minhas solicitações" renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
-                <NavLink label="Mensagens" renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
+                <NavLink label="Mensagens" rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
             </AppShell.Navbar>
 
             <AppShell.Main>
@@ -128,7 +130,7 @@ function PortalCliente() {
 
                 {cliente && (
                     <Routes>
-                        <Route index element={<DashboardCliente cliente={cliente}/>}/>
+                        <Route index element={<DashboardCliente cliente={cliente} mensagensNaoLidas={mensagensNaoLidas}/>}/>
                         <Route path="projetos" element={<MeusProjetos/>}/>
                         <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
                         <Route path="mensagens" element={<MensagensCliente/>}/>

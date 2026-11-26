@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Alert,
     Badge,
@@ -16,6 +16,8 @@ import {
     Title,
 } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
+import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
+import { ordenarConversas, totalNaoLidas } from "../lib/ordenarConversas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 
 type Conversa = {
@@ -25,6 +27,8 @@ type Conversa = {
     projetoId: string | null;
     criadaEm: string;
     arquivadaEm: string | null;
+    naoLidas?: number;
+    ultimaAtividadeEm?: string;
 };
 
 const tipoConversa = {
@@ -45,7 +49,9 @@ export function MensagensCliente() {
         ?? (!selecionou ? (conversas.find(conversa => conversa.tipo === "geral" && !conversa.arquivadaEm) ?? conversas.find(conversa => !conversa.arquivadaEm)) : undefined);
 
     const arquivadas = conversaSelecionada ? !!conversaSelecionada.arquivadaEm : abaArquivadas;
-    const conversasVisiveis = conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas);
+    const conversasVisiveis = ordenarConversas(conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas));
+    const naoLidasAtivas = totalNaoLidas(conversas.filter(c => !c.arquivadaEm));
+    const naoLidasArquivadas = totalNaoLidas(conversas.filter(c => !!c.arquivadaEm));
 
     const carregarConversas = useCallback(async (signal: AbortSignal) => {
         try {
@@ -70,6 +76,10 @@ export function MensagensCliente() {
     }, []);
 
     const atualizarConversas = useAtualizacaoPeriodica(carregarConversas, 10000);
+    useEffect(() => {
+        window.addEventListener(EVENTO_LEITURA, atualizarConversas);
+        return () => window.removeEventListener(EVENTO_LEITURA, atualizarConversas);
+    }, [atualizarConversas]);
 
     function alternarVisualizacao(valor: string) {
         const mostrarArquivadas = valor === "arquivadas";
@@ -97,7 +107,7 @@ export function MensagensCliente() {
                             <Text fw={600} size="sm">
                                 Conversas
                             </Text>
-                            <SegmentedControl fullWidth size="sm" value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} data={[{label: "Ativas", value: "ativas"}, {label: "Arquivadas", value: "arquivadas"}]}/>
+                            <SegmentedControl fullWidth size="sm" value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} data={[{label: naoLidasAtivas ? `Ativas (${naoLidasAtivas})` : "Ativas", value: "ativas"}, {label: naoLidasArquivadas ? `Arquivadas (${naoLidasArquivadas})` : "Arquivadas", value: "arquivadas"}]}/>
                             <Divider />
                             <ScrollArea h={480}>
                                 <Stack gap={4}>
@@ -114,7 +124,7 @@ export function MensagensCliente() {
                                     {conversasVisiveis.map((conversa) => (
                                         <NavLink
                                             key={conversa.id}
-                                            label={conversa.titulo}
+                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                             description={tipoConversa[conversa.tipo].label}
                                             active={conversaSelecionada?.id === conversa.id}
                                             onClick={() => selecionarConversa(conversa.id)}

@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { Alert, Card, Loader, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 
 type Resumo = {
@@ -15,7 +16,8 @@ type Cliente = {
     email: string | null;
 };
 
-export function DashboardCliente({cliente}: {cliente: Cliente}) {
+export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: Cliente; mensagensNaoLidas?: number | null}) {
+    const navigate = useNavigate();
 
     const [resumo, setResumo] = useState<Resumo | null>(null);
     const [erro, setErro] = useState<string | null>(null);
@@ -83,6 +85,11 @@ export function DashboardCliente({cliente}: {cliente: Cliente}) {
                         <Title order={2} c="yellow">{resumo.solicitacoesPendentes}</Title>
                     </Card>
 
+                    <Card withBorder padding="lg" component="button" type="button" onClick={() => navigate("/portal/mensagens")} style={{textAlign: "left", cursor: "pointer"}}>
+                        <Text size="sm" c="dimmed">Mensagens não lidas</Text>
+                        <Title order={2} c={mensagensNaoLidas ? "red" : undefined}>{mensagensNaoLidas ?? "—"}</Title>
+                        <Text size="xs" c="dimmed">Abrir mensagens</Text>
+                    </Card>
                 </SimpleGrid>
             )}
 
