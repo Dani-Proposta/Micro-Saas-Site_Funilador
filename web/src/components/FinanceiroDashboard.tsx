@@ -10,7 +10,7 @@ type Resumo = {
     meses: {mes: string; recebido: string; previsto: string}[];
 };
 
-export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0}: {completo?: boolean; onSelecionar?: (categoria: string) => void; revisao?: number}) {
+export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0, esconderAlerta = false}: {completo?: boolean; esconderAlerta?: boolean; onSelecionar?: (categoria: string) => void; revisao?: number}) {
     const navigate = useNavigate();
     const [consulta, setConsulta] = useState<{dados: Resumo; revisao: number} | null>(null);
     const [erro, setErro] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
     const mes = (valor: string) => valor.split("-").reverse().join("/");
 
     return <Stack gap="md">
-        {!completo && dados && Number(dados.atrasado) > 0 && <Alert color="red" title="Pagamentos atrasados">
+        {!completo && !esconderAlerta && dados && Number(dados.atrasado) > 0 && <Alert color="red" title="Pagamentos atrasados">
             <Group justify="space-between" align="center"><Text fw={600}>{formatarValor(dados.atrasado)}</Text><Button size="xs" color="red" variant="light" onClick={() => selecionar("atrasado")}>Ver cobranças</Button></Group>
         </Alert>}
         <Group justify="space-between" align="center">

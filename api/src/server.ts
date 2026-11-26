@@ -689,6 +689,95 @@ app.get("/api/dashboard", async (req, res) => {
     }
 });
 
+//admin: pendências operacionais
+app.get("/api/dashboard/pendencias", async (_req, res) => {
+    try {
+        const resultado = await pool.query(`
+            WITH periodo AS (SELECT (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje),
+            ativos AS (
+                SELECT p.*, c.nome AS cliente FROM projetos p JOIN clientes c ON c.id = p.cliente_id
+                WHERE p.arquivada_em IS NULL AND p.status IN ('planejado','em_andamento')
+            ), pagamentos AS (
+                SELECT m.id, m.projeto_id, m.titulo, m.vencimento, m.saldo, m.cobranca_iniciada, m.bloqueia_progresso,
+                    p.titulo AS projeto, c.nome AS cliente
+                FROM funilador_marcos_resumo m JOIN projetos p ON p.id = m.projeto_id JOIN clientes c ON c.id = p.cliente_id
+                WHERE m.saldo > 0 AND NOT (p.status = 'cancelado' AND NOT m.cobranca_iniciada
+                    AND m.status NOT IN ('concluido','cancelado','aguardando_validacao'))
+            ), ultimas AS (
+                SELECT cv.id, cv.projeto_id, cv.titulo, c.nome AS cliente, msg.remetente_tipo, msg.enviada_em,
+                    COALESCE(msg.enviada_em, cv.criada_em) AS atividade
+                FROM conversas cv JOIN clientes c ON c.id = cv.cliente_id
+                LEFT JOIN LATERAL (SELECT remetente_tipo, enviada_em FROM mensagens WHERE conversa_id = cv.id
+                    ORDER BY enviada_em DESC, id DESC LIMIT 1) msg ON TRUE
+                WHERE cv.arquivada_em IS NULL
+            ), pendencias AS (
+                SELECT 'pagamento_atrasado'::text AS categoria, m.titulo AS titulo, m.projeto || ' · ' || m.cliente AS subtitulo,
+                    m.projeto_id AS projeto_id, m.id AS marco_id, NULL::uuid AS conversa_id, m.vencimento AS data,
+                    m.saldo::text AS valor, 'Pagamento vencido'::text AS detalhe
+                FROM pagamentos m CROSS JOIN periodo WHERE m.vencimento < hoje
+                UNION ALL
+                SELECT 'pagamento_pendente', m.titulo, m.projeto || ' · ' || m.cliente, m.projeto_id, m.id, NULL, m.vencimento,
+                    m.saldo::text, CASE WHEN m.bloqueia_progresso THEN 'Aguardando pagamento para prosseguir' ELSE 'Cobrança iniciada' END
+                FROM pagamentos m CROSS JOIN periodo WHERE (m.cobranca_iniciada OR m.bloqueia_progresso) AND (m.vencimento IS NULL OR m.vencimento >= hoje)
+                UNION ALL
+                SELECT CASE WHEN p.prazo_acordado < hoje THEN 'entrega_atrasada' ELSE 'entrega_proxima' END,
+                    p.titulo, p.cliente, p.id, NULL, NULL, p.prazo_acordado, NULL, 'Prazo do projeto'
+                FROM ativos p CROSS JOIN periodo WHERE p.prazo_acordado <= hoje + 7
+                UNION ALL
+                SELECT CASE WHEN m.prazo_entrega < hoje THEN 'entrega_atrasada' ELSE 'entrega_proxima' END,
+                    m.titulo, p.titulo || ' · ' || p.cliente, p.id, m.id, NULL, m.prazo_entrega, NULL, 'Prazo do marco'
+                FROM projetos_marcos m JOIN ativos p ON p.id = m.projeto_id CROSS JOIN periodo
+                WHERE m.status IN ('pendente','em_andamento') AND m.prazo_entrega <= hoje + 7
+                UNION ALL
+                SELECT 'prioridade_alta', p.titulo, p.cliente, p.id, NULL, NULL, p.prazo_acordado, NULL, 'Prioridade alta'
+                FROM ativos p WHERE p.prioridade = 'alta'
+                UNION ALL
+                SELECT 'sem_atualizacao', p.titulo, p.cliente, p.id, NULL, NULL,
+                    (p.atualizada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Sem atualização há pelo menos 7 dias'
+                FROM ativos p WHERE p.status = 'em_andamento' AND p.atualizada_em <= NOW() - interval '7 days'
+                UNION ALL
+                SELECT 'aguardando_resposta', u.titulo, u.cliente, u.projeto_id, NULL, u.id,
+                    (u.enviada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Cliente aguarda resposta há pelo menos 24 horas'
+                FROM ultimas u WHERE u.remetente_tipo = 'cliente' AND u.enviada_em <= NOW() - interval '24 hours'
+                UNION ALL
+                SELECT 'conversa_inativa', u.titulo, u.cliente, p.id, NULL, u.id,
+                    (u.atividade AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Sem mensagens há pelo menos 7 dias'
+                FROM ultimas u JOIN ativos p ON p.id = u.projeto_id
+                WHERE p.status = 'em_andamento' AND u.atividade <= NOW() - interval '7 days'
+                    AND NOT (COALESCE(u.remetente_tipo,'') = 'cliente' AND u.enviada_em <= NOW() - interval '24 hours')
+                UNION ALL
+                SELECT 'proposta_pendente', n.titulo, p.titulo || ' · ' || p.cliente, p.id, NULL, cv.id,
+                    (n.criada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL,
+                    CASE WHEN n.autor_tipo = 'cliente' THEN 'Aguardando sua resposta' ELSE 'Aguardando resposta do cliente' END
+                FROM projetos_propostas n JOIN conversas cv ON cv.id = n.conversa_id JOIN ativos p ON p.id = cv.projeto_id
+                WHERE n.status = 'pendente' AND cv.arquivada_em IS NULL
+                UNION ALL
+                SELECT 'validacao_pendente', m.titulo, p.titulo || ' · ' || p.cliente, p.id, m.id, NULL,
+                    (m.atualizada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Aguardando validação do cliente'
+                FROM projetos_marcos m JOIN ativos p ON p.id = m.projeto_id WHERE m.status = 'aguardando_validacao'
+                UNION ALL
+                SELECT 'reabertura_pendente', cv.titulo, c.nome, cv.projeto_id, NULL, cv.id,
+                    (rr.solicitada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Solicitação de reabertura'
+                FROM conversas_reaberturas rr JOIN conversas cv ON cv.id = rr.conversa_id JOIN clientes c ON c.id = cv.cliente_id
+                WHERE rr.status = 'pendente' AND cv.arquivada_em IS NOT NULL
+            ), ordenadas AS (
+                SELECT *, COUNT(*) OVER (PARTITION BY categoria)::int AS total,
+                    SUM(valor::numeric) OVER (PARTITION BY categoria)::text AS total_valor,
+                    ROW_NUMBER() OVER (PARTITION BY categoria ORDER BY data NULLS LAST, titulo, projeto_id, marco_id, conversa_id) AS ordem
+                FROM pendencias
+            )
+            SELECT categoria, titulo, subtitulo, projeto_id AS "projetoId", marco_id AS "marcoId", conversa_id AS "conversaId",
+                to_char(data,'YYYY-MM-DD') AS data, valor, detalhe, total, total_valor AS "totalValor"
+            FROM ordenadas WHERE ordem <= 100 ORDER BY categoria, ordem
+        `);
+        res.set("Cache-Control", "no-store");
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao carregar pendências:", erro);
+        res.status(500).json({erro: "Não foi possível carregar as pendências"});
+    }
+});
+
 //admin: resumo financeiro
 app.get("/api/dashboard/financeiro", async (_req, res) => {
     try {
@@ -864,6 +953,51 @@ app.get("/api/me/dashboard", async (_req, res) => {
     } catch (erro) {
         console.error("Erro ao carregar dashboard do cliente:", erro);
         res.status(500).json({ erro: "Não foi possível carregar a visão geral." });
+    }
+});
+
+//cliente: pendências dos próprios projetos
+app.get("/api/me/dashboard/pendencias", async (_req, res) => {
+    try {
+        const resultado = await pool.query(`
+            WITH periodo AS (SELECT (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje),
+            proprios AS (SELECT id, titulo, status FROM projetos WHERE cliente_id = $1 AND arquivada_em IS NULL),
+            pendencias AS (
+                SELECT CASE WHEN m.vencimento < hoje THEN 'pagamento_atrasado' ELSE 'pagamento_pendente' END AS categoria,
+                    m.titulo AS titulo, p.titulo AS subtitulo, p.id AS projeto_id, m.id AS marco_id, NULL::uuid AS conversa_id,
+                    m.vencimento AS data, m.saldo::text AS valor,
+                    CASE WHEN m.bloqueia_progresso AND p.status <> 'cancelado' AND m.status <> 'cancelado' THEN 'Aguardando pagamento para prosseguir'
+                        WHEN m.vencimento < hoje THEN 'Pagamento vencido' ELSE 'Pagamento necessário' END AS detalhe
+                FROM funilador_marcos_resumo m JOIN proprios p ON p.id = m.projeto_id CROSS JOIN periodo
+                WHERE m.saldo > 0 AND NOT (p.status = 'cancelado' AND NOT m.cobranca_iniciada
+                    AND m.status NOT IN ('concluido','cancelado','aguardando_validacao'))
+                    AND (m.cobranca_iniciada OR m.bloqueia_progresso OR m.vencimento <= hoje)
+                UNION ALL
+                SELECT 'validacao_pendente', m.titulo, p.titulo, p.id, m.id, NULL,
+                    (m.atualizada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Entrega aguardando sua validação'
+                FROM projetos_marcos m JOIN proprios p ON p.id = m.projeto_id
+                WHERE m.status = 'aguardando_validacao' AND p.status <> 'cancelado'
+                UNION ALL
+                SELECT 'proposta_pendente', n.titulo, p.titulo, p.id, NULL, cv.id,
+                    (n.criada_em AT TIME ZONE 'America/Sao_Paulo')::date, NULL, 'Proposta aguardando sua resposta'
+                FROM projetos_propostas n JOIN conversas cv ON cv.id = n.conversa_id JOIN proprios p ON p.id = cv.projeto_id
+                WHERE n.status = 'pendente' AND n.autor_tipo = 'admin' AND cv.cliente_id = $1
+                    AND cv.arquivada_em IS NULL AND p.status IN ('planejado','em_andamento')
+            ), ordenadas AS (
+                SELECT *, COUNT(*) OVER (PARTITION BY categoria)::int AS total,
+                    SUM(valor::numeric) OVER (PARTITION BY categoria)::text AS total_valor,
+                    ROW_NUMBER() OVER (PARTITION BY categoria ORDER BY data NULLS LAST, titulo, projeto_id, marco_id, conversa_id) AS ordem
+                FROM pendencias
+            )
+            SELECT categoria, titulo, subtitulo, projeto_id AS "projetoId", marco_id AS "marcoId", conversa_id AS "conversaId",
+                to_char(data,'YYYY-MM-DD') AS data, valor, detalhe, total, total_valor AS "totalValor"
+            FROM ordenadas WHERE ordem <= 100 ORDER BY categoria, ordem
+        `, [res.locals.cliente.id]);
+        res.set("Cache-Control", "no-store");
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao carregar pendências do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar suas pendências"});
     }
 });
 

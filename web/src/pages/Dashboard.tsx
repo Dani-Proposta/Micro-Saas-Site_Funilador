@@ -1,6 +1,7 @@
+import { PendenciasDashboard } from "../components/PendenciasDashboard";
 import { FinanceiroDashboard } from "../components/FinanceiroDashboard";
 import classes from "../styles/Usabilidade.module.css";
-import { Group, Text, Card, SimpleGrid, Stack, Title, Badge, UnstyledButton} from "@mantine/core";
+import { Group, Text, Card, SimpleGrid, Stack, Title, UnstyledButton} from "@mantine/core";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 
@@ -11,13 +12,6 @@ type ResumoDashboard = {
   projetosConcluidos: number;
 };
 
-type ProjetoRecente = {
-  id: string;
-  titulo: string;
-  clienteNome: string;
-  status: "planejado" | "em_andamento" | "concluido" | "cancelado";
-};
-
 export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: number | null}) {
     const navigate = useNavigate();
     //manter constantes antes do return
@@ -25,11 +19,6 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
     const [resumo, setResumo] = useState<ResumoDashboard | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
-
-    //dados do painel de projetos recentes
-    const [projetosRecentes, setProjetosRecentes] = useState<ProjetoRecente[]>([]);
-    const [carregandoProjetos, setCarregandoProjetos] = useState(true);
-    const [erroProjetos, setErroProjetos] = useState<string | null>(null);
 
     //painel principal
     useEffect(() => {
@@ -64,41 +53,6 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
         
     },[]);
     
-    //painel de projetos recentes
-    useEffect(() => {
-        const controller = new AbortController();
-
-        async function carregarProjetosRecentes(){
-            try{
-                const resposta = await fetch("/api/projetos", { signal: controller.signal});
-
-                if(!resposta.ok){
-                    throw new Error("falha ao carregar projetos recentes");
-                }
-
-                const dados : ProjetoRecente[] = await resposta.json();
-
-                setProjetosRecentes(dados.slice(0,4));
-            }catch(erro){
-                if(!controller.signal.aborted){
-                    console.error(erro);
-                    setErroProjetos("não foi possivel carregar os ultimos projetos");
-                }
-            }finally{
-                if(!controller.signal.aborted){
-                    setCarregandoProjetos(false);
-                }
-            }
-        }
-
-        void carregarProjetosRecentes();
-
-        return () => controller.abort();
-
-    }, []);
-
-
-
     //aparencia do dashboard
     return (
         <Stack gap="lg">
@@ -108,7 +62,9 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                 {carregando && (<Text c="dimmed" size="sm">Carregando indicadores...</Text>)}
                 {erro && (<Text c="red" size="sm">{erro}</Text>)}
             </Stack>
-            <FinanceiroDashboard />
+            <PendenciasDashboard lado="admin"/>
+            <FinanceiroDashboard esconderAlerta/>
+            <Title order={3}>Acompanhamento geral</Title>
             {/*cards gerais*/}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
 
@@ -136,26 +92,6 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                 <UnstyledButton onClick={() => navigate("/clientes")}><Text size="sm" c="dimmed">Clientes cadastrados: {resumo?.totalClientes ?? "—"}</Text></UnstyledButton>
                 <UnstyledButton onClick={() => navigate("/projetos?status=concluido")}><Text size="sm" c="dimmed">Projetos concluídos: {resumo?.projetosConcluidos ?? "—"}</Text></UnstyledButton>
             </Group>
-            {/*extras*/}
-
-            <Card withBorder shadow="sm">
-                <Group justify="space-between" mb="md">
-                    <Text fw={600}>Atividades recentes</Text>
-                </Group>
-                <Stack gap="sm">
-                    {carregandoProjetos && (<Text c="dimmed" size="sm">Carregando projetos...</Text>)}
-                    {erroProjetos && (<Text c="red" size="sm">{erroProjetos}</Text>)}
-                    {!carregandoProjetos && !erroProjetos && projetosRecentes.length === 0 && (<Text c="dimmed" size="sm">nenhum projeto cadastrado ainda.</Text>)}
-                    {!carregandoProjetos && !erroProjetos && projetosRecentes.map((projeto) => (
-                        <UnstyledButton className={`${classes.interativo} ${classes.atividade}`} key={projeto.id} onClick={() => navigate(`/projetos/${projeto.id}`, {state: {voltarPara: "/"}})} style={{textAlign: "left", width: "100%"}}><Group justify="space-between" wrap="nowrap"> 
-                            <Stack gap={2} style={{ minWidth: 0 }}>
-                                <Text fw={500} lineClamp={1}>{projeto.titulo}</Text>
-                                <Text c="dimmed" size="xs" lineClamp={1}>{projeto.clienteNome}</Text>
-                            </Stack>
-                        <Badge style={{ flexShrink: 0 }}  color={ projeto.status === "concluido"  ? "green" : projeto.status === "em_andamento" ? "blue" : projeto.status === "cancelado" ? "red" : "violet" }> {projeto.status === "em_andamento" ? "Em andamento" : projeto.status === "concluido" ? "Concluído" : projeto.status === "cancelado" ? "Cancelado" :  "Planejado"}</Badge><Text size="sm" c="dimmed" aria-hidden="true">›</Text>
-                    </Group></UnstyledButton>))}
-                </Stack>
-            </Card>
         </Stack>
 
     );

@@ -1,3 +1,4 @@
+import { PendenciasDashboard } from "../components/PendenciasDashboard";
 import classes from "../styles/Usabilidade.module.css";
 
 import { useEffect, useState } from "react";
@@ -52,14 +53,8 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
             <Title order={2}>Olá, {cliente.nome}!</Title>
             <Text c="dimmed">Acompanhe seus projetos e solicitações.</Text>
 
-            <Card withBorder padding="lg">
-                <Stack gap="xs">
-                    <Title order={4}>Minha conta</Title>
-                    <Text size="sm">Nome: {cliente.nome}</Text>
-                    <Text size="sm">E-mail: {cliente.email ?? "Não informado"}</Text>
-                </Stack>
-            </Card>
-            
+            <PendenciasDashboard lado="cliente"/>
+
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
 
@@ -95,6 +90,14 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
             )}
 
 
+            <Card withBorder padding="lg">
+                <Stack gap="xs">
+                    <Title order={4}>Minha conta</Title>
+                    <Text size="sm">Nome: {cliente.nome}</Text>
+                    <Text size="sm">E-mail: {cliente.email ?? "Não informado"}</Text>
+                </Stack>
+            </Card>
+            
         </Stack>
     );
 }
