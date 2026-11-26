@@ -16,6 +16,7 @@ type Projeto = DadosProjeto & {
     status: "planejado" | "em_andamento" | "concluido" | "cancelado";
     criadaEm: string;
     atualizadaEm: string;
+    entregasPendentes: number;
 };
 
 const statusProjeto = {
@@ -28,18 +29,29 @@ const statusProjeto = {
 export function MeusProjetos() {
 
     const [projetos, setProjetos] = useState<Projeto[]>([]);
-    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : p)), []);
+    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado, entregasPendentes: p.status === "cancelado" ? 0 : dados.marcos.filter(m => m.status === "aguardando_validacao").length} : p)), []);
     const [params, setParams] = useSearchParams();
     const navigate = useNavigate();
     const location = useLocation();
     const status = filtroStatus(params, statusProjetos);
     const alvoNotificacao = params.get("projeto");
     const eventoNotificacao = params.get("notificacao");
+    const focoValidacao = !!alvoNotificacao && params.get("validar") === "1";
+    const projetosPendentes = projetos.filter(p => p.entregasPendentes > 0 && p.status !== "cancelado");
+    function abrirValidacao(id: string) {
+        setParams(new URLSearchParams({projeto: id, validar: "1"}));
+    }
+    function sairValidacao() {
+        const proximo = new URLSearchParams(params);
+        proximo.delete("validar");
+        setParams(proximo);
+    }
     const projetosVisiveis = projetos.filter(p => (!alvoNotificacao || p.id === alvoNotificacao) && (status === "todos" || p.status === status));
     function limparAtalho() {
         const proximo = new URLSearchParams(params);
         proximo.delete("projeto");
         proximo.delete("notificacao");
+        proximo.delete("validar");
         setParams(proximo);
     }
     const [carregando, setCarregando] = useState(true);
@@ -74,8 +86,15 @@ export function MeusProjetos() {
             <Title order={2}>Meus projetos</Title>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
-            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); setParams(proximo);}}/>
-            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
+            {!carregando && !erro && !focoValidacao && projetosPendentes.length > 0 && <Card withBorder padding="md"><Stack gap="sm">
+                <Group justify="space-between"><Title order={4}>Entregas aguardando validação</Title><Badge color="yellow">{projetosPendentes.reduce((n, p) => n + p.entregasPendentes, 0)}</Badge></Group>
+                {projetosPendentes.map(p => <Group key={p.id} justify="space-between" wrap="wrap">
+                    <Stack gap={2} style={{minWidth: 0, flex: 1}}><Text fw={500} style={{overflowWrap: "anywhere"}}>{p.titulo}</Text><Text size="xs" c="dimmed">{p.entregasPendentes} {p.entregasPendentes === 1 ? "entrega pendente" : "entregas pendentes"}</Text></Stack>
+                    <Button size="xs" variant="light" onClick={() => abrirValidacao(p.id)}>Validar entregas</Button>
+                </Group>)}
+            </Stack></Card>}
+            {!focoValidacao && <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); setParams(proximo);}}/>}
+            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">{focoValidacao ? "Entregas para validar" : "Exibindo projeto selecionado."}</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
             {carregando && <Loader size="sm"/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}
@@ -88,11 +107,17 @@ export function MeusProjetos() {
                             <Badge color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge>
                         </Group>
 
-                        <TextoExpansivel texto={projeto.descricao} linhas={5}/>
-                        <ResumoProjeto projeto={projeto}/>
-                        <MarcosProjeto projeto={projeto} lado="cliente" onAtualizado={atualizarMarcos}/>
-                        <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
-                        <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
+                        {focoValidacao ? <>
+                            <MarcosProjeto key={`${projeto.id}-validacao`} projeto={projeto} lado="cliente" onAtualizado={atualizarMarcos} focoValidacao/>
+                            <Button size="xs" variant="subtle" onClick={sairValidacao}>Ver todos os dados do projeto</Button>
+                        </> : <>
+                            {projeto.entregasPendentes > 0 && <Button size="sm" color="yellow" variant="light" onClick={() => abrirValidacao(projeto.id)}>Validar entregas ({projeto.entregasPendentes})</Button>}
+                            <TextoExpansivel texto={projeto.descricao} linhas={5}/>
+                            <ResumoProjeto projeto={projeto}/>
+                            <MarcosProjeto key={projeto.id} projeto={projeto} lado="cliente" onAtualizado={atualizarMarcos}/>
+                            <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
+                            <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
+                        </>}
                         <Group justify="flex-end"><Button size="xs" variant="light" onClick={() => navigate(`/portal/mensagens?projeto=${encodeURIComponent(projeto.id)}`, {state: {voltarPara: location.pathname + location.search}})}>Conversa do projeto</Button></Group>
                     </Stack>
                 </Card>

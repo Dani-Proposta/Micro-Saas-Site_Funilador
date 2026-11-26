@@ -580,10 +580,12 @@ async function criarProposta(db: PoolClient, conversa: string, usuario: string, 
 function rotaCriarProposta(lado: "admin" | "cliente") {
     return async (req: Request, res: Response) => {
         try {
+            const {id} = req.params;
+            if (typeof id !== "string" || !uuidConversa.test(id)) throw new ErroConversa(400, "Conversa inválida");
             const dados = dadosProposta(req.body);
             const resultado = await transacaoConversa(async db => {
-                const projeto = await travarNegociacao(db, req.params.id, lado === "cliente" ? res.locals.cliente.id : null);
-                return criarProposta(db, req.params.id, res.locals.usuarioId, lado, projeto, dados);
+                const projeto = await travarNegociacao(db, id, lado === "cliente" ? res.locals.cliente.id : null);
+                return criarProposta(db, id, res.locals.usuarioId, lado, projeto, dados);
             });
             res.status(201).json(resultado);
         } catch (erro) {responderErroConversa(res, erro);}
@@ -612,7 +614,7 @@ function rotaDecidirProposta(lado: "admin" | "cliente") {
         const {id, propostaId} = req.params;
         const {acao} = req.body ?? {};
         try {
-            if (!uuidConversa.test(propostaId) || !["aceitar", "recusar", "contrapor", "retirar"].includes(acao)) throw new ErroConversa(400, "Decisão inválida");
+            if (typeof id !== "string" || !uuidConversa.test(id) || typeof propostaId !== "string" || !uuidConversa.test(propostaId) || !["aceitar", "recusar", "contrapor", "retirar"].includes(acao)) throw new ErroConversa(400, "Decisão inválida");
             const resultado = await transacaoConversa(async db => {
                 const projeto = await travarNegociacao(db, id, lado === "cliente" ? res.locals.cliente.id : null);
                 const consulta = await db.query(`SELECT id, autor_tipo, tipo, titulo, descricao, valor::text, to_char(prazo_entrega,'YYYY-MM-DD') AS prazo_entrega, to_char(vencimento,'YYYY-MM-DD') AS vencimento, novo_total::text, to_char(novo_prazo,'YYYY-MM-DD') AS novo_prazo, total_base::text, to_char(prazo_base,'YYYY-MM-DD') AS prazo_base, status FROM projetos_propostas WHERE id = $1 AND conversa_id = $2 FOR UPDATE`, [propostaId, id]);
@@ -961,7 +963,11 @@ app.get("/api/me/projetos", async (_req, res) => {
             to_char(prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
             tecnologias,
             modo_progresso AS "modoProgresso",
-            funilador_progresso_projeto(id, modo_progresso, progresso) AS progresso
+            funilador_progresso_projeto(id, modo_progresso, progresso) AS progresso,
+            CASE WHEN status = 'cancelado' THEN 0 ELSE (
+                SELECT COUNT(*)::int FROM projetos_marcos m
+                WHERE m.projeto_id = projetos.id AND m.status = 'aguardando_validacao'
+            ) END AS "entregasPendentes"
             FROM projetos
             WHERE cliente_id = $1
             AND arquivada_em IS NULL
