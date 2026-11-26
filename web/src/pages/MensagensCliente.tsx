@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
     Alert,
     Badge,
@@ -10,11 +10,13 @@ import {
     Loader,
     NavLink,
     ScrollArea,
+    SegmentedControl,
     Stack,
     Text,
     Title,
 } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
+import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 
 type Conversa = {
     id: string;
@@ -36,47 +38,52 @@ export function MensagensCliente() {
     const [conversaId, setConversaId] = useState<string | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+    const [abaArquivadas, setAbaArquivadas] = useState(false);
+    const [selecionou, setSelecionou] = useState(false);
 
-    const conversaSelecionada = conversas.find(
-        (conversa) => conversa.id === conversaId,
-    );
+    const conversaSelecionada = conversas.find(conversa => conversa.id === conversaId)
+        ?? (!selecionou ? (conversas.find(conversa => conversa.tipo === "geral" && !conversa.arquivadaEm) ?? conversas.find(conversa => !conversa.arquivadaEm)) : undefined);
 
-    useEffect(() => {
-        const controller = new AbortController();
+    const arquivadas = conversaSelecionada ? !!conversaSelecionada.arquivadaEm : abaArquivadas;
+    const conversasVisiveis = conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas);
 
-        async function carregarConversas() {
-            try {
-                const resposta = await fetch("/api/me/conversas", {
-                    signal: controller.signal,
-                });
-                const dados: Conversa[] = await resposta.json();
+    const carregarConversas = useCallback(async (signal: AbortSignal) => {
+        try {
+            const resposta = await fetch("/api/me/conversas?todas=true", {signal, cache: "no-store"});
+            const dados = await resposta.json();
 
-                if (!resposta.ok)
-                    throw new Error("Não foi possível carregar as conversas.");
-
-                if (!controller.signal.aborted) {
-                    setConversas(dados);
-                    setConversaId(
-                        dados.find((conversa) => conversa.tipo === "geral")?.id ??
-                        dados[0]?.id ??
-                        null,
-                    );
-                }
-            } catch (erroRecebido) {
-                if (!controller.signal.aborted)
-                    setErro(
-                        erroRecebido instanceof Error
-                            ? erroRecebido.message
-                            : "Falha ao carregar conversas.",
-                    );
-            } finally {
-                if (!controller.signal.aborted) setCarregando(false);
+            if (!resposta.ok) {
+                if (!signal.aborted && [401, 403].includes(resposta.status)) setConversas([]);
+                throw new Error(dados.erro ?? "Não foi possível carregar as conversas.");
             }
-        }
+            if (!Array.isArray(dados)) throw new Error("Resposta de conversas inválida.");
 
-        void carregarConversas();
-        return () => controller.abort();
+            if (!signal.aborted) {
+                setConversas(dados);
+                setErro(null);
+            }
+        } catch (erroRecebido) {
+            if (!signal.aborted) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao atualizar conversas.");
+        } finally {
+            if (!signal.aborted) setCarregando(false);
+        }
     }, []);
+
+    const atualizarConversas = useAtualizacaoPeriodica(carregarConversas, 10000);
+
+    function alternarVisualizacao(valor: string) {
+        const mostrarArquivadas = valor === "arquivadas";
+        if (mostrarArquivadas === arquivadas) return;
+
+        setAbaArquivadas(mostrarArquivadas);
+        setSelecionou(true);
+        setConversaId(null);
+    }
+
+    function selecionarConversa(id: string) {
+        setSelecionou(true);
+        setConversaId(id);
+    }
 
     return (
         <Stack gap="md">
@@ -90,6 +97,7 @@ export function MensagensCliente() {
                             <Text fw={600} size="sm">
                                 Conversas
                             </Text>
+                            <SegmentedControl fullWidth size="sm" value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} data={[{label: "Ativas", value: "ativas"}, {label: "Arquivadas", value: "arquivadas"}]}/>
                             <Divider />
                             <ScrollArea h={480}>
                                 <Stack gap={4}>
@@ -98,18 +106,18 @@ export function MensagensCliente() {
                                             <Loader size="sm" />
                                         </Center>
                                     )}
-                                    {!carregando && !erro && conversas.length === 0 && (
+                                    {!carregando && !erro && conversasVisiveis.length === 0 && (
                                         <Text size="sm" c="dimmed">
                                             Nenhuma conversa disponível.
                                         </Text>
                                     )}
-                                    {conversas.map((conversa) => (
+                                    {conversasVisiveis.map((conversa) => (
                                         <NavLink
                                             key={conversa.id}
                                             label={conversa.titulo}
                                             description={tipoConversa[conversa.tipo].label}
-                                            active={conversaId === conversa.id}
-                                            onClick={() => setConversaId(conversa.id)}
+                                            active={conversaSelecionada?.id === conversa.id}
+                                            onClick={() => selecionarConversa(conversa.id)}
                                         />
                                     ))}
                                 </Stack>
@@ -123,15 +131,18 @@ export function MensagensCliente() {
                             <Stack gap="md">
                                 <Group justify="space-between">
                                     <Title order={4}>{conversaSelecionada.titulo}</Title>
-                                    <Badge color={tipoConversa[conversaSelecionada.tipo].color}>
-                                        {tipoConversa[conversaSelecionada.tipo].label}
-                                    </Badge>
+                                    <Group gap="xs">
+                                        {conversaSelecionada.arquivadaEm && <Badge color="gray">Arquivada</Badge>}
+                                        <Badge color={tipoConversa[conversaSelecionada.tipo].color}>{tipoConversa[conversaSelecionada.tipo].label}</Badge>
+                                    </Group>
                                 </Group>
                                 <Divider />
                                 <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
                                     lado="cliente"
+                                    arquivada={!!conversaSelecionada.arquivadaEm}
+                                    onAtualizarConversas={atualizarConversas}
                                 />
                             </Stack>
                         ) : (

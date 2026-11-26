@@ -18,30 +18,29 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 
-
 //função de proteção de dados para q só admin acesse algumas coisas
-async function exigirAdmin(req: Request, res: Response, next: NextFunction){
-    try{
+async function exigirAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
         const sessao = await auth.api.getSession({
             headers: fromNodeHeaders(req.headers),
         });
 
-        if(!sessao){
-            res.status(401).json({erro:"Você precisa fazer login"});
+        if (!sessao) {
+            res.status(401).json({ erro: "Você precisa fazer login" });
             return;
         }
 
         const papeis = sessao.user.role?.split(",") ?? [];
 
-        if(!papeis.includes("admin")){
-            res.status(403).json({erro:"Acesso restrito"});
+        if (!papeis.includes("admin")) {
+            res.status(403).json({ erro: "Acesso restrito" });
             return;
         }
 
         next();
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro ao verificar acesso:", erro);
-        res.status(500).json({erro: "Falha ao verificar autenticação"});
+        res.status(500).json({ erro: "Falha ao verificar autenticação" });
     }
 }
 
@@ -53,50 +52,58 @@ async function exigirCliente(req: Request, res: Response, next: NextFunction) {
         });
 
         if (!sessao) {
-            res.status(401).json({erro: "Você precisa fazer login"});
+            res.status(401).json({ erro: "Você precisa fazer login" });
             return;
         }
 
         const papeis = sessao.user.role?.split(",") ?? [];
 
         if (!papeis.includes("user") || papeis.includes("admin")) {
-            res.status(403).json({erro: "Acesso restrito aos clientes"});
+            res.status(403).json({ erro: "Acesso restrito aos clientes" });
             return;
         }
 
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT id, nome, email
             FROM clientes
             WHERE usuario_id = $1
-        `, [sessao.user.id]);
+        `,
+            [sessao.user.id],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(403).json({erro: "Nenhum cliente vinculado à conta"});
+            res.status(403).json({ erro: "Nenhum cliente vinculado à conta" });
             return;
         }
 
         res.locals.cliente = resultado.rows[0];
 
         next();
-
     } catch (erro) {
         console.error("Erro ao verificar cliente:", erro);
-        res.status(500).json({erro: "Falha ao verificar autenticação"});
+        res.status(500).json({ erro: "Falha ao verificar autenticação" });
     }
 }
 
 //aqui eu protego oq só adm pode solicitar ou acessar
 app.use(
-  ["/api/clientes", "/api/solicitacoes", "/api/projetos", "/api/dashboard","/api/convites","/api/conversas"],
-  exigirAdmin
+    [
+        "/api/clientes",
+        "/api/solicitacoes",
+        "/api/projetos",
+        "/api/dashboard",
+        "/api/convites",
+        "/api/conversas",
+    ],
+    exigirAdmin,
 );
 
 //apenas cliente logado ve
 app.use("/api/me", exigirCliente);
 
-
 const dbCadastro = new Kysely({
-    dialect: new PostgresDialect({pool}),
+    dialect: new PostgresDialect({ pool }),
 });
 
 class ErroCadastro extends Error {
@@ -109,9 +116,8 @@ class ErroCadastro extends Error {
 }
 //rotas de solicitação
 //verificar conexão com api
-app.get("/api/health", (_req, res) =>{
-    res.json({status: "ok"});
-    
+app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok" });
 });
 
 app.get("/api/me", (_req, res) => {
@@ -119,8 +125,8 @@ app.get("/api/me", (_req, res) => {
 });
 //solicitar pedidos do DB
 //solicitação do dashboard para pegar os numeros das tabelas, o total, e outras coisas relacionadas
-app.get("/api/dashboard", async (req, res) =>{
-    try{
+app.get("/api/dashboard", async (req, res) => {
+    try {
         const resultado = await pool.query(
             `SELECT
             (SELECT COUNT(*) :: int
@@ -138,14 +144,16 @@ app.get("/api/dashboard", async (req, res) =>{
             (SELECT COUNT(*)::int
             FROM projetos
             WHERE status = 'concluido'
-            AND arquivada_em IS NULL) AS "projetosConcluidos"`
+            AND arquivada_em IS NULL) AS "projetosConcluidos"`,
         );
 
         res.json(resultado.rows[0]);
-    }catch(erro){
-        console.error("não foi possivel pegar os dados pro dashboard",erro)
+    } catch (erro) {
+        console.error("não foi possivel pegar os dados pro dashboard", erro);
 
-        res.status(500).json({erro: "não foi possivel carregar os dados do dashboard",});
+        res
+            .status(500)
+            .json({ erro: "não foi possivel carregar os dados do dashboard" });
     }
 });
 
@@ -154,7 +162,8 @@ app.get("/api/me/dashboard", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
                 (SELECT COUNT(*)::int
                 FROM projetos
@@ -178,19 +187,20 @@ app.get("/api/me/dashboard", async (_req, res) => {
                 FROM solicitacoes
                 WHERE cliente_id = $1
                     AND status = 'pendente') AS "solicitacoesPendentes"
-        `, [clienteId]);
+        `,
+            [clienteId],
+        );
 
         res.json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao carregar dashboard do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível carregar a visão geral."});
+        res.status(500).json({ erro: "Não foi possível carregar a visão geral." });
     }
 });
 
 //Pedir pro DB as solicitações mais recentes com info de cada cliente
-app.get("/api/solicitacoes", async (_req, res) =>{
-    try{
+app.get("/api/solicitacoes", async (_req, res) => {
+    try {
         const resultado = await pool.query(
             `SELECT 
             s.id,
@@ -204,14 +214,16 @@ app.get("/api/solicitacoes", async (_req, res) =>{
             INNER JOIN clientes as c
                 ON c.id = s.cliente_id
             
-            ORDER by s.criada_em DESC`
+            ORDER by s.criada_em DESC`,
         );
 
         res.json(resultado.rows);
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro ao buscar as solicitações:", erro);
 
-        res.status(500).json({erro:"Não foi possivel carregar as solicitações.",});
+        res
+            .status(500)
+            .json({ erro: "Não foi possivel carregar as solicitações." });
     }
 });
 
@@ -220,7 +232,8 @@ app.get("/api/me/solicitacoes", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
                 id,
                 titulo,
@@ -230,26 +243,29 @@ app.get("/api/me/solicitacoes", async (_req, res) => {
             FROM solicitacoes
             WHERE cliente_id = $1
             ORDER BY criada_em DESC
-        `, [clienteId]);
+        `,
+            [clienteId],
+        );
 
         res.json(resultado.rows);
-
     } catch (erro) {
         console.error("Erro ao buscar solicitações do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível carregar suas solicitações."});
+        res
+            .status(500)
+            .json({ erro: "Não foi possível carregar suas solicitações." });
     }
 });
 
 //solicitar clienteS no plural, a lista de todos eles
 app.get("/api/clientes", async (_req, res) => {
-    try{
+    try {
         const resultado = await pool.query(
-            'SELECT id, usuario_id AS "usuarioId", nome, email FROM clientes'
+            'SELECT id, usuario_id AS "usuarioId", nome, email FROM clientes',
         );
         res.json(resultado.rows);
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro na DB:", erro);
-        res.status(500).json({erro: "Erro no banco de dados"});
+        res.status(500).json({ erro: "Erro no banco de dados" });
     }
 });
 
@@ -259,23 +275,24 @@ app.get("/api/clientes/:id", async (req, res) => {
 
     try {
         const resultadoCliente = await pool.query(
-        `SELECT
+            `SELECT
         id,
         nome,
         email,
         criado_em AS "criadoEm"
         FROM clientes
         WHERE id = $1`,
-        [id]
-    );
+            [id],
+        );
 
         if (resultadoCliente.rows.length === 0) {
-            res.status(404).json({erro: "Cliente não encontrado.",});
+            res.status(404).json({ erro: "Cliente não encontrado." });
             return;
         }
 
-        const [resultadoProjetos, resultadoSolicitacoes] = await Promise.all([ pool.query(
-            `SELECT
+        const [resultadoProjetos, resultadoSolicitacoes] = await Promise.all([
+            pool.query(
+                `SELECT
             id,
             titulo,
             status,
@@ -283,41 +300,40 @@ app.get("/api/clientes/:id", async (req, res) => {
             FROM projetos
             WHERE cliente_id = $1
             ORDER BY criada_em DESC`,
-            [id]
-        ),
+                [id],
+            ),
 
-        pool.query(
-            `SELECT
+            pool.query(
+                `SELECT
             id,
             titulo,
             status
             FROM solicitacoes
             WHERE cliente_id = $1
             ORDER BY criada_em DESC`,
-            [id]
-        ),
-    ]);
+                [id],
+            ),
+        ]);
 
         res.json({
             ...resultadoCliente.rows[0],
             projetos: resultadoProjetos.rows,
             solicitacoes: resultadoSolicitacoes.rows,
         });
-    }catch (erro) {
+    } catch (erro) {
         console.error("Erro ao buscar cliente:", erro);
 
-        res.status(500).json({erro: "Não foi possível carregar o cliente.",});
+        res.status(500).json({ erro: "Não foi possível carregar o cliente." });
     }
 });
 
-
-//solicitar os projetos do db 
-app.get("/api/projetos", async(req, res) => {
+//solicitar os projetos do db
+app.get("/api/projetos", async (req, res) => {
     const arquivados = req.query.arquivados === "true";
 
-    try{
+    try {
         const resultado = await pool.query(
-        `SELECT
+            `SELECT
             p.id,
             p.cliente_id AS "clienteId",
             c.nome AS "clienteNome",
@@ -333,19 +349,21 @@ app.get("/api/projetos", async(req, res) => {
             WHERE (p.arquivada_em IS NOT NULL) = $1
             ORDER BY p.criada_em DESC
             
-            `,[arquivados]);
-        res.json(resultado.rows)
-    }catch(erro){
+            `,
+            [arquivados],
+        );
+        res.json(resultado.rows);
+    } catch (erro) {
         console.error("Erro ao procurar os projetos", erro);
-        res.status(500).json({erro:"Não foi possivel carregas os projetos"});
+        res.status(500).json({ erro: "Não foi possivel carregas os projetos" });
     }
 });
 
 //painel individual dos projetos
-app.get("/api/projetos/:id", async(req, res) => {
+app.get("/api/projetos/:id", async (req, res) => {
     const id = req.params.id;
 
-    try{
+    try {
         const resultado = await pool.query(
             `SELECT
             p.id,
@@ -362,18 +380,18 @@ app.get("/api/projetos/:id", async(req, res) => {
             INNER JOIN clientes AS c
             ON c.id = p.cliente_id
             WHERE p.id = $1`,
-            [id]
+            [id],
         );
 
-        if(resultado.rows.length === 0){
-            res.status(404).json({erro: "projeto não encontrado", });
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "projeto não encontrado" });
             return;
         }
 
         res.json(resultado.rows[0]);
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro ao buscar projeto:", erro);
-        res.status(500).json({erro: "Não foi possível carregar o projeto.",});
+        res.status(500).json({ erro: "Não foi possível carregar o projeto." });
     }
 });
 
@@ -382,7 +400,8 @@ app.get("/api/me/projetos", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
             id,
             titulo,
@@ -394,13 +413,14 @@ app.get("/api/me/projetos", async (_req, res) => {
             WHERE cliente_id = $1
             AND arquivada_em IS NULL
             ORDER BY criada_em DESC
-        `, [clienteId]);
+        `,
+            [clienteId],
+        );
 
         res.json(resultado.rows);
-
     } catch (erro) {
         console.error("Erro ao buscar projetos do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível carregar seus projetos."});
+        res.status(500).json({ erro: "Não foi possível carregar seus projetos." });
     }
 });
 
@@ -434,7 +454,6 @@ app.get("/api/convites", async (req, res) => {
         `);
 
         res.json(resultado.rows);
-
     } catch (erro) {
         console.error("Erro ao buscar convites:", erro);
         res.status(500).json({ erro: "Não foi possível carregar os convites." });
@@ -451,7 +470,8 @@ app.get("/api/convite/:token", async (req, res) => {
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
             v.cliente_id AS "clienteId",
             c.nome AS "clienteNome",
@@ -468,7 +488,9 @@ app.get("/api/convite/:token", async (req, res) => {
             FROM convites AS v
             LEFT JOIN clientes AS c ON c.id = v.cliente_id
             WHERE v.token = $1
-        `, [token]);
+        `,
+            [token],
+        );
 
         if (resultado.rows.length === 0) {
             res.status(404).json({ erro: "Convite não encontrado" });
@@ -492,7 +514,6 @@ app.get("/api/convite/:token", async (req, res) => {
             clienteNome: convite.clienteNome,
             expiraEm: convite.expiraEm,
         });
-
     } catch (erro) {
         console.error("Erro ao validar convite:", erro);
         res.status(500).json({ erro: "Não foi possível validar o convite." });
@@ -502,9 +523,11 @@ app.get("/api/convite/:token", async (req, res) => {
 //listar conversas
 app.get("/api/conversas", async (req, res) => {
     const arquivadas = req.query.arquivadas === "true";
+    const todas = req.query.todas === "true";
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
                 cl.id AS "clienteId",
                 cl.nome AS "clienteNome",
@@ -528,73 +551,83 @@ app.get("/api/conversas", async (req, res) => {
             FROM clientes cl
             LEFT JOIN conversas c
                 ON c.cliente_id = cl.id
-                AND (c.arquivada_em IS NOT NULL) = $1::boolean
+                AND ($2::boolean OR (c.arquivada_em IS NOT NULL) = $1::boolean)
             GROUP BY cl.id, cl.nome
-            HAVING NOT $1::boolean OR COUNT(c.id) > 0
+            HAVING $2::boolean OR NOT $1::boolean OR COUNT(c.id) > 0
             ORDER BY cl.nome, cl.id
-        `, [arquivadas]);
+        `,
+            [arquivadas, todas],
+        );
 
         res.json(resultado.rows);
-
     } catch (erro) {
         console.error("Erro ao buscar conversas:", erro);
-        res.status(500).json({erro: "Não foi possível carregar as conversas."});
+        res.status(500).json({ erro: "Não foi possível carregar as conversas." });
     }
 });
 
 //pegar cada mensagem de cada conversa individual
 app.get("/api/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
-
     const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
     try {
-        const conversa = await pool.query(`
-            SELECT id
-            FROM conversas
-            WHERE id = $1
+        const resultado = await pool.query(`
+            SELECT
+                c.arquivada_em AS "arquivadaEm",
+                COALESCE(h.mensagens, '[]'::json) AS mensagens
+            FROM conversas AS c
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', m.id,
+                        'remetenteTipo', m.remetente_tipo,
+                        'conteudo', m.conteudo,
+                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+                    ) ORDER BY m.enviada_em ASC, m.id ASC
+                ) AS mensagens
+                FROM (
+                    SELECT id, remetente_tipo, conteudo, enviada_em
+                    FROM mensagens
+                    WHERE conversa_id = c.id
+                    ORDER BY enviada_em DESC, id DESC
+                    LIMIT 50
+                ) AS m
+            ) AS h ON TRUE
+            WHERE c.id = $1
         `, [id]);
 
-        if (conversa.rows.length === 0) {
-            res.status(404).json({erro: "Conversa não encontrada."});
+        const conversa = resultado.rows[0];
+
+        if (!conversa) {
+            res.status(404).json({ erro: "Conversa não encontrada." });
             return;
         }
 
-        const resultado = await pool.query(`
-            SELECT *
-            FROM (
-                SELECT
-                    id,
-                    remetente_tipo AS "remetenteTipo",
-                    conteudo,
-                    enviada_em AS "enviadaEm"
-                FROM mensagens
-                WHERE conversa_id = $1
-                ORDER BY enviada_em DESC, id DESC
-                LIMIT 50
-            ) AS recentes
-            ORDER BY "enviadaEm" ASC, id ASC
-        `, [id]);
-
-        res.json(resultado.rows);
+        // Mantém o formato anterior para consumidores que não pedem o estado.
+        res.set("Cache-Control", "no-store");
+        res.json(req.query.estado === "true" ? conversa : conversa.mensagens);
 
     } catch (erro) {
         console.error("Erro ao buscar mensagens:", erro);
-        res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+        res.status(500).json({ erro: "Não foi possível carregar as mensagens." });
     }
 });
 
 //cliente carregar conversas
-app.get("/api/me/conversas", async (_req, res) => {
+app.get("/api/me/conversas", async (req, res) => {
     const cliente = res.locals.cliente;
+    const arquivadas = req.query.arquivadas === "true";
+    const todas = req.query.todas === "true";
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             SELECT
                 id,
                 titulo,
@@ -604,92 +637,99 @@ app.get("/api/me/conversas", async (_req, res) => {
                 arquivada_em AS "arquivadaEm"
             FROM conversas
             WHERE cliente_id = $1
-                AND arquivada_em IS NULL
+                AND ($3::boolean OR (arquivada_em IS NOT NULL) = $2::boolean)
             ORDER BY
                 CASE WHEN tipo = 'geral' THEN 0 ELSE 1 END,
                 criada_em DESC,
                 id
-        `, [cliente.id]);
+        `,
+            [cliente.id, arquivadas, todas],
+        );
 
         res.json(resultado.rows);
-
     } catch (erro) {
         console.error("Erro ao buscar conversas do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível carregar as conversas."});
+        res.status(500).json({ erro: "Não foi possível carregar as conversas." });
     }
 });
 
 //carregar mensagen da respectiva conversa
 app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
-    const cliente = res.locals.cliente;
-
     const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
     try {
-        const conversa = await pool.query(`
-            SELECT id
-            FROM conversas
-            WHERE id = $1
-                AND cliente_id = $2
-                AND arquivada_em IS NULL
-        `, [id, cliente.id]);
+        const resultado = await pool.query(`
+            SELECT
+                c.arquivada_em AS "arquivadaEm",
+                COALESCE(h.mensagens, '[]'::json) AS mensagens
+            FROM conversas AS c
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', m.id,
+                        'remetenteTipo', m.remetente_tipo,
+                        'conteudo', m.conteudo,
+                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+                    ) ORDER BY m.enviada_em ASC, m.id ASC
+                ) AS mensagens
+                FROM (
+                    SELECT id, remetente_tipo, conteudo, enviada_em
+                    FROM mensagens
+                    WHERE conversa_id = c.id
+                    ORDER BY enviada_em DESC, id DESC
+                    LIMIT 50
+                ) AS m
+            ) AS h ON TRUE
+            WHERE c.id = $1
+                AND c.cliente_id = $2
+        `, [id, res.locals.cliente.id]);
 
-        if (conversa.rows.length === 0) {
-            res.status(404).json({erro: "Conversa não encontrada."});
+        const conversa = resultado.rows[0];
+
+        if (!conversa) {
+            res.status(404).json({ erro: "Conversa não encontrada." });
             return;
         }
 
-        const resultado = await pool.query(`
-            SELECT *
-            FROM (
-                SELECT
-                    m.id,
-                    m.remetente_tipo AS "remetenteTipo",
-                    m.conteudo,
-                    m.enviada_em AS "enviadaEm"
-                FROM mensagens AS m
-                INNER JOIN conversas AS c
-                    ON c.id = m.conversa_id
-                WHERE c.id = $1
-                    AND c.cliente_id = $2
-                    AND c.arquivada_em IS NULL
-                ORDER BY m.enviada_em DESC, m.id DESC
-                LIMIT 50
-            ) AS recentes
-            ORDER BY "enviadaEm" ASC, id ASC
-        `, [id, cliente.id]);
-
-        res.json(resultado.rows);
+        // Mantém o formato anterior para consumidores que não pedem o estado.
+        res.set("Cache-Control", "no-store");
+        res.json(req.query.estado === "true" ? conversa : conversa.mensagens);
 
     } catch (erro) {
         console.error("Erro ao buscar mensagens do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+        res.status(500).json({ erro: "Não foi possível carregar as mensagens." });
     }
 });
+
 //rotas de atualização ou pedido ou criação
 
-
 // criar solicitação
-app.post("/api/solicitacoes", async (req, res) =>{
+app.post("/api/solicitacoes", async (req, res) => {
     const clienteId = req.body?.clienteId;
     const titulo = req.body?.titulo;
     const descricao = req.body?.descricao;
     //se n tiver preenchido nem vai fodase
-    if( typeof clienteId !== 'string' || clienteId.trim().length === 0 || 
-        typeof titulo !== "string" || titulo.trim().length === 0 ||  
-        typeof descricao !== "string" || descricao.trim().length === 0
-    ){
-        res.status(400).json({erro: "Titulo e descrição necessario, por favor ne!"});
+    if (
+        typeof clienteId !== "string" ||
+        clienteId.trim().length === 0 ||
+        typeof titulo !== "string" ||
+        titulo.trim().length === 0 ||
+        typeof descricao !== "string" ||
+        descricao.trim().length === 0
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Titulo e descrição necessario, por favor ne!" });
         return;
     }
 
-    try{
+    try {
         const resultado = await pool.query(
             `INSERT INTO solicitacoes (cliente_id, titulo, descricao)   
             VALUES ($1, $2, $3) 
@@ -700,13 +740,13 @@ app.post("/api/solicitacoes", async (req, res) =>{
             descricao,
             status,
             criada_em AS "criadaEm"`,
-            [clienteId, titulo.trim(), descricao.trim()]
+            [clienteId, titulo.trim(), descricao.trim()],
         );
         res.status(201).json(resultado.rows[0]);
-    }catch(erro) {
+    } catch (erro) {
         console.error("Erro ao criar solicitação:", erro);
 
-        res.status(500).json({erro:"Dessa vez não foi sua culpa"});
+        res.status(500).json({ erro: "Dessa vez não foi sua culpa" });
     }
 });
 
@@ -715,15 +755,14 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
     const id = req.params.id;
     const status = req.body?.status;
 
-
-    if(status !== "aprovada" && status !== "recusada"){
-        res.status(400).json({erro:"tem coisa errada nesses status ai",});
+    if (status !== "aprovada" && status !== "recusada") {
+        res.status(400).json({ erro: "tem coisa errada nesses status ai" });
         return;
     }
 
     const client = await pool.connect();
 
-    try{
+    try {
         await client.query("BEGIN");
 
         const resultado = await client.query(
@@ -731,17 +770,17 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
             FROM solicitacoes
             WHERE id = $1
             FOR UPDATE`,
-            [id]
+            [id],
         );
         const solicitacao = resultado.rows[0];
-        
+
         if (!solicitacao) {
             await client.query("ROLLBACK");
             res.status(404).json({ erro: "Solicitação não encontrada." });
             return;
         }
-        
-        if(solicitacao.status !== "pendente"){
+
+        if (solicitacao.status !== "pendente") {
             await client.query("ROLLBACK");
             res.status(409).json({
                 erro: "Esta solicitação já foi decidida.",
@@ -753,26 +792,31 @@ app.patch("/api/solicitacoes/:id/status", async (req, res) => {
             `UPDATE solicitacoes
             SET status = $1
             WHERE id = $2`,
-            [status,id]
+            [status, id],
         );
-        if(status === "aprovada"){
-            await client.query(`INSERT INTO projetos
+        if (status === "aprovada") {
+            await client.query(
+                `INSERT INTO projetos
                 (cliente_id, solicitacao_id, titulo, descricao)
                 VALUES ($1,$2,$3,$4)`,
-                [solicitacao.cliente_id, solicitacao.id, solicitacao.titulo, solicitacao.descricao],
+                [
+                    solicitacao.cliente_id,
+                    solicitacao.id,
+                    solicitacao.titulo,
+                    solicitacao.descricao,
+                ],
             );
         }
         await client.query("COMMIT");
-        
-        res.json({id, status});
-        }catch(erro){
-            await client.query("ROLLBACK");
-            console.error("Não deu pra decidir o pedido",erro);
-            res.status(500).json({erro:"Falha na atu da solicitação",});
-        }finally{
-            client.release();
-        }
 
+        res.json({ id, status });
+    } catch (erro) {
+        await client.query("ROLLBACK");
+        console.error("Não deu pra decidir o pedido", erro);
+        res.status(500).json({ erro: "Falha na atu da solicitação" });
+    } finally {
+        client.release();
+    }
 });
 
 //solciitação do cliente
@@ -780,18 +824,31 @@ app.post("/api/me/solicitacoes", async (req, res) => {
     const clienteId = res.locals.cliente.id;
     const { titulo, descricao } = req.body ?? {};
 
-    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150) {
-        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+    if (
+        typeof titulo !== "string" ||
+        !titulo.trim() ||
+        titulo.trim().length > 150
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe um título válido de até 150 caracteres." });
         return;
     }
 
-    if (typeof descricao !== "string" || !descricao.trim() || descricao.trim().length > 5000) {
-        res.status(400).json({erro: "Informe uma descrição válida de até 5000 caracteres."});
+    if (
+        typeof descricao !== "string" ||
+        !descricao.trim() ||
+        descricao.trim().length > 5000
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe uma descrição válida de até 5000 caracteres." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             INSERT INTO solicitacoes (cliente_id, titulo, descricao, status)
             VALUES ($1, $2, $3, 'pendente')
             RETURNING
@@ -800,88 +857,88 @@ app.post("/api/me/solicitacoes", async (req, res) => {
                 descricao,
                 status,
                 criada_em AS "criadaEm"
-        `, [clienteId, titulo.trim(), descricao.trim()]);
+        `,
+            [clienteId, titulo.trim(), descricao.trim()],
+        );
 
         res.status(201).json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao criar solicitação do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível criar sua solicitação."});
+        res.status(500).json({ erro: "Não foi possível criar sua solicitação." });
     }
 });
 
 //cadastrar cliente
-app.post("/api/clientes", async(req, res) =>{
+app.post("/api/clientes", async (req, res) => {
     const nome = req.body?.nome;
     const email = req.body?.email;
 
-    if(typeof nome !== "string" || nome.trim().length === 0){
-        res.status(400).json({erro: "Nome é obrigatório"});
+    if (typeof nome !== "string" || nome.trim().length === 0) {
+        res.status(400).json({ erro: "Nome é obrigatório" });
         return;
     }
 
-    if(email != null && typeof email !== "string"){
-        res.status(400).json({erro:"E-mail invalido"});
+    if (email != null && typeof email !== "string") {
+        res.status(400).json({ erro: "E-mail invalido" });
         return;
     }
 
-    const emailTratado = typeof email === "string" && email.trim() ? email.trim() : null;
+    const emailTratado =
+        typeof email === "string" && email.trim() ? email.trim() : null;
 
-    try{
+    try {
         const resultado = await pool.query(
             `INSERT INTO clientes (nome,email)
             VALUES ($1, $2)
             RETURNING id, nome, email`,
-            [nome.trim(), emailTratado]
+            [nome.trim(), emailTratado],
         );
 
         res.status(201).json(resultado.rows[0]);
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro ao cadastrar cliente", erro);
-        res.status(500).json({erro: "Falha ao cadastrar cliente"});
+        res.status(500).json({ erro: "Falha ao cadastrar cliente" });
     }
 });
 
 //atualizar dados do cliente
-app.patch("/api/clientes/:id", async (req,res) => {
+app.patch("/api/clientes/:id", async (req, res) => {
     const id = req.params.id;
     const nome = req.body?.nome;
     const email = req.body?.email;
 
-    if (typeof nome !== "string" || nome.trim().length === 0){
-        res.status(400).json({erro: "Nome obrigatorio"});
+    if (typeof nome !== "string" || nome.trim().length === 0) {
+        res.status(400).json({ erro: "Nome obrigatorio" });
         return;
     }
 
-    if(email != null && typeof email !== "string"){
-        res.status(400).json({erro: "Email invalido"});
+    if (email != null && typeof email !== "string") {
+        res.status(400).json({ erro: "Email invalido" });
         return;
     }
-    
-    const emailTratado = typeof email === "string" && email.trim() ? email.trim() : null;
 
-    try{
+    const emailTratado =
+        typeof email === "string" && email.trim() ? email.trim() : null;
+
+    try {
         const resultado = await pool.query(
             `UPDATE clientes
             SET nome = $1, email = $2
             WHERE id = $3
             Returning id, nome, email`,
-            [nome.trim(), emailTratado, id]
+            [nome.trim(), emailTratado, id],
         );
 
-        if(resultado.rows.length === 0){
-            res.status(404).json({erro:"Clientes não encontra"});
+        if (resultado.rows.length === 0) {
+            res.status(404).json({ erro: "Clientes não encontra" });
             return;
         }
 
         res.json(resultado.rows[0]);
-
-
-    }catch(erro){
+    } catch (erro) {
         console.error("Erro ao editar cliente:", erro);
-        res.status(500).json({erro: "Falha ao editar cliente"});
+        res.status(500).json({ erro: "Falha ao editar cliente" });
     }
-
 });
 
 //criar projeto direto
@@ -891,16 +948,19 @@ app.post("/api/projetos", async (req, res) => {
     const descricao = req.body?.descricao;
 
     if (
-        typeof clienteId !== "string" || clienteId.trim().length === 0 ||
-        typeof titulo !== "string" || titulo.trim().length === 0 ||
-        typeof descricao !== "string" || descricao.trim().length === 0
-    )   {
+        typeof clienteId !== "string" ||
+        clienteId.trim().length === 0 ||
+        typeof titulo !== "string" ||
+        titulo.trim().length === 0 ||
+        typeof descricao !== "string" ||
+        descricao.trim().length === 0
+    ) {
         res.status(400).json({
-        erro: "Cliente, título e descrição são obrigatórios.",
-    });
+            erro: "Cliente, título e descrição são obrigatórios.",
+        });
         return;
     }
-    try{
+    try {
         const resultado = await pool.query(
             `INSERT INTO projetos (cliente_id, titulo, descricao)
             VALUES ($1, $2, $3)
@@ -913,13 +973,13 @@ app.post("/api/projetos", async (req, res) => {
             status,
             criada_em AS "criadaEm",
             atualizada_em AS "atualizadaEm"`,
-            [clienteId,titulo.trim(), descricao.trim()]
+            [clienteId, titulo.trim(), descricao.trim()],
         );
 
         res.status(201).json(resultado.rows[0]);
-    }catch(erro){
+    } catch (erro) {
         console.error("Deu ruim ao criar o projeto", erro);
-        res.status(500).json({erro: "Não deu pra criar o projeto",});
+        res.status(500).json({ erro: "Não deu pra criar o projeto" });
     }
 });
 
@@ -927,7 +987,7 @@ app.post("/api/projetos", async (req, res) => {
 app.patch("/api/projetos/:id/status", async (req, res) => {
     const id = req.params.id;
     const status = req.body?.status;
-    
+
     const statusPermitidos = [
         "planejado",
         "em_andamento",
@@ -953,20 +1013,20 @@ app.patch("/api/projetos/:id/status", async (req, res) => {
             id,
             status,
             atualizada_em AS "atualizadaEm"`,
-            [status, id]
+            [status, id],
         );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Projeto não encontrado.",});
+            res.status(404).json({ erro: "Projeto não encontrado." });
             return;
         }
 
         res.json(resultado.rows[0]);
-        }catch (erro) {
-            console.error("Erro ao atualizar projeto:", erro);
-            res.status(500).json({erro: "Não foi possível atualizar o projeto.",});
-        }
-    });
+    } catch (erro) {
+        console.error("Erro ao atualizar projeto:", erro);
+        res.status(500).json({ erro: "Não foi possível atualizar o projeto." });
+    }
+});
 
 //atualizar projeto por completo
 app.patch("/api/projetos/:id", async (req, res) => {
@@ -974,14 +1034,19 @@ app.patch("/api/projetos/:id", async (req, res) => {
     const titulo = req.body?.titulo;
     const descricao = req.body?.descricao;
 
-    if (typeof titulo !== "string" || titulo.trim().length === 0 ||typeof descricao !== "string" || descricao.trim().length === 0) {
-        res.status(400).json({erro: "Título e descrição são obrigatórios",});
+    if (
+        typeof titulo !== "string" ||
+        titulo.trim().length === 0 ||
+        typeof descricao !== "string" ||
+        descricao.trim().length === 0
+    ) {
+        res.status(400).json({ erro: "Título e descrição são obrigatórios" });
         return;
     }
 
     try {
         const resultado = await pool.query(
-        `UPDATE projetos
+            `UPDATE projetos
         SET
         titulo = $1,
         descricao = $2,
@@ -993,19 +1058,19 @@ app.patch("/api/projetos/:id", async (req, res) => {
         titulo,
         descricao,
         atualizada_em AS "atualizadaEm"`,
-        [titulo.trim(), descricao.trim(), id]
+            [titulo.trim(), descricao.trim(), id],
         );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Projeto não encontrado ou arquivado",});
+            res.status(404).json({ erro: "Projeto não encontrado ou arquivado" });
             return;
         }
 
         res.json(resultado.rows[0]);
-    }catch (erro) {
+    } catch (erro) {
         console.error("Erro ao editar projeto", erro);
 
-        res.status(500).json({erro: "Não foi possível editar o projeto",});
+        res.status(500).json({ erro: "Não foi possível editar o projeto" });
     }
 });
 
@@ -1015,7 +1080,7 @@ app.patch("/api/projetos/:id/arquivar", async (req, res) => {
 
     try {
         const resultado = await pool.query(
-        `UPDATE projetos
+            `UPDATE projetos
         SET arquivada_em = NOW(),
         atualizada_em = NOW()
         WHERE id = $1
@@ -1025,19 +1090,19 @@ app.patch("/api/projetos/:id/arquivar", async (req, res) => {
         status,
         arquivada_em AS "arquivadaEm",
         atualizada_em AS "atualizadaEm"`,
-        [id]
-    );
+            [id],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Projeto não encontrado ou já arquivado",});
-            return; 
+            res.status(404).json({ erro: "Projeto não encontrado ou já arquivado" });
+            return;
         }
 
         res.json(resultado.rows[0]);
     } catch (erro) {
         console.error("Erro ao arquivar projeto", erro);
 
-        res.status(500).json({erro: "Não foi possível arquivar o projeto",});
+        res.status(500).json({ erro: "Não foi possível arquivar o projeto" });
     }
 });
 
@@ -1047,7 +1112,7 @@ app.patch("/api/projetos/:id/restaurar", async (req, res) => {
 
     try {
         const resultado = await pool.query(
-        `UPDATE projetos
+            `UPDATE projetos
         SET arquivada_em = NULL,
         atualizada_em = NOW()
         WHERE id = $1
@@ -1057,19 +1122,21 @@ app.patch("/api/projetos/:id/restaurar", async (req, res) => {
         status,
         arquivada_em AS "arquivadaEm",
         atualizada_em AS "atualizadaEm"`,
-        [id]
+            [id],
         );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Projeto não encontrado ou não está arquivado.",});
+            res
+                .status(404)
+                .json({ erro: "Projeto não encontrado ou não está arquivado." });
             return;
         }
 
         res.json(resultado.rows[0]);
-    }catch (erro) {
+    } catch (erro) {
         console.error("Erro ao restaurar projeto:", erro);
 
-        res.status(500).json({erro: "Não foi possível restaurar o projeto.",});
+        res.status(500).json({ erro: "Não foi possível restaurar o projeto." });
     }
 });
 
@@ -1080,11 +1147,17 @@ app.post("/api/convites", async (req, res) => {
     const validadeHoras = req.body?.validadeHoras ?? 48;
 
     if (![24, 48, 168].includes(validadeHoras)) {
-        res.status(400).json({erro: "Prazo de validade inválido."});
+        res.status(400).json({ erro: "Prazo de validade inválido." });
         return;
     }
 
-    if (clienteId !== null && (typeof clienteId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId))) {
+    if (
+        clienteId !== null &&
+        (typeof clienteId !== "string" ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                clienteId,
+            ))
+    ) {
         res.status(400).json({ erro: "ID do cliente inválido." });
         return;
     }
@@ -1095,7 +1168,7 @@ app.post("/api/convites", async (req, res) => {
                 `SELECT id, usuario_id
                 FROM clientes
                 WHERE id = $1`,
-                [clienteId]
+                [clienteId],
             );
 
             if (cliente.rows.length === 0) {
@@ -1104,7 +1177,9 @@ app.post("/api/convites", async (req, res) => {
             }
 
             if (cliente.rows[0].usuario_id !== null) {
-                res.status(409).json({ erro: "Este cliente já possui uma conta vinculada." });
+                res
+                    .status(409)
+                    .json({ erro: "Este cliente já possui uma conta vinculada." });
                 return;
             }
         }
@@ -1119,11 +1194,10 @@ app.post("/api/convites", async (req, res) => {
             cliente_id AS "clienteId",
             criado_em AS "criadoEm",
             expira_em AS "expiraEm"`,
-            [clienteId, token, validadeHoras]
+            [clienteId, token, validadeHoras],
         );
 
         res.status(201).json({ ...resultado.rows[0], token });
-
     } catch (erro) {
         console.error("Erro ao gerar convite", erro);
         res.status(500).json({ erro: "Não foi possível gerar o convite" });
@@ -1134,13 +1208,16 @@ app.post("/api/convites", async (req, res) => {
 app.patch("/api/convites/:id/revogar", async (req, res) => {
     const id = req.params.id;
 
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
         res.status(400).json({ erro: "ID do convite inválido." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             UPDATE convites
             SET revogado_em = NOW()
             WHERE id = $1
@@ -1151,15 +1228,20 @@ app.patch("/api/convites/:id/revogar", async (req, res) => {
             RETURNING
                 id,
                 revogado_em AS "revogadoEm"
-        `, [id]);
+        `,
+            [id],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(409).json({ erro: "Convite não encontrado ou indisponível para revogação." });
+            res
+                .status(409)
+                .json({
+                    erro: "Convite não encontrado ou indisponível para revogação.",
+                });
             return;
         }
 
         res.json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao revogar convite:", erro);
         res.status(500).json({ erro: "Não foi possível revogar o convite." });
@@ -1170,7 +1252,9 @@ app.patch("/api/convites/:id/revogar", async (req, res) => {
 app.delete("/api/convites/:id", async (req, res) => {
     const id = req.params.id;
 
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
         res.status(400).json({ erro: "ID do convite inválido" });
         return;
     }
@@ -1178,7 +1262,7 @@ app.delete("/api/convites/:id", async (req, res) => {
     try {
         const resultado = await pool.query(
             `DELETE FROM convites WHERE id = $1 RETURNING id`,
-            [id]
+            [id],
         );
 
         if (resultado.rowCount === 0) {
@@ -1187,7 +1271,6 @@ app.delete("/api/convites/:id", async (req, res) => {
         }
 
         res.status(204).end();
-
     } catch (erro) {
         console.error("Erro ao excluir convite:", erro);
         res.status(500).json({ erro: "Não foi possível excluir o convite" });
@@ -1200,22 +1283,28 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
     const { nome, email, senha } = req.body ?? {};
 
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
-        res.status(404).json({erro: "Convite não encontrado."});
+        res.status(404).json({ erro: "Convite não encontrado." });
         return;
     }
 
     if (typeof nome !== "string" || !nome.trim() || nome.length > 150) {
-        res.status(400).json({erro: "Informe um nome válido."});
+        res.status(400).json({ erro: "Informe um nome válido." });
         return;
     }
 
-    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 254) {
-        res.status(400).json({erro: "Informe um e-mail válido."});
+    if (
+        typeof email !== "string" ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+        email.length > 254
+    ) {
+        res.status(400).json({ erro: "Informe um e-mail válido." });
         return;
     }
 
     if (typeof senha !== "string" || senha.length < 8 || senha.length > 128) {
-        res.status(400).json({erro: "A senha deve possuir entre 8 e 128 caracteres."});
+        res
+            .status(400)
+            .json({ erro: "A senha deve possuir entre 8 e 128 caracteres." });
         return;
     }
 
@@ -1223,8 +1312,7 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
 
     try {
         await dbCadastro.transaction().execute(async (trx) => {
-
-            const resultado = await sql<{id: string; cliente_id: string | null}>`
+            const resultado = await sql<{ id: string; cliente_id: string | null }>`
                 SELECT id, cliente_id
                 FROM convites
                 WHERE token = ${token}
@@ -1242,7 +1330,10 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
             let nomeUsuario = nome.trim();
 
             if (clienteId) {
-                const resultadoCliente = await sql<{nome: string; usuario_id: string | null}>`
+                const resultadoCliente = await sql<{
+                    nome: string;
+                    usuario_id: string | null;
+                }>`
                     SELECT nome, usuario_id
                     FROM clientes
                     WHERE id = ${clienteId}
@@ -1252,7 +1343,8 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
                 const cliente = resultadoCliente.rows[0];
 
                 if (!cliente) throw new ErroCadastro(404, "Cliente não encontrado.");
-                if (cliente.usuario_id !== null) throw new ErroCadastro(409, "Este cliente já possui acesso.");
+                if (cliente.usuario_id !== null)
+                    throw new ErroCadastro(409, "Este cliente já possui acesso.");
 
                 nomeUsuario = cliente.nome;
             }
@@ -1264,12 +1356,15 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
             `.execute(trx);
 
             if (emailExistente.rows.length > 0) {
-                throw new ErroCadastro(409, "Este e-mail já está associado a uma conta.");
+                throw new ErroCadastro(
+                    409,
+                    "Este e-mail já está associado a uma conta.",
+                );
             }
 
             const authCadastro = betterAuth({
                 ...auth.options,
-                database: {db: trx, type: "postgres", transaction: false},
+                database: { db: trx, type: "postgres", transaction: false },
                 advanced: {
                     database: {
                         validateSchema: false,
@@ -1293,9 +1388,8 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
                         email = ${emailNormalizado}
                     WHERE id = ${clienteId}
                 `.execute(trx);
-
             } else {
-                const novoCliente = await sql<{id: string}>`
+                const novoCliente = await sql<{ id: string }>`
                     INSERT INTO clientes (nome, email, usuario_id)
                     VALUES (${nomeUsuario}, ${emailNormalizado}, ${user.id})
                     RETURNING id
@@ -1321,21 +1415,25 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
             }
         });
 
-        res.status(201).json({mensagem: "Conta criada com sucesso."});
-
+        res.status(201).json({ mensagem: "Conta criada com sucesso." });
     } catch (erro) {
         if (erro instanceof ErroCadastro) {
-            res.status(erro.status).json({erro: erro.message});
+            res.status(erro.status).json({ erro: erro.message });
             return;
         }
 
-        if (typeof erro === "object" && erro !== null && "code" in erro && erro.code === "23505") {
-            res.status(409).json({erro: "Já existe um cadastro conflitante."});
+        if (
+            typeof erro === "object" &&
+            erro !== null &&
+            "code" in erro &&
+            erro.code === "23505"
+        ) {
+            res.status(409).json({ erro: "Já existe um cadastro conflitante." });
             return;
         }
 
         console.error("Falha na aceitação do convite.", erro);
-        res.status(500).json({erro: "Não foi possível concluir o cadastro."});
+        res.status(500).json({ erro: "Não foi possível concluir o cadastro." });
     }
 });
 
@@ -1343,35 +1441,47 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
 app.post("/api/conversas", async (req, res) => {
     const { clienteId, projetoId, titulo, tipo } = req.body ?? {};
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (typeof clienteId !== "string" || !uuidValido.test(clienteId)) {
-        res.status(400).json({erro: "Cliente inválido."});
+        res.status(400).json({ erro: "Cliente inválido." });
         return;
     }
 
     if (tipo !== "avulsa" && tipo !== "projeto") {
-        res.status(400).json({erro: "Tipo de conversa inválido."});
+        res.status(400).json({ erro: "Tipo de conversa inválido." });
         return;
     }
 
-    if (tipo === "projeto" && (typeof projetoId !== "string" || !uuidValido.test(projetoId))) {
-        res.status(400).json({erro: "Informe um projeto válido."});
+    if (
+        tipo === "projeto" &&
+        (typeof projetoId !== "string" || !uuidValido.test(projetoId))
+    ) {
+        res.status(400).json({ erro: "Informe um projeto válido." });
         return;
     }
 
     if (tipo === "avulsa" && projetoId != null) {
-        res.status(400).json({erro: "Uma conversa avulsa não deve possuir um projeto."});
+        res
+            .status(400)
+            .json({ erro: "Uma conversa avulsa não deve possuir um projeto." });
         return;
     }
 
-    if (tipo === "avulsa" && (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150)) {
-        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+    if (
+        tipo === "avulsa" &&
+        (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150)
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe um título válido de até 150 caracteres." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             INSERT INTO conversas (cliente_id, projeto_id, titulo, tipo)
             SELECT
                 cl.id,
@@ -1395,28 +1505,34 @@ app.post("/api/conversas", async (req, res) => {
                 titulo,
                 tipo,
                 criada_em AS "criadaEm"
-        `, [
-            clienteId,
-            tipo === "projeto" ? projetoId : null,
-            tipo,
-            tipo === "avulsa" ? titulo.trim() : null
-        ]);
+        `,
+            [
+                clienteId,
+                tipo === "projeto" ? projetoId : null,
+                tipo,
+                tipo === "avulsa" ? titulo.trim() : null,
+            ],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Cliente ou projeto indisponível."});
+            res.status(404).json({ erro: "Cliente ou projeto indisponível." });
             return;
         }
 
         res.status(201).json(resultado.rows[0]);
-
     } catch (erro) {
-        if (typeof erro === "object" && erro !== null && "code" in erro && erro.code === "23505") {
-            res.status(409).json({erro: "Este projeto já possui uma conversa."});
+        if (
+            typeof erro === "object" &&
+            erro !== null &&
+            "code" in erro &&
+            erro.code === "23505"
+        ) {
+            res.status(409).json({ erro: "Este projeto já possui uma conversa." });
             return;
         }
 
         console.error("Erro ao criar conversa:", erro);
-        res.status(500).json({erro: "Não foi possível criar a conversa."});
+        res.status(500).json({ erro: "Não foi possível criar a conversa." });
     }
 });
 
@@ -1425,20 +1541,28 @@ app.patch("/api/conversas/:id", async (req, res) => {
     const { id } = req.params;
     const { titulo } = req.body ?? {};
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
-    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150) {
-        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+    if (
+        typeof titulo !== "string" ||
+        !titulo.trim() ||
+        titulo.trim().length > 150
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe um título válido de até 150 caracteres." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             UPDATE conversas
             SET titulo = $2
             WHERE id = $1
@@ -1451,18 +1575,21 @@ app.patch("/api/conversas/:id", async (req, res) => {
                 titulo,
                 tipo,
                 criada_em AS "criadaEm"
-        `, [id, titulo.trim()]);
+        `,
+            [id, titulo.trim()],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Conversa não encontrada ou indisponível para edição."});
+            res
+                .status(404)
+                .json({ erro: "Conversa não encontrada ou indisponível para edição." });
             return;
         }
 
         res.json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao renomear conversa:", erro);
-        res.status(500).json({erro: "Não foi possível renomear a conversa."});
+        res.status(500).json({ erro: "Não foi possível renomear a conversa." });
     }
 });
 
@@ -1471,15 +1598,22 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
     const { conteudo } = req.body ?? {};
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
-    if (typeof conteudo !== "string" || !conteudo.trim() || conteudo.trim().length > 5000) {
-        res.status(400).json({erro: "Informe uma mensagem válida de até 5000 caracteres."});
+    if (
+        typeof conteudo !== "string" ||
+        !conteudo.trim() ||
+        conteudo.trim().length > 5000
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe uma mensagem válida de até 5000 caracteres." });
         return;
     }
 
@@ -1489,11 +1623,12 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
         });
 
         if (!sessao) {
-            res.status(401).json({erro: "Sessão indisponível."});
+            res.status(401).json({ erro: "Sessão indisponível." });
             return;
         }
 
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             WITH conversa_disponivel AS (
                 SELECT id
                 FROM conversas
@@ -1513,19 +1648,34 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
                 id,
                 remetente_tipo AS "remetenteTipo",
                 conteudo,
-                enviada_em AS "enviadaEm"
-        `, [id, sessao.user.id, conteudo.trim()]);
+                to_char(enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "enviadaEm"
+        `,
+            [id, sessao.user.id, conteudo.trim()],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Conversa inexistente ou arquivada."});
+            const estado = await pool.query(`
+                SELECT arquivada_em AS "arquivadaEm"
+                FROM conversas
+                WHERE id = $1
+            `, [id]);
+
+            if (estado.rows[0]?.arquivadaEm) {
+                res.status(409).json({
+                    erro: "Esta conversa foi arquivada e está disponível somente para consulta.",
+                    codigo: "CONVERSA_ARQUIVADA",
+                });
+                return;
+            }
+
+            res.status(404).json({ erro: "Conversa não encontrada ou indisponível." });
             return;
         }
 
         res.status(201).json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao enviar mensagem:", erro);
-        res.status(500).json({erro: "Não foi possível enviar a mensagem."});
+        res.status(500).json({ erro: "Não foi possível enviar a mensagem." });
     }
 });
 
@@ -1533,33 +1683,38 @@ app.post("/api/conversas/:id/mensagens", async (req, res) => {
 app.patch("/api/conversas/:id/arquivar", async (req, res) => {
     const { id } = req.params;
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             UPDATE conversas
             SET arquivada_em = NOW()
             WHERE id = $1
                 AND tipo <> 'geral'
                 AND arquivada_em IS NULL
             RETURNING id, arquivada_em AS "arquivadaEm"
-        `, [id]);
+        `,
+            [id],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Conversa indisponível para arquivamento."});
+            res
+                .status(404)
+                .json({ erro: "Conversa indisponível para arquivamento." });
             return;
         }
 
         res.json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao arquivar conversa:", erro);
-        res.status(500).json({erro: "Não foi possível arquivar a conversa."});
+        res.status(500).json({ erro: "Não foi possível arquivar a conversa." });
     }
 });
 
@@ -1567,33 +1722,36 @@ app.patch("/api/conversas/:id/arquivar", async (req, res) => {
 app.patch("/api/conversas/:id/restaurar", async (req, res) => {
     const { id } = req.params;
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
     try {
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             UPDATE conversas
             SET arquivada_em = NULL
             WHERE id = $1
                 AND tipo <> 'geral'
                 AND arquivada_em IS NOT NULL
             RETURNING id, arquivada_em AS "arquivadaEm"
-        `, [id]);
+        `,
+            [id],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Conversa indisponível para restauração."});
+            res.status(404).json({ erro: "Conversa indisponível para restauração." });
             return;
         }
 
         res.json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao restaurar conversa:", erro);
-        res.status(500).json({erro: "Não foi possível restaurar a conversa."});
+        res.status(500).json({ erro: "Não foi possível restaurar a conversa." });
     }
 });
 
@@ -1603,15 +1761,22 @@ app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
     const { conteudo } = req.body ?? {};
     const cliente = res.locals.cliente;
 
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidValido =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidValido.test(id)) {
-        res.status(400).json({erro: "Conversa inválida."});
+        res.status(400).json({ erro: "Conversa inválida." });
         return;
     }
 
-    if (typeof conteudo !== "string" || !conteudo.trim() || conteudo.trim().length > 5000) {
-        res.status(400).json({erro: "Informe uma mensagem válida de até 5000 caracteres."});
+    if (
+        typeof conteudo !== "string" ||
+        !conteudo.trim() ||
+        conteudo.trim().length > 5000
+    ) {
+        res
+            .status(400)
+            .json({ erro: "Informe uma mensagem válida de até 5000 caracteres." });
         return;
     }
 
@@ -1621,11 +1786,12 @@ app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
         });
 
         if (!sessao) {
-            res.status(401).json({erro: "Sessão indisponível."});
+            res.status(401).json({ erro: "Sessão indisponível." });
             return;
         }
 
-        const resultado = await pool.query(`
+        const resultado = await pool.query(
+            `
             WITH conversa_disponivel AS (
                 SELECT id
                 FROM conversas
@@ -1646,24 +1812,38 @@ app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
                 id,
                 remetente_tipo AS "remetenteTipo",
                 conteudo,
-                enviada_em AS "enviadaEm"
-        `, [id, cliente.id, sessao.user.id, conteudo.trim()]);
+                to_char(enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "enviadaEm"
+        `,
+            [id, cliente.id, sessao.user.id, conteudo.trim()],
+        );
 
         if (resultado.rows.length === 0) {
-            res.status(404).json({erro: "Conversa não encontrada ou indisponível."});
+            const estado = await pool.query(`
+                SELECT arquivada_em AS "arquivadaEm"
+                FROM conversas
+                WHERE id = $1 AND cliente_id = $2
+            `, [id, cliente.id]);
+
+            if (estado.rows[0]?.arquivadaEm) {
+                res.status(409).json({
+                    erro: "Esta conversa foi arquivada e está disponível somente para consulta.",
+                    codigo: "CONVERSA_ARQUIVADA",
+                });
+                return;
+            }
+
+            res.status(404).json({ erro: "Conversa não encontrada ou indisponível." });
             return;
         }
 
         res.status(201).json(resultado.rows[0]);
-
     } catch (erro) {
         console.error("Erro ao enviar mensagem do cliente:", erro);
-        res.status(500).json({erro: "Não foi possível enviar a mensagem."});
+        res.status(500).json({ erro: "Não foi possível enviar a mensagem." });
     }
 });
 
 //acesso a API
-app.listen(3001, () =>{
+app.listen(3001, () => {
     console.log("api disponivel na porta: http://localhost:3001");
-    
-})
+});

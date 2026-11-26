@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Grid, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
+import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 
 type Conversa = {
     id: string;
@@ -38,10 +39,6 @@ export function Mensagens() {
     const [expandidos, setExpandidos] = useState<string[]>([]);
     const [conversaId, setConversaId] = useState<string | null>(null);
 
-    const clientesFiltrados = clientes.filter((cliente) =>
-        cliente.clienteNome.toLowerCase().includes(busca.trim().toLowerCase()),
-    );
-
     const clienteSelecionado = clientes.find((cliente) =>
         cliente.conversas.some((conversa) => conversa.id === conversaId),
     );
@@ -54,42 +51,47 @@ export function Mensagens() {
         null,
     );
     const [conversaEdicao, setConversaEdicao] = useState<Conversa | null>(null);
-    const [arquivadas, setArquivadas] = useState(false);
+    const [abaArquivadas, setAbaArquivadas] = useState(false);
+    const arquivadas = conversaSelecionada ? !!conversaSelecionada.arquivadaEm : abaArquivadas;
+    const revisao = useRef(0);
+
+    const clientesFiltrados = clientes.map(cliente => ({
+        ...cliente,
+        conversas: cliente.conversas.filter(conversa => !!conversa.arquivadaEm === arquivadas),
+    })).filter(cliente =>
+        (!arquivadas || cliente.conversas.length > 0) &&
+        cliente.clienteNome.toLowerCase().includes(busca.trim().toLowerCase())
+    );
     const [conversaArquivo, setConversaArquivo] = useState<{
         conversa: Conversa;
         acao: "arquivar" | "restaurar";
     } | null>(null);
 
-    useEffect(() => {
-        const controller = new AbortController();
+    const carregarConversas = useCallback(async (signal: AbortSignal) => {
+        const versao = revisao.current;
 
-        async function carregarConversas() {
-            try {
-                const resposta = await fetch(
-                    `/api/conversas?arquivadas=${arquivadas}`,
-                    { signal: controller.signal },
-                );
-                const dados = await resposta.json();
+        try {
+            const resposta = await fetch("/api/conversas?todas=true", {signal, cache: "no-store"});
+            const dados = await resposta.json();
 
-                if (!resposta.ok)
-                    throw new Error(dados.erro ?? "Erro ao carregar conversas.");
-
-                if (!controller.signal.aborted) setClientes(dados);
-            } catch (erroRecebido) {
-                if (!controller.signal.aborted)
-                    setErro(
-                        erroRecebido instanceof Error
-                            ? erroRecebido.message
-                            : "Falha ao carregar conversas.",
-                    );
-            } finally {
-                if (!controller.signal.aborted) setCarregando(false);
+            if (!resposta.ok) {
+                if (!signal.aborted && versao === revisao.current && [401, 403].includes(resposta.status)) setClientes([]);
+                throw new Error(dados.erro ?? "Erro ao carregar conversas.");
             }
-        }
+            if (!Array.isArray(dados)) throw new Error("Resposta de conversas inválida.");
 
-        void carregarConversas();
-        return () => controller.abort();
-    }, [arquivadas]);
+            if (!signal.aborted && versao === revisao.current) {
+                setClientes(dados);
+                setErro(null);
+            }
+        } catch (erroRecebido) {
+            if (!signal.aborted && versao === revisao.current) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao atualizar conversas.");
+        } finally {
+            if (!signal.aborted) setCarregando(false);
+        }
+    }, []);
+
+    const atualizarConversas = useAtualizacaoPeriodica(carregarConversas, 10000);
 
     function alternarCliente(clienteId: string) {
         setExpandidos((anteriores) =>
@@ -99,6 +101,7 @@ export function Mensagens() {
         );
     }
     function adicionarConversa(clienteId: string, conversa: Conversa) {
+        revisao.current++;
         setClientes((anteriores) =>
             anteriores.map((cliente) =>
                 cliente.clienteId === clienteId
@@ -107,7 +110,7 @@ export function Mensagens() {
                         conversas: [
                             ...cliente.conversas.filter((c) => c.tipo === "geral"),
                             conversa,
-                            ...cliente.conversas.filter((c) => c.tipo !== "geral"),
+                            ...cliente.conversas.filter((c) => c.tipo !== "geral" && c.id !== conversa.id),
                         ],
                     }
                     : cliente,
@@ -120,8 +123,10 @@ export function Mensagens() {
 
         setConversaId(conversa.id);
         setClienteCriacao(null);
+        atualizarConversas();
     }
     function atualizarTitulo(conversaId: string, titulo: string) {
+        revisao.current++;
         setClientes((anteriores) =>
             anteriores.map((cliente) => ({
                 ...cliente,
@@ -132,19 +137,22 @@ export function Mensagens() {
         );
 
         setConversaEdicao(null);
+        atualizarConversas();
     }
 
-    function concluirArquivamento(id: string) {
-        setClientes((anteriores) =>
-            anteriores
-                .map((cliente) => ({
-                    ...cliente,
-                    conversas: cliente.conversas.filter((conversa) => conversa.id !== id),
-                }))
-                .filter((cliente) => !arquivadas || cliente.conversas.length > 0),
-        );
+    function atualizarEstado(id: string, arquivadaEm: string | null) {
+        revisao.current++;
+        setClientes(anteriores => anteriores.map(cliente => ({
+            ...cliente,
+            conversas: cliente.conversas.map(conversa =>
+                conversa.id === id ? {...conversa, arquivadaEm} : conversa
+            ),
+        })));
+        atualizarConversas();
+    }
 
-        setConversaId((anterior) => (anterior === id ? null : anterior));
+    function concluirArquivamento(id: string, arquivadaEm: string | null) {
+        atualizarEstado(id, arquivadaEm);
         setConversaArquivo(null);
     }
 
@@ -153,12 +161,8 @@ export function Mensagens() {
 
         if (mostrarArquivadas === arquivadas) return;
 
-        setArquivadas(mostrarArquivadas);
+        setAbaArquivadas(mostrarArquivadas);
         setConversaId(null);
-        setExpandidos([]);
-        setClientes([]);
-        setErro(null);
-        setCarregando(true);
     }
 
     return (
@@ -189,7 +193,7 @@ export function Mensagens() {
                     conversa={conversaArquivo.conversa}
                     acao={conversaArquivo.acao}
                     onClose={() => setConversaArquivo(null)}
-                    onConcluido={() => concluirArquivamento(conversaArquivo.conversa.id)}
+                    onConcluido={arquivadaEm => concluirArquivamento(conversaArquivo.conversa.id, arquivadaEm)}
                 />
             )}
 
@@ -262,7 +266,7 @@ export function Mensagens() {
                                                     color="gray"
                                                     mt="xs"
                                                     aria-label={`Criar conversa para ${cliente.clienteNome}`}
-                                                    onClick={() => setClienteCriacao(cliente)}
+                                                    onClick={() => setClienteCriacao(clientes.find(c => c.clienteId === cliente.clienteId) ?? cliente)}
                                                 >
                                                     +
                                                 </ActionIcon>
@@ -292,6 +296,7 @@ export function Mensagens() {
                                             {tipoConversa[conversaSelecionada.tipo].label}
                                         </Badge>
 
+                                        {conversaSelecionada.arquivadaEm && <Badge color="gray">Arquivada</Badge>}
                                         {conversaSelecionada.tipo !== "geral" && (
                                             <Menu shadow="md" width={200} position="bottom-end">
                                                 <Menu.Target>
@@ -350,7 +355,8 @@ export function Mensagens() {
                                 <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
-                                    arquivada={arquivadas}
+                                    arquivada={!!conversaSelecionada.arquivadaEm}
+                                    onAtualizarConversas={atualizarConversas}
                                 />
                             </Stack>
                         ) : (
@@ -649,7 +655,7 @@ function AlterarArquivamento({
     conversa: Conversa;
     acao: "arquivar" | "restaurar";
     onClose: () => void;
-    onConcluido: () => void;
+    onConcluido: (arquivadaEm: string | null) => void;
 }) {
     const [enviando, setEnviando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
@@ -674,7 +680,8 @@ function AlterarArquivamento({
                 );
             }
 
-            onConcluido();
+            const dados = await resposta.json();
+            onConcluido(dados.arquivadaEm);
         } catch (erroRecebido) {
             setErro(
                 erroRecebido instanceof Error

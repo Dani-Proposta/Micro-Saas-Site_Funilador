@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { Alert, Box, Button, Center, Divider, Group, Loader, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
 
 type Mensagem = {
@@ -9,13 +10,26 @@ type Mensagem = {
     enviadaEm: string;
 };
 
+// As datas retornadas pela API são UTC com seis dígitos de precisão.
+function unirMensagens(anteriores: Mensagem[], novas: Mensagem[]) {
+    const unicas = new Map(anteriores.map(mensagem => [mensagem.id, mensagem]));
+    for (const mensagem of novas) unicas.set(mensagem.id, mensagem);
+
+    return Array.from(unicas.values()).sort((a, b) =>
+        a.enviadaEm < b.enviadaEm ? -1 :
+        a.enviadaEm > b.enviadaEm ? 1 :
+        a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    );
+}
+
 type HistoricoProps = {
     conversaId: string;
     arquivada?: boolean;
     lado?: "admin" | "cliente";
+    onAtualizarConversas?: () => void;
 };
 
-export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin"}: HistoricoProps) {
+export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin", onAtualizarConversas}: HistoricoProps) {
 
     const [mensagens, setMensagens] = useState<Mensagem[]>([]);
     const [carregando, setCarregando] = useState(true);
@@ -24,36 +38,64 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     const [conteudo, setConteudo] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+    const [arquivadaServidor, setArquivadaServidor] = useState(false);
+    const revisao = useRef(0);
+    const somenteLeitura = arquivada || arquivadaServidor;
 
     const endpoint = lado === "admin"
         ? `/api/conversas/${conversaId}/mensagens`
         : `/api/me/conversas/${conversaId}/mensagens`;
 
-    useEffect(() => {
-        const controller = new AbortController();
+    const carregarMensagens = useCallback(async (signal: AbortSignal) => {
+        const versao = revisao.current;
 
-        async function carregarMensagens() {
-            try {
-                const resposta = await fetch(endpoint, {signal: controller.signal});
-                const dados = await resposta.json();
+        try {
+            const resposta = await fetch(`${endpoint}?estado=true`, {signal, cache: "no-store"});
+            const dados = await resposta.json();
 
-                if (!resposta.ok) throw new Error(dados.erro ?? "Erro ao carregar mensagens.");
+            if (signal.aborted || versao !== revisao.current) return;
 
-                if (!controller.signal.aborted) setMensagens(dados);
-
-            } catch (erroRecebido) {
-                if (!controller.signal.aborted) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao carregar mensagens.");
-            } finally {
-                if (!controller.signal.aborted) setCarregando(false);
+            if (!resposta.ok) {
+                if ([401, 403, 404].includes(resposta.status)) {
+                    setMensagens([]);
+                    onAtualizarConversas?.();
+                }
+                throw new Error(dados.erro ?? "Erro ao carregar mensagens.");
             }
-        }
 
-        void carregarMensagens();
-        return () => controller.abort();
-    }, [endpoint]);
+            if (!Array.isArray(dados.mensagens) || !(dados.arquivadaEm === null || typeof dados.arquivadaEm === "string")) {
+                throw new Error("Resposta de histórico inválida.");
+            }
+
+            const recebidas: Mensagem[] = dados.mensagens;
+            const estadoArquivada = !!dados.arquivadaEm;
+
+            setMensagens(anteriores => {
+                // Se a janela inteira mudou, não apresente um histórico com lacunas.
+                // O carregamento de mensagens antigas será implementado na paginação.
+                if (anteriores.length && recebidas.length && !recebidas.some(m => anteriores.some(a => a.id === m.id))) {
+                    return recebidas;
+                }
+
+                return unirMensagens(anteriores, recebidas);
+            });
+
+            setArquivadaServidor(estadoArquivada);
+            setErro(null);
+
+            if (estadoArquivada !== arquivada) onAtualizarConversas?.();
+
+        } catch (erroRecebido) {
+            if (!signal.aborted && versao === revisao.current) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao atualizar mensagens.");
+        } finally {
+            if (!signal.aborted) setCarregando(false);
+        }
+    }, [endpoint, arquivada, onAtualizarConversas]);
+
+    const atualizarMensagens = useAtualizacaoPeriodica(carregarMensagens, 5000);
 
     async function enviarMensagem() {
-        if (arquivada || enviando || carregando || erro || !conteudo.trim()) return;
+        if (somenteLeitura || enviando || carregando || erro || !conteudo.trim()) return;
 
         setEnviando(true);
         setErroEnvio(null);
@@ -67,10 +109,21 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
 
             const dados = await resposta.json();
 
-            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível enviar a mensagem.");
+            if (!resposta.ok) {
+                if (resposta.status === 409 && dados.codigo === "CONVERSA_ARQUIVADA") {
+                    revisao.current++;
+                    setArquivadaServidor(true);
+                    onAtualizarConversas?.();
+                    atualizarMensagens();
+                    return;
+                }
+                throw new Error(dados.erro ?? "Não foi possível enviar a mensagem.");
+            }
 
-            setMensagens(anteriores => [...anteriores, dados]);
+            revisao.current++;
+            setMensagens(anteriores => unirMensagens(anteriores, [dados]));
             setConteudo("");
+            atualizarMensagens();
 
         } catch (erroRecebido) {
             setErroEnvio(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao enviar mensagem.");
@@ -105,10 +158,10 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
 
             <Divider/>
 
-            {erroEnvio && <Alert color="red">{erroEnvio}</Alert>}
+            {erroEnvio && !somenteLeitura && <Alert color="red">{erroEnvio}</Alert>}
 
-            {arquivada ? (
-                <Alert color="gray">Esta conversa está arquivada e disponível somente para consulta.</Alert>
+            {somenteLeitura ? (
+                <Alert color="gray" title="Conversa arquivada">{lado === "cliente" ? "Esta conversa foi arquivada pela administração. Você pode consultar o histórico, mas não enviar novas mensagens." : "Esta conversa está arquivada e disponível somente para consulta."}</Alert>
             ) : (
                 <form onSubmit={evento => {
                     evento.preventDefault();
