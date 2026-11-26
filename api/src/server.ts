@@ -2026,11 +2026,29 @@ for (const lado of ["admin", "cliente"] as const) {
         try {
             const resultado = await pool.query(`
                 WITH eventos AS (
-                    SELECT n.*, l.notificacao_id IS NULL AS nao_lida,
+                    SELECT n.*, (
+                        l.notificacao_id IS NULL AND CASE
+                            WHEN n.tipo <> 'mensagem' THEN TRUE
+                            WHEN n.mensagem_id IS NOT NULL THEN NOT EXISTS (
+                                SELECT 1 FROM mensagens_leituras ml
+                                WHERE ml.mensagem_id = n.mensagem_id AND ml.usuario_id = $3
+                            )
+                            ELSE EXISTS (
+                                -- Eventos anteriores à migração não possuem ID exato.
+                                -- Conservador: só baixam quando as mensagens recebidas até o evento forem lidas.
+                                SELECT 1 FROM mensagens m
+                                WHERE m.conversa_id = n.referencia_id
+                                    AND m.remetente_tipo = CASE WHEN n.publico = 'admin' THEN 'cliente' ELSE 'admin' END
+                                    AND m.enviada_em <= n.criada_em
+                                    AND NOT EXISTS (SELECT 1 FROM mensagens_leituras ml WHERE ml.mensagem_id = m.id AND ml.usuario_id = $3)
+                            )
+                        END
+                    ) AS nao_lida,
                         CASE WHEN n.tipo = 'mensagem' THEN 'm:' || n.referencia_id::text ELSE 'e:' || n.id::text END AS grupo
                     FROM notificacoes n
                     LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
                     WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
+                        AND l.ocultada_em IS NULL
                 ), agrupadas AS (
                     SELECT *, (COUNT(*) FILTER (WHERE nao_lida) OVER (PARTITION BY grupo))::int AS quantidade,
                         ROW_NUMBER() OVER (PARTITION BY grupo ORDER BY criada_em DESC, id DESC) AS ordem
@@ -2052,6 +2070,29 @@ for (const lado of ["admin", "cliente"] as const) {
         }
     });
 
+    // Limpa a central somente para o usuário autenticado, incluindo eventos não lidos.
+    app.delete(prefixo, async (_req, res) => {
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
+        try {
+            const resultado = await pool.query(`
+                INSERT INTO notificacoes_leituras (notificacao_id, usuario_id, ocultada_em)
+                SELECT n.id, $3, clock_timestamp()
+                FROM notificacoes n
+                LEFT JOIN notificacoes_leituras l ON l.notificacao_id = n.id AND l.usuario_id = $3
+                WHERE n.publico = $1 AND ($2::uuid IS NULL OR n.cliente_id = $2)
+                    AND l.ocultada_em IS NULL
+                ON CONFLICT (notificacao_id, usuario_id) DO UPDATE
+                    SET ocultada_em = EXCLUDED.ocultada_em
+                    WHERE notificacoes_leituras.ocultada_em IS NULL
+                RETURNING notificacao_id
+            `, [lado, clienteId, res.locals.usuarioId]);
+            res.json({limpas: resultado.rowCount ?? 0});
+        } catch (erro) {
+            console.error("Erro ao limpar notificações:", erro);
+            res.status(500).json({erro: "Não foi possível limpar as notificações."});
+        }
+    });
+
     app.post(`${prefixo}/leituras`, async (req, res) => {
         const {id, todas} = req.body ?? {};
         const marcarTodas = todas === true;
@@ -2064,7 +2105,8 @@ for (const lado of ["admin", "cliente"] as const) {
             // Novas mensagens posteriores à âncora não são marcadas por este clique.
             const resultado = await pool.query(`
                 WITH autorizadas AS (
-                    SELECT * FROM notificacoes WHERE publico = $1 AND ($2::uuid IS NULL OR cliente_id = $2)
+                    SELECT n.* FROM notificacoes n WHERE publico = $1 AND ($2::uuid IS NULL OR cliente_id = $2)
+                        AND NOT EXISTS (SELECT 1 FROM notificacoes_leituras l WHERE l.notificacao_id = n.id AND l.usuario_id = $3 AND l.ocultada_em IS NOT NULL)
                 ), ancora AS (
                     SELECT * FROM autorizadas WHERE id = $4::uuid
                 ), gravadas AS (
