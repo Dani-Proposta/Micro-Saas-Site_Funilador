@@ -499,8 +499,95 @@ app.get("/api/convite/:token", async (req, res) => {
     }
 });
 
+//listar conversas
+app.get("/api/conversas", async (req, res) => {
+    const arquivadas = req.query.arquivadas === "true";
 
+    try {
+        const resultado = await pool.query(`
+            SELECT
+                cl.id AS "clienteId",
+                cl.nome AS "clienteNome",
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'id', c.id,
+                            'titulo', c.titulo,
+                            'tipo', c.tipo,
+                            'projetoId', c.projeto_id,
+                            'criadaEm', c.criada_em,
+                            'arquivadaEm', c.arquivada_em
+                        )
+                        ORDER BY
+                            CASE WHEN c.tipo = 'geral' THEN 0 ELSE 1 END,
+                            c.criada_em DESC,
+                            c.id
+                    ) FILTER (WHERE c.id IS NOT NULL),
+                    '[]'::json
+                ) AS conversas
+            FROM clientes cl
+            LEFT JOIN conversas c
+                ON c.cliente_id = cl.id
+                AND (c.arquivada_em IS NOT NULL) = $1::boolean
+            GROUP BY cl.id, cl.nome
+            HAVING NOT $1::boolean OR COUNT(c.id) > 0
+            ORDER BY cl.nome, cl.id
+        `, [arquivadas]);
 
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar conversas:", erro);
+        res.status(500).json({erro: "Não foi possível carregar as conversas."});
+    }
+});
+
+//pegar cada mensagem de cada conversa individual
+app.get("/api/conversas/:id/mensagens", async (req, res) => {
+    const { id } = req.params;
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    try {
+        const conversa = await pool.query(`
+            SELECT id
+            FROM conversas
+            WHERE id = $1
+        `, [id]);
+
+        if (conversa.rows.length === 0) {
+            res.status(404).json({erro: "Conversa não encontrada."});
+            return;
+        }
+
+        const resultado = await pool.query(`
+            SELECT *
+            FROM (
+                SELECT
+                    id,
+                    remetente_tipo AS "remetenteTipo",
+                    conteudo,
+                    enviada_em AS "enviadaEm"
+                FROM mensagens
+                WHERE conversa_id = $1
+                ORDER BY enviada_em DESC, id DESC
+                LIMIT 50
+            ) AS recentes
+            ORDER BY "enviadaEm" ASC, id ASC
+        `, [id]);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar mensagens:", erro);
+        res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+    }
+});
 //rotas de atualização ou pedido ou criação
 
 
@@ -1168,6 +1255,263 @@ app.post("/api/convite/:token/aceitar", async (req, res) => {
     }
 });
 
+//criar conversas por projeto
+app.post("/api/conversas", async (req, res) => {
+    const { clienteId, projetoId, titulo, tipo } = req.body ?? {};
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (typeof clienteId !== "string" || !uuidValido.test(clienteId)) {
+        res.status(400).json({erro: "Cliente inválido."});
+        return;
+    }
+
+    if (tipo !== "avulsa" && tipo !== "projeto") {
+        res.status(400).json({erro: "Tipo de conversa inválido."});
+        return;
+    }
+
+    if (tipo === "projeto" && (typeof projetoId !== "string" || !uuidValido.test(projetoId))) {
+        res.status(400).json({erro: "Informe um projeto válido."});
+        return;
+    }
+
+    if (tipo === "avulsa" && projetoId != null) {
+        res.status(400).json({erro: "Uma conversa avulsa não deve possuir um projeto."});
+        return;
+    }
+
+    if (tipo === "avulsa" && (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150)) {
+        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            INSERT INTO conversas (cliente_id, projeto_id, titulo, tipo)
+            SELECT
+                cl.id,
+                p.id,
+                CASE
+                    WHEN $3::text = 'projeto' THEN p.titulo
+                    ELSE $4::text
+                END,
+                $3::text
+            FROM clientes cl
+            LEFT JOIN projetos p
+                ON p.id = $2::uuid
+                AND p.cliente_id = cl.id
+                AND p.arquivada_em IS NULL
+            WHERE cl.id = $1
+                AND ($3::text <> 'projeto' OR p.id IS NOT NULL)
+            RETURNING
+                id,
+                cliente_id AS "clienteId",
+                projeto_id AS "projetoId",
+                titulo,
+                tipo,
+                criada_em AS "criadaEm"
+        `, [
+            clienteId,
+            tipo === "projeto" ? projetoId : null,
+            tipo,
+            tipo === "avulsa" ? titulo.trim() : null
+        ]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Cliente ou projeto indisponível."});
+            return;
+        }
+
+        res.status(201).json(resultado.rows[0]);
+
+    } catch (erro) {
+        if (typeof erro === "object" && erro !== null && "code" in erro && erro.code === "23505") {
+            res.status(409).json({erro: "Este projeto já possui uma conversa."});
+            return;
+        }
+
+        console.error("Erro ao criar conversa:", erro);
+        res.status(500).json({erro: "Não foi possível criar a conversa."});
+    }
+});
+
+//alterar nome da conversa
+app.patch("/api/conversas/:id", async (req, res) => {
+    const { id } = req.params;
+    const { titulo } = req.body ?? {};
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150) {
+        res.status(400).json({erro: "Informe um título válido de até 150 caracteres."});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            UPDATE conversas
+            SET titulo = $2
+            WHERE id = $1
+                AND tipo <> 'geral'
+                AND arquivada_em IS NULL
+            RETURNING
+                id,
+                cliente_id AS "clienteId",
+                projeto_id AS "projetoId",
+                titulo,
+                tipo,
+                criada_em AS "criadaEm"
+        `, [id, titulo.trim()]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Conversa não encontrada ou indisponível para edição."});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao renomear conversa:", erro);
+        res.status(500).json({erro: "Não foi possível renomear a conversa."});
+    }
+});
+
+//mandar mensagem como admin
+app.post("/api/conversas/:id/mensagens", async (req, res) => {
+    const { id } = req.params;
+    const { conteudo } = req.body ?? {};
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    if (typeof conteudo !== "string" || !conteudo.trim() || conteudo.trim().length > 5000) {
+        res.status(400).json({erro: "Informe uma mensagem válida de até 5000 caracteres."});
+        return;
+    }
+
+    try {
+        const sessao = await auth.api.getSession({
+            headers: fromNodeHeaders(req.headers),
+        });
+
+        if (!sessao) {
+            res.status(401).json({erro: "Sessão indisponível."});
+            return;
+        }
+
+        const resultado = await pool.query(`
+            WITH conversa_disponivel AS (
+                SELECT id
+                FROM conversas
+                WHERE id = $1
+                    AND arquivada_em IS NULL
+                FOR UPDATE
+            )
+            INSERT INTO mensagens (
+                conversa_id,
+                remetente_id,
+                remetente_tipo,
+                conteudo
+            )
+            SELECT id, $2, 'admin', $3
+            FROM conversa_disponivel
+            RETURNING
+                id,
+                remetente_tipo AS "remetenteTipo",
+                conteudo,
+                enviada_em AS "enviadaEm"
+        `, [id, sessao.user.id, conteudo.trim()]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Conversa inexistente ou arquivada."});
+            return;
+        }
+
+        res.status(201).json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao enviar mensagem:", erro);
+        res.status(500).json({erro: "Não foi possível enviar a mensagem."});
+    }
+});
+
+//arquivar conversas
+app.patch("/api/conversas/:id/arquivar", async (req, res) => {
+    const { id } = req.params;
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            UPDATE conversas
+            SET arquivada_em = NOW()
+            WHERE id = $1
+                AND tipo <> 'geral'
+                AND arquivada_em IS NULL
+            RETURNING id, arquivada_em AS "arquivadaEm"
+        `, [id]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Conversa indisponível para arquivamento."});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao arquivar conversa:", erro);
+        res.status(500).json({erro: "Não foi possível arquivar a conversa."});
+    }
+});
+
+//restaurar conversa
+app.patch("/api/conversas/:id/restaurar", async (req, res) => {
+    const { id } = req.params;
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    try {
+        const resultado = await pool.query(`
+            UPDATE conversas
+            SET arquivada_em = NULL
+            WHERE id = $1
+                AND tipo <> 'geral'
+                AND arquivada_em IS NOT NULL
+            RETURNING id, arquivada_em AS "arquivadaEm"
+        `, [id]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Conversa indisponível para restauração."});
+            return;
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao restaurar conversa:", erro);
+        res.status(500).json({erro: "Não foi possível restaurar a conversa."});
+    }
+});
 
 //acesso a API
 app.listen(3001, () =>{

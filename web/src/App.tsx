@@ -5,7 +5,7 @@ import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavi
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Button, Burger, useMantineColorScheme, Center, Loader, Menu} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente } from './pages';
+import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
 import { authClient } from "./lib/auth-client";
 
 function PainelAdmin() {
@@ -124,7 +124,7 @@ function PainelAdmin() {
           <Route path="/projetos" element={<Projetos />}/>
           <Route path="/projetos/:id" element={<ProjetoDetalhes />}/>
           <Route path="/convites" element={<Convites />}/>
-          <Route path="/mensagens" element={<Text>Area das mensagens</Text>}/>
+          <Route path="/mensagens" element={<Mensagens/>}/>
         </Routes>
       </AppShell.Main>
     </AppShell>
