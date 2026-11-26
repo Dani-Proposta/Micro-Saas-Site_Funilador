@@ -32,8 +32,8 @@ function unirMensagens(anteriores: Mensagem[], novas: Mensagem[]) {
     }) ? anteriores : ordenadas;
 }
 
-type Pagina = {mensagens: Mensagem[]; arquivadaEm: string | null; temMais: boolean};
-type AjusteRolagem = {tipo: "final"} | {tipo: "ancora"; id: string; topo: number};
+type Pagina = {mensagens: Mensagem[]; arquivadaEm: string | null; temMais: boolean; primeiraNaoLidaId?: string | null};
+type AjusteRolagem = {tipo: "final"} | {tipo: "ancora"; id: string; topo: number} | {tipo: "nao-lida"; id: string};
 
 function pertoDoFinal(viewport: HTMLDivElement | null) {
     return !viewport || viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 80;
@@ -43,9 +43,10 @@ function diaMensagem(data: string) {
     return new Date(data).toLocaleDateString("pt-BR");
 }
 
-async function buscarPagina(endpoint: string, signal: AbortSignal, cursor?: {tipo: "antes" | "depois"; id: string}): Promise<Pagina> {
+async function buscarPagina(endpoint: string, signal: AbortSignal, cursor?: {tipo: "antes" | "depois" | "aPartir"; id: string}, inicio = false): Promise<Pagina> {
     const consulta = new URLSearchParams({estado: "true"});
     if (cursor) consulta.set(cursor.tipo, cursor.id);
+    if (inicio) consulta.set("inicio", "true");
     const resposta = await fetch(`${endpoint}?${consulta}`, {signal, cache: "no-store"});
     const dados = await resposta.json();
     if (!resposta.ok) throw Object.assign(new Error(dados.erro ?? "Erro ao carregar mensagens."), {status: resposta.status});
@@ -93,13 +94,20 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     const [erroAntigas, setErroAntigas] = useState<string | null>(null);
     const [novasMensagens, setNovasMensagens] = useState(0);
     const [longeDoFinal, setLongeDoFinal] = useState(false);
+    const [marcadorInicial, setMarcadorInicial] = useState<string | null>(null);
+    const [marcandoTodas, setMarcandoTodas] = useState(false);
+    const [erroLeitura, setErroLeitura] = useState<string | null>(null);
+    const filaLeitura = useRef(new Set<string>());
+    const capturarLeituras = useRef<(() => void) | null>(null);
+    const prefixo = lado === "admin" ? "/api/conversas" : "/api/me/conversas";
+    const endpointLeitura = `${prefixo}/${conversaId}/leituras`;
 
     const mesclarPagina = useCallback((recebidas: Mensagem[], modo: "inicial" | "antigas" | "recentes" | "envio") => {
         const anteriores = mensagensRef.current;
         const unidas = unirMensagens(anteriores, recebidas);
         const viewport = viewportRef.current;
 
-        if (modo === "inicial" || modo === "envio" || (modo === "recentes" && pertoDoFinal(viewport) && ajusteRolagem.current?.tipo !== "ancora")) {
+        if (modo === "inicial" || modo === "envio" || (modo === "recentes" && pertoDoFinal(viewport) && (!ajusteRolagem.current || ajusteRolagem.current.tipo === "final"))) {
             if (unidas !== anteriores || modo === "envio") ajusteRolagem.current = {tipo: "final"};
             setNovasMensagens(0);
             setLongeDoFinal(false);
@@ -131,7 +139,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
         if (ajuste.tipo === "final") viewport.scrollTop = viewport.scrollHeight;
         else {
             const ancora = viewport.querySelector<HTMLElement>(`[data-mensagem-id="${ajuste.id}"]`);
-            if (ancora) viewport.scrollTop += ancora.getBoundingClientRect().top - viewport.getBoundingClientRect().top - ajuste.topo;
+            if (ancora) viewport.scrollTop += ancora.getBoundingClientRect().top - viewport.getBoundingClientRect().top - (ajuste.tipo === "nao-lida" ? 65 : ajuste.topo);
         }
         ultimaPosicao.current = viewport.scrollTop;
     }, [mensagens]);
@@ -140,7 +148,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
         const versao = revisao.current;
         const valido = () => !signal.aborted && versao === revisao.current;
         try {
-            const pagina = await buscarPagina(endpoint, signal);
+            const pagina = await buscarPagina(endpoint, signal, undefined, !inicializado.current);
             if (!valido()) return;
 
             const estadoArquivada = !!pagina.arquivadaEm;
@@ -148,11 +156,29 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
             if (estadoArquivada !== arquivada) onAtualizarConversas?.();
 
             if (!inicializado.current) {
-                cursorAntigo.current = pagina.mensagens[0]?.id ?? null;
-                cursorRecente.current = pagina.mensagens.at(-1)?.id ?? null;
-                setTemMaisAntigas(pagina.temMais);
+                const primeira = pagina.primeiraNaoLidaId ?? null;
+                let janela = pagina.mensagens;
+                let temMaisAntigas = pagina.temMais;
+                if (primeira && !janela.some(m => m.id === primeira)) {
+                    // Começa na primeira pendente mesmo se estiver longe das 50 recentes.
+                    const [anteriores, seguintes] = await Promise.all([
+                        buscarPagina(endpoint, signal, {tipo: "antes", id: primeira}),
+                        buscarPagina(endpoint, signal, {tipo: "aPartir", id: primeira}),
+                    ]);
+                    if (!valido()) return;
+                    janela = unirMensagens(anteriores.mensagens, seguintes.mensagens);
+                    temMaisAntigas = anteriores.temMais;
+                }
+                cursorAntigo.current = janela[0]?.id ?? null;
+                cursorRecente.current = janela.at(-1)?.id ?? null;
+                setTemMaisAntigas(temMaisAntigas);
                 inicializado.current = true;
-                mesclarPagina(pagina.mensagens, "inicial");
+                mesclarPagina(janela, "inicial");
+                if (primeira && janela.some(m => m.id === primeira)) {
+                    ajusteRolagem.current = {tipo: "nao-lida", id: primeira};
+                    setMarcadorInicial(primeira);
+                    setLongeDoFinal(true);
+                }
             } else {
                 const fronteira = cursorRecente.current;
                 // Se chegaram mais de 50 mensagens, recupera o intervalo em ordem,
@@ -203,6 +229,8 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                 cursorAntigo.current = null;
                 cursorRecente.current = null;
                 setTemMaisAntigas(false);
+                setMarcadorInicial(null);
+                filaLeitura.current.clear();
                 onAtualizarConversas?.();
             }
             setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao atualizar mensagens.");
@@ -255,76 +283,116 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
         if (subindo && y <= 60 && viewport && viewport.scrollHeight > viewport.clientHeight && !erroAntigas) void carregarAnteriores();
     }
 
-    // Marca somente mensagens recebidas, visíveis no viewport e com a janela em foco.
+    // A captura acontece durante a rolagem; a rede recebe lotes sem reiniciar o timer.
+    const aplicarLeituras = useCallback((ids: string[]) => {
+        const lidas = new Set(ids);
+        const anteriores = mensagensRef.current;
+        const atualizadas = anteriores.map(m => lidas.has(m.id) && !m.lida ? {...m, lida: true} : m);
+        if (atualizadas.some((m, i) => m !== anteriores[i])) {
+            mensagensRef.current = atualizadas;
+            setMensagens(atualizadas);
+        }
+        window.dispatchEvent(new Event(EVENTO_LEITURA));
+    }, []);
+
     useEffect(() => {
         const viewport = viewportRef.current;
-        if (!viewport || carregando || erro || !mensagens.some(m => m.remetenteTipo !== lado && !m.lida)) return;
-
+        if (!viewport) return;
         const controller = new AbortController();
+        const fila = filaLeitura.current;
         let timer: ReturnType<typeof setTimeout> | undefined;
         let executando = false;
-        const prefixo = lado === "admin" ? "/api/conversas" : "/api/me/conversas";
+        let quadro: number | undefined;
 
-        async function registrarVisiveis() {
-            if (!viewport || executando || controller.signal.aborted || document.hidden || !document.hasFocus()) return;
-            const area = viewport.getBoundingClientRect();
-            const mensagemIds = Array.from(viewport.querySelectorAll<HTMLElement>("[data-nao-lida]"))
-                .filter(elemento => {
-                    const rect = elemento.getBoundingClientRect();
-                    return Math.min(rect.bottom, area.bottom, window.innerHeight) > Math.max(rect.top, area.top, 0)
-                        && Math.min(rect.right, area.right, window.innerWidth) > Math.max(rect.left, area.left, 0);
-                })
-                .map(elemento => elemento.dataset.naoLida!)
-                .slice(0, 100);
-            if (!mensagemIds.length) return;
+        function agendarEnvio(atraso = 250) {
+            if (timer !== undefined || executando || !fila.size || controller.signal.aborted) return;
+            timer = setTimeout(() => {timer = undefined; void enviarLote();}, atraso);
+        }
 
+        async function enviarLote() {
+            if (executando || controller.signal.aborted || !fila.size) return;
+            const mensagemIds = Array.from(fila).slice(0, 100);
             executando = true;
+            let falhou = false;
             try {
-                const resposta = await fetch(`${prefixo}/${conversaId}/leituras`, {
-                    method: "POST", signal: controller.signal,
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({mensagemIds}),
-                });
+                const resposta = await fetch(endpointLeitura, {method: "POST", signal: controller.signal, headers: {"Content-Type": "application/json"}, body: JSON.stringify({mensagemIds})});
                 if (!resposta.ok) throw new Error("Falha ao registrar leitura.");
                 const dados = await resposta.json();
-                if (controller.signal.aborted || !Array.isArray(dados.mensagemIds)) return;
-                const lidas = new Set<string>(dados.mensagemIds);
-                const atualizadas = mensagensRef.current.map(m => lidas.has(m.id) && !m.lida ? {...m, lida: true} : m);
-                mensagensRef.current = atualizadas;
-                setMensagens(atualizadas);
-                window.dispatchEvent(new Event(EVENTO_LEITURA));
+                if (controller.signal.aborted) return;
+                if (!Array.isArray(dados.mensagemIds)) throw new Error("Resposta de leitura inválida.");
+                mensagemIds.forEach(id => fila.delete(id));
+                aplicarLeituras(dados.mensagemIds);
             } catch (erroRecebido) {
-                if (!controller.signal.aborted) {
-                    console.error("Falha ao registrar leitura:", erroRecebido);
-                    // O próximo poll pode não mudar o histórico; agenda uma nova tentativa.
-                    clearTimeout(timer);
-                    timer = setTimeout(() => {void registrarVisiveis();}, 5000);
-                }
+                if (!controller.signal.aborted) {falhou = true; console.error("Falha ao registrar leitura:", erroRecebido);}
             } finally {
                 executando = false;
+                agendarEnvio(falhou ? 3000 : 250);
             }
         }
 
-        function agendar() {
-            clearTimeout(timer);
-            if (!document.hidden && document.hasFocus()) timer = setTimeout(() => {void registrarVisiveis();}, 300);
+        function capturar() {
+            if (!viewport || controller.signal.aborted || document.hidden || !document.hasFocus()) return;
+            const area = viewport.getBoundingClientRect();
+            for (const elemento of viewport.querySelectorAll<HTMLElement>("[data-nao-lida]")) {
+                const rect = elemento.getBoundingClientRect();
+                if (Math.min(rect.bottom, area.bottom, window.innerHeight) > Math.max(rect.top, area.top, 0)
+                    && Math.min(rect.right, area.right, window.innerWidth) > Math.max(rect.left, area.left, 0)) {
+                    if (elemento.dataset.naoLida) fila.add(elemento.dataset.naoLida);
+                }
+            }
+            agendarEnvio();
         }
-        viewport.addEventListener("scroll", agendar, {passive: true});
-        window.addEventListener("scroll", agendar, {passive: true});
-        window.addEventListener("focus", agendar);
-        window.addEventListener("resize", agendar);
-        document.addEventListener("visibilitychange", agendar);
-        agendar();
+        function agendarCaptura() {
+            if (quadro !== undefined) return;
+            quadro = requestAnimationFrame(() => {quadro = undefined; capturar();});
+        }
+        capturarLeituras.current = agendarCaptura;
+        viewport.addEventListener("scroll", capturar, {passive: true});
+        window.addEventListener("scroll", capturar, {passive: true, capture: true});
+        window.addEventListener("focus", agendarCaptura);
+        window.addEventListener("resize", agendarCaptura);
+        document.addEventListener("visibilitychange", agendarCaptura);
+        agendarCaptura();
         return () => {
             controller.abort();
             clearTimeout(timer);
-            viewport.removeEventListener("scroll", agendar);
-            window.removeEventListener("scroll", agendar);
-            window.removeEventListener("focus", agendar);
-            window.removeEventListener("resize", agendar);
-            document.removeEventListener("visibilitychange", agendar);
+            if (quadro !== undefined) cancelAnimationFrame(quadro);
+            capturarLeituras.current = null;
+            viewport.removeEventListener("scroll", capturar);
+            window.removeEventListener("scroll", capturar, true);
+            window.removeEventListener("focus", agendarCaptura);
+            window.removeEventListener("resize", agendarCaptura);
+            document.removeEventListener("visibilitychange", agendarCaptura);
         };
-    }, [mensagens, conversaId, lado, carregando, erro]);
+    }, [endpointLeitura, aplicarLeituras]);
+
+    useEffect(() => {
+        if (!carregando && !erro) capturarLeituras.current?.();
+    }, [mensagens, carregando, erro]);
+
+    function irParaNaoLida() {
+        const primeira = mensagensRef.current.find(m => m.remetenteTipo !== lado && !m.lida);
+        const viewport = viewportRef.current;
+        if (!primeira || !viewport) return;
+        const elemento = viewport.querySelector<HTMLElement>(`[data-mensagem-id="${primeira.id}"]`);
+        if (elemento) viewport.scrollTop += elemento.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 65;
+    }
+
+    async function marcarTodasComoLidas() {
+        if (marcandoTodas) return;
+        setMarcandoTodas(true);
+        setErroLeitura(null);
+        const ids = mensagensRef.current.filter(m => m.remetenteTipo !== lado && !m.lida).map(m => m.id);
+        try {
+            const resposta = await fetch(endpointLeitura, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({todas: true})});
+            if (!resposta.ok) throw new Error("Não foi possível marcar a conversa como lida.");
+            aplicarLeituras(ids);
+            ids.forEach(id => filaLeitura.current.delete(id));
+            atualizarMensagens();
+        } catch (erroRecebido) {
+            setErroLeitura(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao registrar leitura.");
+        } finally {setMarcandoTodas(false);}
+    }
 
     async function enviarMensagem() {
         if (somenteLeitura || enviando || carregando || erro || !conteudo.trim()) return;
@@ -366,7 +434,11 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
 
     return (
         <Stack gap="sm">
-
+            <Group justify="space-between" gap="xs">
+                <Button variant="subtle" size="compact-xs" disabled={!mensagens.some(m => m.remetenteTipo !== lado && !m.lida)} onClick={irParaNaoLida}>Ir à não lida ({mensagens.filter(m => m.remetenteTipo !== lado && !m.lida).length})</Button>
+                <Button variant="subtle" size="compact-xs" loading={marcandoTodas} disabled={carregando || !!erro} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Button>
+            </Group>
+            {erroLeitura && <Alert color="red">{erroLeitura}</Alert>}
             <Box pos="relative">
                 <ScrollArea h={440} viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
                     <Stack gap="sm">
@@ -383,8 +455,9 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                         {mensagens.map((mensagem, indice) => (
                             <Box key={mensagem.id}>
                                 {(indice === 0 || diaMensagem(mensagens[indice - 1].enviadaEm) !== diaMensagem(mensagem.enviadaEm)) && <Divider my="sm" label={diaMensagem(mensagem.enviadaEm)} labelPosition="center"/>}
+                                {marcadorInicial === mensagem.id && <Divider my="sm" color="violet" label="Mensagens não lidas" labelPosition="center"/>}
                                 <Group data-mensagem-id={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
-                                    <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12}}>
+                                    <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12, outline: mensagem.remetenteTipo !== lado && !mensagem.lida ? "1px solid var(--mantine-color-violet-5)" : undefined}}>
                                         <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{mensagem.conteudo}</Text>
                                         <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
                                     </Box>

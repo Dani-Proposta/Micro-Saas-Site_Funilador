@@ -569,26 +569,34 @@ app.get("/api/conversas", async (req, res) => {
 function rotaHistorico(lado: "admin" | "cliente") {
     return async (req: Request, res: Response) => {
         const {id} = req.params;
-        const {antes, depois} = req.query;
+        const {antes, depois, aPartir} = req.query;
         const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const cursor = antes ?? depois ?? null;
+        const cursor = antes ?? depois ?? aPartir ?? null;
+        const inicio = req.query.inicio === "true";
         if (typeof id !== "string" || !uuid.test(id) ||
-            (antes !== undefined && depois !== undefined) ||
+            ([antes, depois, aPartir].filter(v => v !== undefined).length > 1) ||
             (cursor !== null && (typeof cursor !== "string" || !uuid.test(cursor)))) {
             res.status(400).json({erro: "Conversa ou cursor inválido."});
             return;
         }
 
-        const crescente = depois !== undefined;
+        const crescente = depois !== undefined || aPartir !== undefined;
         const direcao = crescente ? "ASC" : "DESC";
-        const operador = crescente ? ">" : "<";
+        const operador = aPartir !== undefined ? ">=" : crescente ? ">" : "<";
         const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
 
         try {
             const resultado = await pool.query(`
                 SELECT c.arquivada_em AS "arquivadaEm",
                     COALESCE(h.mensagens, '[]'::json) AS mensagens,
-                    COALESCE(h."temMais", false) AS "temMais"
+                    COALESCE(h."temMais", false) AS "temMais",
+                    CASE WHEN $6::boolean THEN (
+                        SELECT m.id FROM mensagens m
+                        WHERE m.conversa_id = c.id AND m.remetente_tipo <> $5
+                            AND NOT EXISTS (SELECT 1 FROM mensagens_leituras l
+                                WHERE l.mensagem_id = m.id AND l.usuario_id = $3)
+                        ORDER BY m.enviada_em ASC, m.id ASC LIMIT 1
+                    ) END AS "primeiraNaoLidaId"
                 FROM conversas c
                 LEFT JOIN mensagens referencia ON referencia.id = $4::uuid
                     AND referencia.conversa_id = c.id
@@ -619,7 +627,7 @@ function rotaHistorico(lado: "admin" | "cliente") {
                 ) h ON TRUE
                 WHERE c.id = $1 AND ($2::uuid IS NULL OR c.cliente_id = $2)
                     AND ($4::uuid IS NULL OR referencia.id IS NOT NULL)
-            `, [id, clienteId, res.locals.usuarioId, cursor, lado]);
+            `, [id, clienteId, res.locals.usuarioId, cursor, lado, inicio]);
 
             const conversa = resultado.rows[0];
             if (!conversa) {
@@ -703,11 +711,12 @@ function rotasLeitura(prefixo: string, lado: "admin" | "cliente") {
 
     app.post(`${prefixo}/:id/leituras`, async (req, res) => {
         const {id} = req.params;
-        const {mensagemIds} = req.body ?? {};
+        const {mensagemIds, todas} = req.body ?? {};
+        const marcarTodas = todas === true;
         const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (typeof id !== "string" || !uuid.test(id) || !Array.isArray(mensagemIds) ||
+        if (typeof id !== "string" || !uuid.test(id) || (!marcarTodas && (!Array.isArray(mensagemIds) ||
             mensagemIds.length < 1 || mensagemIds.length > 100 ||
-            !mensagemIds.every(v => typeof v === "string" && uuid.test(v))) {
+            !mensagemIds.every(v => typeof v === "string" && uuid.test(v))))) {
             res.status(400).json({erro: "Informe IDs de mensagens válidos (até 100)."});
             return;
         }
@@ -720,21 +729,23 @@ function rotasLeitura(prefixo: string, lado: "admin" | "cliente") {
                         AND ($2::uuid IS NULL OR cliente_id = $2)
                 ), elegiveis AS (
                     SELECT m.id FROM mensagens m JOIN conversa c ON c.id = m.conversa_id
-                    WHERE m.id = ANY($3::uuid[]) AND m.remetente_tipo = $4
+                    WHERE ($6::boolean OR m.id = ANY($3::uuid[])) AND m.remetente_tipo = $4
+                        AND (NOT $6::boolean OR NOT EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $5))
                 ), gravadas AS (
                     INSERT INTO mensagens_leituras (mensagem_id, usuario_id)
                     SELECT id, $5 FROM elegiveis WHERE TRUE ON CONFLICT DO NOTHING
                     RETURNING mensagem_id
                 )
                 SELECT EXISTS (SELECT 1 FROM conversa) AS autorizada,
-                    COALESCE((SELECT json_agg(id) FROM elegiveis), '[]'::json) AS "mensagemIds"
-            `, [id, clienteId, mensagemIds, recebidoDe, res.locals.usuarioId]);
+                    CASE WHEN $6::boolean THEN '[]'::json ELSE COALESCE((SELECT json_agg(id) FROM elegiveis), '[]'::json) END AS "mensagemIds",
+                    (SELECT COUNT(*)::int FROM gravadas) AS total
+            `, [id, clienteId, marcarTodas ? [] : mensagemIds, recebidoDe, res.locals.usuarioId, marcarTodas]);
             const dados = resultado.rows[0];
             if (!dados.autorizada) {
                 res.status(404).json({erro: "Conversa não encontrada."});
                 return;
             }
-            res.json({mensagemIds: dados.mensagemIds});
+            res.json({mensagemIds: dados.mensagemIds, total: dados.total});
         } catch (erro) {
             console.error("Erro ao registrar leitura:", erro);
             res.status(500).json({erro: "Não foi possível registrar a leitura."});
