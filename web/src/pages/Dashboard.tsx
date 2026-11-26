@@ -1,3 +1,4 @@
+import { FinanceiroDashboard } from "../components/FinanceiroDashboard";
 import classes from "../styles/Usabilidade.module.css";
 import { Group, Text, Card, SimpleGrid, Stack, Title, Badge, UnstyledButton} from "@mantine/core";
 import { useState, useEffect } from "react";
@@ -107,6 +108,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
                 {carregando && (<Text c="dimmed" size="sm">Carregando indicadores...</Text>)}
                 {erro && (<Text c="red" size="sm">{erro}</Text>)}
             </Stack>
+            <FinanceiroDashboard />
             {/*cards gerais*/}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
 

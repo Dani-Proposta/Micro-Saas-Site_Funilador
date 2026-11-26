@@ -689,6 +689,79 @@ app.get("/api/dashboard", async (req, res) => {
     }
 });
 
+//admin: resumo financeiro
+app.get("/api/dashboard/financeiro", async (_req, res) => {
+    try {
+        const resultado = await pool.query(`
+            WITH periodo AS (
+                SELECT hoje, date_trunc('month', hoje::timestamp)::date AS inicio,
+                    (date_trunc('month', hoje::timestamp) + interval '1 month')::date AS proximo,
+                    (date_trunc('month', hoje::timestamp) + interval '6 months')::date AS limite
+                FROM (SELECT (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje) d
+            ), recebimentos AS (
+                SELECT pg.id, pg.valor, pg.recebido_em, m.projeto_id, m.titulo AS marco,
+                    p.titulo AS projeto, c.nome AS cliente
+                FROM marcos_pagamentos pg JOIN projetos_marcos m ON m.id = pg.marco_id
+                JOIN projetos p ON p.id = m.projeto_id JOIN clientes c ON c.id = p.cliente_id
+                WHERE pg.anulado_em IS NULL
+            ), pagos AS (
+                SELECT m.id, COALESCE(SUM(pg.valor) FILTER (WHERE pg.anulado_em IS NULL), 0) AS recebido
+                FROM projetos_marcos m LEFT JOIN marcos_pagamentos pg ON pg.marco_id = m.id GROUP BY m.id
+            ), marcos AS (
+                SELECT m.id, m.projeto_id, m.titulo AS marco, p.titulo AS projeto, c.nome AS cliente,
+                    m.vencimento, m.cobranca_iniciada, m.bloqueia_progresso,
+                    p.arquivada_em IS NOT NULL AS arquivado,
+                    CASE WHEN m.saldo_dispensado THEN pg.recebido ELSE COALESCE(m.valor,0) END AS distribuido,
+                    CASE WHEN m.saldo_dispensado OR (p.status = 'cancelado' AND NOT m.cobranca_iniciada
+                        AND m.status NOT IN ('concluido','cancelado','aguardando_validacao')) THEN 0
+                        ELSE GREATEST(COALESCE(m.valor,0) - pg.recebido, 0) END AS saldo
+                FROM projetos_marcos m JOIN pagos pg ON pg.id = m.id
+                JOIN projetos p ON p.id = m.projeto_id JOIN clientes c ON c.id = p.cliente_id
+            ), pendentes AS (
+                SELECT m.*, CASE WHEN vencimento IS NULL THEN 'sem_data'
+                    WHEN vencimento < hoje THEN 'atrasado'
+                    WHEN vencimento < proximo THEN 'mes' ELSE 'futuro' END AS categoria
+                FROM marcos m CROSS JOIN periodo WHERE saldo > 0
+            ), distribuicao AS (
+                SELECT projeto_id, SUM(distribuido) AS total FROM marcos GROUP BY projeto_id
+            ), meses AS (
+                SELECT g::date AS mes FROM periodo, LATERAL generate_series(inicio::timestamp, (limite - interval '1 month')::timestamp, interval '1 month') g
+            )
+            SELECT to_char(hoje,'YYYY-MM-DD') AS hoje,
+                COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo),0)::text AS "recebidoMes",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'mes'),0)::text AS "aReceberMes",
+                (COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo),0) + COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'mes'),0))::text AS "totalMes",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'futuro'),0)::text AS futuro,
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'atrasado'),0)::text AS atrasado,
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria = 'sem_data'),0)::text AS "semData",
+                COALESCE((SELECT SUM(saldo) FROM pendentes),0)::text AS "totalPendente",
+                COALESCE((SELECT SUM(saldo) FROM pendentes WHERE vencimento >= limite),0)::text AS "aposPrevisao",
+                COALESCE((SELECT SUM(GREATEST(p.valor_acordado - COALESCE(d.total,0),0)) FROM projetos p LEFT JOIN distribuicao d ON d.projeto_id = p.id
+                    WHERE p.status IN ('planejado','em_andamento','concluido') AND p.arquivada_em IS NULL AND p.valor_acordado IS NOT NULL),0)::text AS "naoDistribuido",
+                COALESCE((SELECT SUM(GREATEST(COALESCE(d.total,0) - p.valor_acordado,0)) FROM projetos p LEFT JOIN distribuicao d ON d.projeto_id = p.id
+                    WHERE p.status <> 'cancelado' AND p.arquivada_em IS NULL AND p.valor_acordado IS NOT NULL),0)::text AS excedente,
+                (SELECT COUNT(*)::int FROM pendentes) AS "quantidadePendentes",
+                (SELECT COUNT(*)::int FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo) AS "quantidadeRecebimentos",
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('mes',to_char(mes,'YYYY-MM'),
+                    'recebido',COALESCE((SELECT SUM(valor) FROM recebimentos WHERE recebido_em >= mes AND recebido_em < mes + interval '1 month'),0)::text,
+                    'previsto',COALESCE((SELECT SUM(saldo) FROM pendentes WHERE categoria IN ('mes','futuro') AND vencimento >= mes AND vencimento < mes + interval '1 month'),0)::text) ORDER BY mes),'[]'::jsonb) FROM meses) AS meses,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'projetoId',projeto_id,'projeto',projeto,'marco',marco,'cliente',cliente,
+                    'vencimento',to_char(vencimento,'YYYY-MM-DD'),'saldo',saldo::text,'categoria',categoria,'arquivado',arquivado,
+                    'cobrancaIniciada',cobranca_iniciada,'bloqueiaProgresso',bloqueia_progresso) ORDER BY vencimento NULLS LAST,id),'[]'::jsonb)
+                    FROM (SELECT * FROM (SELECT pendentes.*, ROW_NUMBER() OVER (PARTITION BY categoria ORDER BY vencimento NULLS LAST,id) AS ordem FROM pendentes) por_categoria WHERE ordem <= 100) itens) AS pendencias,
+                (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',id,'projetoId',projeto_id,'projeto',projeto,'marco',marco,'cliente',cliente,
+                    'valor',valor::text,'data',to_char(recebido_em,'YYYY-MM-DD')) ORDER BY recebido_em DESC,id DESC),'[]'::jsonb)
+                    FROM (SELECT * FROM recebimentos WHERE recebido_em >= inicio AND recebido_em < proximo ORDER BY recebido_em DESC,id DESC LIMIT 100) itens) AS recebimentos
+            FROM periodo
+        `);
+        res.set("Cache-Control", "no-store");
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error("Erro ao carregar financeiro:", erro);
+        res.status(500).json({erro: "Não foi possível carregar o financeiro"});
+    }
+});
+
 //cliente: carregar dashboard
 app.get("/api/me/dashboard", async (_req, res) => {
     const clienteId = res.locals.cliente.id;
