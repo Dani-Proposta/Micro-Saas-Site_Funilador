@@ -73,7 +73,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível limpar as notificações.");
             revisao.current++;
             setConfirmarLimpeza(false);
-            // Não reutilizar o resumo antigo; eventos que chegarem depois da limpeza voltam normalmente.
+            //limpar resumo antigo
             setResumo({total: 0, totalGrupos: 0, itens: [], pagina: 0});
             if (pagina !== 0) setPagina(0);
             else atualizar();
@@ -158,7 +158,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                                     <Text size="sm" fw={n.quantidade ? 700 : 500} lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.titulo}</Text>
                                     <Text size="xs" c="dimmed" lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.resumo}</Text>
                                 </Box>
-                                {n.quantidade > 0 && <Badge color="red" size="sm">{n.tipo === "mensagem" ? n.quantidade : "Nova"}</Badge>}
+                                {n.quantidade > 0 && <Badge color="red" size="sm">{n.quantidade > 1 || n.tipo === "mensagem" ? n.quantidade : "Nova"}</Badge>}
                                 <Text c="dimmed" aria-hidden="true">›</Text>
                             </Group>
                         </UnstyledButton>
@@ -174,7 +174,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     );
 
 
-    // No celular, um modal de tela inteira evita reposicionamento e overflow do popover.
+    //notificações no celular
     if (mobile) return (
         <>
             {gatilho}

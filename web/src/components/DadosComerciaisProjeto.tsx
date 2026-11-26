@@ -10,8 +10,10 @@ export function ResumoProjeto({projeto}: {projeto: DadosProjeto}) {
             <Stack gap={2}><Text size="xs" c="dimmed">Valor acordado</Text><Text fw={500}>{formatarValor(projeto.valorAcordado)}</Text></Stack>
             <Stack gap={2}><Text size="xs" c="dimmed">Prazo acordado</Text><Text fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></Stack>
         </SimpleGrid>
-        <Group justify="space-between"><Text size="sm">Progresso ({projeto.modoProgresso === "marcos" ? "por marcos" : "manual"})</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
-        {projeto.progresso != null && <Progress value={projeto.progresso} color="violet" aria-label="Progresso do projeto"/>}
+        {projeto.modoProgresso === "manual" ? <>
+            <Group justify="space-between"><Text size="sm">Progresso manual</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
+            {projeto.progresso != null && <Progress value={projeto.progresso} color="violet" aria-label="Progresso do projeto"/>}
+        </> : <Text size="sm" c="dimmed">Progresso calculado pelos marcos</Text>}
         <Text size="sm" fw={500}>Tecnologias</Text>
         {projeto.tecnologias?.length ? <Group gap="xs">{projeto.tecnologias.map(t => <Badge key={t} variant="light" style={{maxWidth: "100%"}}>{t}</Badge>)}</Group> : <Text size="sm" c="dimmed">Não definidas</Text>}
     </Stack>;
