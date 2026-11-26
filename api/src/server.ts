@@ -169,6 +169,8 @@ function rotaHistorico(lado: "admin" | "cliente") {
                         'id', m.id,
                         'remetenteTipo', m.remetente_tipo,
                         'conteudo', m.conteudo,
+                        'proposta', (SELECT pp.dados FROM funilador_propostas_publicas pp WHERE pp.mensagem_id = m.id),
+                        'decisaoProposta', (SELECT json_build_object('id',pp.id,'status',pp.status) FROM funilador_propostas_publicas pp WHERE pp.resposta_mensagem_id = m.id),
                         'lida', (m.remetente_tipo = $5 OR EXISTS (
                             SELECT 1 FROM mensagens_leituras l
                             WHERE l.mensagem_id = m.id AND l.usuario_id = $3
@@ -480,6 +482,7 @@ async function carregarMarcos(db: PoolClient | typeof pool, id: string, clienteI
             funilador_progresso_projeto(p.id, p.modo_progresso, p.progresso) AS progresso,
             p.atualizada_em AS "atualizadaEm",
             p.valor_acordado::text AS "valorAcordado",
+            to_char(p.prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
             COALESCE(SUM(m.recebido), 0)::text AS "totalPago",
             COALESCE(SUM(CASE WHEN m.saldo_dispensado THEN m.recebido ELSE COALESCE(m.valor, 0) END), 0)::text AS "valorDistribuido",
             (p.valor_acordado - COALESCE(SUM(CASE WHEN m.saldo_dispensado THEN m.recebido ELSE COALESCE(m.valor, 0) END), 0))::text AS "valorRestante",
@@ -490,6 +493,9 @@ async function carregarMarcos(db: PoolClient | typeof pool, id: string, clienteI
                 'vencimento', to_char(m.vencimento, 'YYYY-MM-DD'),
                 'cobrancaIniciada', m.cobranca_iniciada, 'bloqueiaProgresso', m.bloqueia_progresso,
                 'saldoDispensado', m.saldo_dispensado, 'pagamentos', m.pagamentos,
+                'acordado', EXISTS (SELECT 1 FROM projetos_propostas pp WHERE pp.marco_id = m.id),
+                'validado', EXISTS (SELECT 1 FROM marcos_validacoes v WHERE v.marco_id = m.id),
+                'versao', to_char(m.atualizada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                 'oculto', EXISTS (SELECT 1 FROM marcos_ocultos o WHERE o.marco_id = m.id AND o.usuario_id = $3)
             ) ORDER BY m.criada_em, m.id) FILTER (WHERE m.id IS NOT NULL), '[]'::jsonb) AS marcos
         FROM projetos p
@@ -526,6 +532,114 @@ function responderErroMarco(res: Response, erro: unknown) {
     if (erro instanceof ErroConversa) {res.status(erro.status).json({erro: erro.message}); return;}
     console.error("Erro ao gerenciar marcos:", erro);
     res.status(500).json({erro: "Não foi possível concluir a operação"});
+}
+
+//dados da negociação
+function dadosProposta(corpo: Record<string, unknown>) {
+    if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) throw new ErroConversa(400, "Dados inválidos");
+    const {tipo, titulo, descricao} = corpo;
+    if (tipo !== "marco" && tipo !== "dados") throw new ErroConversa(400, "Tipo de proposta inválido");
+    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150 || typeof descricao !== "string" || descricao.length > 5000) throw new ErroConversa(400, "Informe título e descrição válidos");
+    const valor = tipo === "marco" ? valorComercial(corpo.valor) : null;
+    const entrega = tipo === "marco" ? prazoComercial(corpo.prazoEntrega) : null;
+    const vencimento = tipo === "marco" ? prazoComercial(corpo.vencimento) : null;
+    const total = valorComercial(corpo.novoTotal);
+    const prazo = prazoComercial(corpo.novoPrazo);
+    if (tipo === "dados" && total === null && prazo === null) throw new ErroConversa(400, "Informe o novo valor ou prazo");
+    return {tipo, titulo: titulo.trim(), descricao: descricao.trim() || null, valor, entrega, vencimento, total, prazo};
+}
+
+//travar conversa e projeto para negociar
+async function travarNegociacao(db: PoolClient, id: string, clienteId: string | null) {
+    if (!uuidConversa.test(id)) throw new ErroConversa(400, "Conversa inválida");
+    const conversa = await db.query(`SELECT projeto_id, cliente_id, arquivada_em FROM conversas WHERE id = $1 AND tipo = 'projeto' AND ($2::uuid IS NULL OR cliente_id = $2) FOR UPDATE`, [id, clienteId]);
+    const c = conversa.rows[0];
+    if (!c) throw new ErroConversa(404, "Conversa de projeto não encontrada");
+    if (c.arquivada_em) throw new ErroConversa(409, "Conversa arquivada");
+    const projeto = await db.query(`SELECT id, status, arquivada_em, valor_acordado::text AS total, to_char(prazo_acordado,'YYYY-MM-DD') AS prazo FROM projetos WHERE id = $1 AND cliente_id = $2 FOR UPDATE`, [c.projeto_id, c.cliente_id]);
+    const p = projeto.rows[0];
+    if (!p || p.arquivada_em || !["planejado", "em_andamento"].includes(p.status)) throw new ErroConversa(409, "Projeto indisponível para negociação");
+    return p;
+}
+
+//mensagem vinculada à negociação
+async function mensagemNegociacao(db: PoolClient, conversa: string, usuario: string, lado: "admin" | "cliente", titulo: string, conteudo: string) {
+    const mensagem = await db.query(`INSERT INTO mensagens (conversa_id, remetente_id, remetente_tipo, conteudo, enviada_em) VALUES ($1,$2,$3,$4,clock_timestamp()) RETURNING id`, [conversa, usuario, lado, conteudo]);
+    const id = mensagem.rows[0].id;
+    await db.query(`UPDATE notificacoes SET titulo = $2 WHERE mensagem_id = $1`, [id, `Negociação · ${titulo}`]);
+    return id as string;
+}
+
+//registrar proposta sem alterar o projeto
+async function criarProposta(db: PoolClient, conversa: string, usuario: string, lado: "admin" | "cliente", projeto: {total: string | null; prazo: string | null}, dados: ReturnType<typeof dadosProposta>, anterior: string | null = null) {
+    const mensagem = await mensagemNegociacao(db, conversa, usuario, lado, anterior ? "Contraproposta" : "Nova proposta", `${anterior ? "Contraproposta" : "Proposta"}: ${dados.titulo}`);
+    const resultado = await db.query(`INSERT INTO projetos_propostas (conversa_id, mensagem_id, anterior_id, autor_tipo, tipo, titulo, descricao, valor, prazo_entrega, vencimento, novo_total, novo_prazo, total_base, prazo_base) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`, [conversa, mensagem, anterior, lado, dados.tipo, dados.titulo, dados.descricao, dados.valor, dados.entrega, dados.vencimento, dados.total, dados.prazo, projeto.total, projeto.prazo]);
+    return {id: resultado.rows[0].id as string, mensagem};
+}
+
+function rotaCriarProposta(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        try {
+            const dados = dadosProposta(req.body);
+            const resultado = await transacaoConversa(async db => {
+                const projeto = await travarNegociacao(db, req.params.id, lado === "cliente" ? res.locals.cliente.id : null);
+                return criarProposta(db, req.params.id, res.locals.usuarioId, lado, projeto, dados);
+            });
+            res.status(201).json(resultado);
+        } catch (erro) {responderErroConversa(res, erro);}
+    };
+}
+
+//aceitar apenas termos compatíveis com o acordo atual
+async function aceitarProposta(db: PoolClient, projeto: {id: string; total: string | null; prazo: string | null}, proposta: {tipo: string; titulo: string; descricao: string | null; valor: string | null; prazo_entrega: string | null; vencimento: string | null; novo_total: string | null; novo_prazo: string | null; total_base: string | null; prazo_base: string | null}) {
+    if (projeto.total !== proposta.total_base || projeto.prazo !== proposta.prazo_base) throw new ErroConversa(409, "O acordo do projeto mudou. Envie uma contraproposta atualizada");
+    const total = proposta.novo_total ?? projeto.total;
+    const prazo = proposta.novo_prazo ?? projeto.prazo;
+    const valor = proposta.tipo === "marco" ? proposta.valor : null;
+    const saldo = await db.query(`SELECT ($2::numeric IS NULL OR COALESCE(SUM(CASE WHEN saldo_dispensado THEN recebido ELSE COALESCE(valor,0) END),0) + COALESCE($3::numeric,0) <= $2::numeric) AS suficiente FROM funilador_marcos_resumo WHERE projeto_id = $1`, [projeto.id, total, valor]);
+    if (!saldo.rows[0].suficiente || (total === null && valor !== null && Number(valor) > 0)) throw new ErroConversa(409, "O valor dos marcos excede o acordo. Envie uma contraproposta com o novo total");
+    let marcoId: string | null = null;
+    if (proposta.tipo === "marco") {
+        const marco = await db.query(`INSERT INTO projetos_marcos (projeto_id,titulo,descricao,valor,prazo_entrega,vencimento) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, [projeto.id, proposta.titulo, proposta.descricao, valor, proposta.prazo_entrega, proposta.vencimento]);
+        marcoId = marco.rows[0].id;
+    }
+    await db.query(`UPDATE projetos SET valor_acordado = $2, prazo_acordado = $3, atualizada_em = NOW() WHERE id = $1`, [projeto.id, total, prazo]);
+    return marcoId;
+}
+
+function rotaDecidirProposta(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        const {id, propostaId} = req.params;
+        const {acao} = req.body ?? {};
+        try {
+            if (!uuidConversa.test(propostaId) || !["aceitar", "recusar", "contrapor", "retirar"].includes(acao)) throw new ErroConversa(400, "Decisão inválida");
+            const resultado = await transacaoConversa(async db => {
+                const projeto = await travarNegociacao(db, id, lado === "cliente" ? res.locals.cliente.id : null);
+                const consulta = await db.query(`SELECT id, autor_tipo, tipo, titulo, descricao, valor::text, to_char(prazo_entrega,'YYYY-MM-DD') AS prazo_entrega, to_char(vencimento,'YYYY-MM-DD') AS vencimento, novo_total::text, to_char(novo_prazo,'YYYY-MM-DD') AS novo_prazo, total_base::text, to_char(prazo_base,'YYYY-MM-DD') AS prazo_base, status FROM projetos_propostas WHERE id = $1 AND conversa_id = $2 FOR UPDATE`, [propostaId, id]);
+                const proposta = consulta.rows[0];
+                if (!proposta) throw new ErroConversa(404, "Proposta não encontrada");
+                if (proposta.status !== "pendente") throw new ErroConversa(409, "Esta proposta já foi resolvida");
+                if ((proposta.autor_tipo === lado) !== (acao === "retirar")) throw new ErroConversa(403, "Você não pode realizar esta ação");
+                let marcoId: string | null = null;
+                let mensagem: string;
+                let status: string;
+                if (acao === "contrapor") {
+                    const dados = dadosProposta(req.body?.proposta);
+                    if (dados.tipo !== proposta.tipo) throw new ErroConversa(400, "Mantenha o tipo da proposta original");
+                    const nova = await criarProposta(db, id, res.locals.usuarioId, lado, projeto, dados, propostaId);
+                    mensagem = nova.mensagem; status = "contraproposta";
+                } else {
+                    if (acao === "aceitar") marcoId = await aceitarProposta(db, projeto, proposta);
+                    status = acao === "aceitar" ? "aceita" : acao === "recusar" ? "recusada" : "retirada";
+                    const titulo = `Proposta ${status}`;
+                    mensagem = await mensagemNegociacao(db, id, res.locals.usuarioId, lado, titulo, `${titulo}: ${proposta.titulo}`);
+                }
+                await db.query(`UPDATE projetos_propostas SET status = $2, resposta_mensagem_id = $3, marco_id = $4, decidida_em = clock_timestamp(), decidido_por = $5 WHERE id = $1`, [propostaId, status, mensagem, marcoId, res.locals.usuarioId]);
+                return {id: propostaId, status};
+            });
+            res.json(resultado);
+        } catch (erro) {responderErroConversa(res, erro);}
+    };
 }
 
 //rotas GET
@@ -1653,6 +1767,10 @@ app.post("/api/conversas", async (req, res) => {
     }
 });
 
+//admin e cliente: criar proposta
+app.post("/api/conversas/:id/propostas", rotaCriarProposta("admin"));
+app.post("/api/me/conversas/:id/propostas", rotaCriarProposta("cliente"));
+
 //admin: mandar mensagem
 app.post("/api/conversas/:id/mensagens", async (req, res) => {
     const { id } = req.params;
@@ -2140,6 +2258,32 @@ app.patch("/api/projetos/:id/marcos/:marcoId/cancelamento", async (req, res) => 
     } catch (erro) {responderErroMarco(res, erro);}
 });
 
+//admin e cliente: decidir proposta
+app.patch("/api/conversas/:id/propostas/:propostaId", rotaDecidirProposta("admin"));
+app.patch("/api/me/conversas/:id/propostas/:propostaId", rotaDecidirProposta("cliente"));
+
+//cliente: validar entrega
+app.patch("/api/me/projetos/:id/marcos/:marcoId/validar", async (req, res) => {
+    const {id, marcoId} = req.params;
+    try {
+        const {versao} = req.body ?? {};
+        if (!uuidConversa.test(id) || !uuidConversa.test(marcoId) || typeof versao !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(versao)) throw new ErroConversa(400, "Entrega inválida");
+        const resultado = await transacaoConversa(async db => {
+            const clienteId = res.locals.cliente.id;
+            const projeto = await db.query(`SELECT titulo, status FROM projetos WHERE id = $1 AND cliente_id = $2 AND arquivada_em IS NULL FOR UPDATE`, [id, clienteId]);
+            if (!projeto.rows.length) throw new ErroConversa(404, "Projeto não encontrado");
+            if (projeto.rows[0].status === "cancelado") throw new ErroConversa(409, "Projeto cancelado");
+            const marco = await db.query(`UPDATE projetos_marcos SET status = 'concluido', atualizada_em = clock_timestamp() WHERE id = $1 AND projeto_id = $2 AND status = 'aguardando_validacao' AND to_char(atualizada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') = $3 RETURNING titulo`, [marcoId, id, versao]);
+            if (!marco.rows.length) throw new ErroConversa(409, "A entrega mudou. Atualize e confira novamente");
+            await db.query(`INSERT INTO marcos_validacoes (marco_id, usuario_id, versao) VALUES ($1,$2,$3)`, [marcoId, res.locals.usuarioId, versao]);
+            await db.query(`UPDATE projetos SET atualizada_em = NOW() WHERE id = $1`, [id]);
+            await db.query(`INSERT INTO notificacoes (publico,cliente_id,tipo,referencia_id,titulo,resumo) VALUES ('admin',$1,'projeto',$2,'Entrega validada',left($3,180))`, [clienteId, id, `${projeto.rows[0].titulo} · ${marco.rows[0].titulo}`]);
+            return carregarMarcos(db, id, clienteId);
+        });
+        res.json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
+});
+
 //admin: editar marco
 app.patch("/api/projetos/:id/marcos/:marcoId", async (req, res) => {
     const {id, marcoId} = req.params;
@@ -2482,6 +2626,8 @@ app.delete("/api/projetos/:id/marcos", async (req, res) => {
                 DELETE FROM projetos_marcos m WHERE m.projeto_id = $1 AND m.id = ANY($2::uuid[])
                     AND m.status = 'pendente' AND NOT m.cobranca_iniciada
                     AND NOT EXISTS (SELECT 1 FROM marcos_pagamentos p WHERE p.marco_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM projetos_propostas pp WHERE pp.marco_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM marcos_validacoes v WHERE v.marco_id = m.id)
                 RETURNING m.id
             `, [id, selecionados]);
             if (excluidos.rowCount !== selecionados.length) throw new ErroConversa(409, "Alguns marcos mudaram. Atualize e tente novamente");
@@ -2500,12 +2646,15 @@ app.delete("/api/projetos/:id/marcos/:marcoId", async (req, res) => {
             await travarProjetoMarco(db, id);
             const marco = await db.query(`
                 SELECT m.status, m.cobranca_iniciada,
-                    EXISTS (SELECT 1 FROM marcos_pagamentos p WHERE p.marco_id = m.id) AS tem_pagamentos
+                    EXISTS (SELECT 1 FROM marcos_pagamentos p WHERE p.marco_id = m.id) AS tem_pagamentos,
+                    EXISTS (SELECT 1 FROM projetos_propostas pp WHERE pp.marco_id = m.id) AS acordado,
+                    EXISTS (SELECT 1 FROM marcos_validacoes v WHERE v.marco_id = m.id) AS validado
                 FROM projetos_marcos m WHERE m.id = $1 AND m.projeto_id = $2
             `, [marcoId, id]);
             const atual = marco.rows[0];
             if (!atual) throw new ErroConversa(404, "Marco não encontrado");
             if (atual.tem_pagamentos) throw new ErroConversa(409, "Este marco possui pagamentos registrados");
+            if (atual.acordado || atual.validado) throw new ErroConversa(409, "Marco com histórico de acordo ou validação. Cancele em vez de excluir");
             if (atual.status !== "pendente" || atual.cobranca_iniciada) throw new ErroConversa(409, "Cancele este marco em vez de excluir");
             await db.query(`DELETE FROM projetos_marcos WHERE id = $1 AND projeto_id = $2`, [marcoId, id]);
             return atualizarProjetoMarco(db, id, res.locals.usuarioId);

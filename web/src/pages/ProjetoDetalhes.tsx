@@ -44,7 +44,7 @@ export function ProjetoDetalhes() {
     const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : "Voltar aos projetos";
 
     const [projeto, setProjeto] = useState<Projeto | null>(null);
-    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm} : anterior), []);
+    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : anterior), []);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 

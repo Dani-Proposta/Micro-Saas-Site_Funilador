@@ -28,7 +28,7 @@ const statusProjeto = {
 export function MeusProjetos() {
 
     const [projetos, setProjetos] = useState<Projeto[]>([]);
-    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm} : p)), []);
+    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : p)), []);
     const [params, setParams] = useSearchParams();
     const navigate = useNavigate();
     const location = useLocation();

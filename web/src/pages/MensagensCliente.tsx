@@ -202,6 +202,7 @@ function CentralMensagensCliente() {
                                 <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
+                                    projetoId={conversaSelecionada.projetoId}
                                     lado="cliente"
                                     arquivada={!!conversaSelecionada.arquivadaEm}
                                     onAtualizarConversas={atualizarConversas}

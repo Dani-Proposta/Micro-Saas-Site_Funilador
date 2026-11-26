@@ -20,8 +20,11 @@ type Marco = {
     saldoDispensado: boolean;
     pagamentos: Pagamento[];
     oculto?: boolean;
+    acordado?: boolean;
+    validado?: boolean;
+    versao: string;
 };
-export type ResumoMarcos = {id: string; modoProgresso: DadosProjeto["modoProgresso"]; progresso: number | null; atualizadaEm: string; valorAcordado: string | null; totalPago: string; valorDistribuido?: string; valorRestante?: string | null; marcos: Marco[]};
+export type ResumoMarcos = {id: string; modoProgresso: DadosProjeto["modoProgresso"]; progresso: number | null; atualizadaEm: string; valorAcordado: string | null; prazoAcordado: string | null; totalPago: string; valorDistribuido?: string; valorRestante?: string | null; marcos: Marco[]};
 type Edicao = {id: string | null; titulo: string; descricao: string; status: StatusMarco; valor: string; prazoEntrega: string; vencimento: string; cobrancaIniciada: boolean; bloqueiaProgresso: boolean; saldoDispensado: boolean};
 type Projeto = DadosProjeto & {id: string; status: string; arquivadaEm?: string | null};
 
@@ -46,7 +49,7 @@ function statusPagamento(marco: Marco, cancelado: boolean) {
 
 //ver se o marco pode ser excluído
 function podeExcluir(marco: Marco) {
-    return marco.status === "pendente" && !marco.cobrancaIniciada && marco.pagamentos.length === 0;
+    return marco.status === "pendente" && !marco.cobrancaIniciada && !marco.acordado && !marco.validado && marco.pagamentos.length === 0;
 }
 
 //admin e cliente: acompanhar marcos
@@ -62,6 +65,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado}: {projeto:
     const [historicos, setHistoricos] = useState<string[]>([]);
     const [cancelamento, setCancelamento] = useState<{marco: Marco; dispensar: boolean} | null>(null);
     const [limpeza, setLimpeza] = useState<string[] | null>(null);
+    const [validacao, setValidacao] = useState<Marco | null>(null);
     const [salvando, setSalvando] = useState(false);
     const [revisao, setRevisao] = useState(0);
     const versao = useRef(0);
@@ -118,6 +122,18 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado}: {projeto:
             onAtualizado?.(dados);
             return true;
         } catch (e) {setErro(e instanceof Error ? e.message : "Não foi possível salvar"); return false;}
+        finally {setSalvando(false);}
+    }
+
+    async function validarEntrega() {
+        if (!validacao || admin || cancelado || salvando) return;
+        versao.current++; setSalvando(true); setErro(null);
+        try {
+            const resposta = await fetch(`${endpoint}/${validacao.id}/validar`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({versao: validacao.versao})});
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível validar a entrega");
+            setResumo(dados); onAtualizado?.(dados); setValidacao(null);
+        } catch (e) {setErro(e instanceof Error ? e.message : "Não foi possível validar a entrega");}
         finally {setSalvando(false);}
     }
 
@@ -206,6 +222,9 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado}: {projeto:
     </Stack></Card>;
 
     return <Card withBorder padding={admin ? "lg" : "sm"}><Stack gap="sm">
+        <Modal opened={!!validacao} onClose={() => {if (!salvando) {setValidacao(null); setErro(null);}}} title="Validar entrega" centered closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
+            <Stack gap="sm"><Text fw={600}>{validacao?.titulo}</Text><Text size="sm">Ao confirmar, esta entrega será marcada como concluída. Isso não registra nenhum pagamento.</Text>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setValidacao(null); setErro(null);}}>Voltar</Button><Button color="green" loading={salvando} onClick={() => void validarEntrega()}>Confirmar entrega</Button></Group></Stack>
+        </Modal>
         <Modal opened={!!cancelamento} onClose={() => {if (!salvando) {setCancelamento(null); setErro(null);}}} title={cancelamento?.marco.status === "cancelado" ? "Revisar cobrança" : "Cancelar marco"} centered closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
             {cancelamento && <Stack gap="sm">
                 <Text fw={600} style={{overflowWrap: "anywhere"}}>{cancelamento.marco.titulo}</Text>
@@ -259,7 +278,8 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado}: {projeto:
                 {marco.descricao && <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{marco.descricao}</Text>}
                 <SimpleGrid cols={{base: 1, xs: 2, md: 3}}><Text size="sm">Entrega: {formatarPrazo(marco.prazoEntrega)}</Text><Text size="sm">Valor: {formatarValor(marco.valor)}</Text><Text size="sm">{admin ? "Recebido" : "Pago"}: {formatarValor(marco.recebido)}</Text><Text size="sm">Saldo: {formatarValor(marco.saldo)}</Text><Text size="sm">Vencimento: {formatarPrazo(marco.vencimento)}</Text><Text size="sm" fw={500}>{statusPagamento(marco, cancelado)}</Text></SimpleGrid>
                 {marco.pagamentos.length > 0 && <><Divider/><Button size="xs" variant="subtle" onClick={() => setHistoricos(old => old.includes(marco.id) ? old.filter(id => id !== marco.id) : [...old, marco.id])}>{historicos.includes(marco.id) ? "Recolher histórico" : `Ver histórico (${marco.pagamentos.length})`}</Button>{historicos.includes(marco.id) && marco.pagamentos.map(p => <Group key={p.id} justify="space-between" wrap="wrap"><Stack gap={2}><Text size="xs" td={p.anuladoEm ? "line-through" : undefined}>{formatarPrazo(p.recebidoEm)} · {formatarValor(p.valor)}</Text>{p.anuladoEm && <Text size="xs" c="dimmed">Anulado em {new Date(p.anuladoEm).toLocaleString("pt-BR")}</Text>}</Stack>{!somenteLeitura && !p.anuladoEm && <Button size="xs" color="red" variant="subtle" disabled={ocupado} onClick={() => void anularPagamento(marco, p)}>Desfazer</Button>}</Group>)}</>}
-                {!somenteLeitura && <Group justify="flex-end"><Menu shadow="md" position="bottom-end"><Menu.Target><Button size="xs" variant="light" disabled={ocupado} aria-label={`Opções de ${marco.titulo}`}>⋮</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => {setEdicao(novaEdicao(marco)); setErro(null);}}>Editar</Menu.Item><Menu.Item onClick={() => void enviar(`${endpoint}/${marco.id}/visibilidade`, "PATCH", {oculto: !marco.oculto})}>{marco.oculto ? "Exibir na lista" : "Ocultar da lista"}</Menu.Item><Menu.Item color="orange" onClick={() => cancelarMarco(marco)}>{marco.status === "cancelado" ? "Revisar cobrança" : "Cancelar marco"}</Menu.Item><Menu.Item color="red" disabled={!podeExcluir(marco)} onClick={() => void excluirMarco(marco)}>Excluir marco</Menu.Item>{!podeExcluir(marco) && <Menu.Label>{marco.pagamentos.length ? "Possui histórico de pagamentos" : marco.cobrancaIniciada ? "Cobrança iniciada" : "Marco não está pendente"}</Menu.Label>}</Menu.Dropdown></Menu>{Number(marco.saldo) > 0 && (!cancelado || ["concluido", "cancelado", "aguardando_validacao"].includes(marco.status) || marco.cobrancaIniciada) && <Button size="xs" variant="light" color="green" disabled={ocupado} onClick={() => abrirPagamento(marco)}>Registrar pagamento</Button>}</Group>}
+                {!admin && !cancelado && !projeto.arquivadaEm && marco.status === "aguardando_validacao" && <Button size="xs" color="green" variant="light" disabled={salvando} onClick={() => {setErro(null); setValidacao(marco);}}>Validar entrega</Button>}
+                {!somenteLeitura && <Group justify="flex-end"><Menu shadow="md" position="bottom-end"><Menu.Target><Button size="xs" variant="light" disabled={ocupado} aria-label={`Opções de ${marco.titulo}`}>⋮</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => {setEdicao(novaEdicao(marco)); setErro(null);}}>Editar</Menu.Item><Menu.Item onClick={() => void enviar(`${endpoint}/${marco.id}/visibilidade`, "PATCH", {oculto: !marco.oculto})}>{marco.oculto ? "Exibir na lista" : "Ocultar da lista"}</Menu.Item><Menu.Item color="orange" onClick={() => cancelarMarco(marco)}>{marco.status === "cancelado" ? "Revisar cobrança" : "Cancelar marco"}</Menu.Item><Menu.Item color="red" disabled={!podeExcluir(marco)} onClick={() => void excluirMarco(marco)}>Excluir marco</Menu.Item>{!podeExcluir(marco) && <Menu.Label>{marco.pagamentos.length ? "Possui histórico de pagamentos" : marco.acordado ? "Marco acordado" : marco.validado ? "Possui validação do cliente" : marco.cobrancaIniciada ? "Cobrança iniciada" : "Marco não está pendente"}</Menu.Label>}</Menu.Dropdown></Menu>{Number(marco.saldo) > 0 && (!cancelado || ["concluido", "cancelado", "aguardando_validacao"].includes(marco.status) || marco.cobrancaIniciada) && <Button size="xs" variant="light" color="green" disabled={ocupado} onClick={() => abrirPagamento(marco)}>Registrar pagamento</Button>}</Group>}
                 {edicao?.id === marco.id && !somenteLeitura && editor}
                 {pagamento?.marcoId === marco.id && !somenteLeitura && <Stack gap="xs"><Divider/><TextInput label="Valor recebido (R$)" inputMode="decimal" maxLength={13} value={pagamento.valor} onChange={e => {const valor = e.currentTarget.value; setPagamento(p => p ? {...p, valor} : p);}} disabled={salvando}/><TextInput label="Data do recebimento" type="date" value={pagamento.recebidoEm} onChange={e => {const recebidoEm = e.currentTarget.value; setPagamento(p => p ? {...p, recebidoEm} : p);}} disabled={salvando}/>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setPagamento(null); setErro(null);}}>Cancelar</Button><Button loading={salvando} disabled={!pagamento.valor.trim() || !pagamento.recebidoEm} onClick={() => void registrarPagamento()}>Registrar</Button></Group></Stack>}
             </Stack></Card>)}

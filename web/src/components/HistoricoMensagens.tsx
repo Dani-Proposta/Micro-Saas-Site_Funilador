@@ -1,4 +1,6 @@
 import classes from "../styles/Usabilidade.module.css";
+import { CartaoProposta, FormularioProposta, ResumoProjetoChat } from "./NegociacaoProjeto";
+import type { Proposta, EstadoProposta } from "./NegociacaoProjeto";
 import { TextoExpansivel } from "./TextoExpansivel";
 
 import type { ReactNode } from "react";
@@ -13,6 +15,8 @@ type Mensagem = {
     conteudo: string;
     enviadaEm: string;
     lida?: boolean;
+    proposta?: Proposta | null;
+    decisaoProposta?: {id: string; status: EstadoProposta} | null;
 };
 
 // As datas retornadas pela API são UTC com seis dígitos de precisão.
@@ -20,10 +24,12 @@ function unirMensagens(anteriores: Mensagem[], novas: Mensagem[]) {
     const unicas = new Map(anteriores.map(mensagem => [mensagem.id, mensagem]));
     for (const mensagem of novas) {
         const anterior = unicas.get(mensagem.id);
-        unicas.set(mensagem.id, {...mensagem, lida: !!(anterior?.lida || mensagem.lida)});
+        const proposta = anterior?.proposta && anterior.proposta.status !== "pendente" && mensagem.proposta?.status === "pendente" ? anterior.proposta : mensagem.proposta;
+        unicas.set(mensagem.id, {...mensagem, proposta, lida: !!(anterior?.lida || mensagem.lida)});
     }
 
-    const ordenadas = Array.from(unicas.values()).sort((a, b) =>
+    const decisoes = new Map(Array.from(unicas.values()).flatMap(m => m.decisaoProposta ? [[m.decisaoProposta.id, m.decisaoProposta.status] as const] : []));
+    const ordenadas = Array.from(unicas.values()).map(m => m.proposta && decisoes.has(m.proposta.id) ? {...m, proposta: {...m.proposta, status: decisoes.get(m.proposta.id)!}} : m).sort((a, b) =>
         a.enviadaEm < b.enviadaEm ? -1 :
         a.enviadaEm > b.enviadaEm ? 1 :
         a.id < b.id ? -1 : a.id > b.id ? 1 : 0
@@ -31,7 +37,7 @@ function unirMensagens(anteriores: Mensagem[], novas: Mensagem[]) {
     // Não recria o estado em polls que não trouxeram nenhuma mudança.
     return ordenadas.length === anteriores.length && ordenadas.every((m, i) => {
         const a = anteriores[i];
-        return m.id === a.id && m.lida === !!a.lida && m.conteudo === a.conteudo && m.enviadaEm === a.enviadaEm && m.remetenteTipo === a.remetenteTipo;
+        return m.id === a.id && m.lida === !!a.lida && m.conteudo === a.conteudo && m.enviadaEm === a.enviadaEm && m.remetenteTipo === a.remetenteTipo && m.proposta?.status === a.proposta?.status && m.proposta?.marcoId === a.proposta?.marcoId && m.proposta?.id === a.proposta?.id && m.decisaoProposta?.id === a.decisaoProposta?.id;
     }) ? anteriores : ordenadas;
 }
 
@@ -61,18 +67,20 @@ async function buscarPagina(endpoint: string, signal: AbortSignal, cursor?: {tip
 
 type HistoricoProps = {
     conversaId: string;
+    projetoId?: string | null;
     arquivada?: boolean;
     lado?: "admin" | "cliente";
     onAtualizarConversas?: () => void;
     acoesArquivada?: ReactNode;
 };
 
-export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada}: HistoricoProps) {
+export function HistoricoMensagens({conversaId, projetoId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada}: HistoricoProps) {
 
     const [mensagens, setMensagens] = useState<Mensagem[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
+    const [novaProposta, setNovaProposta] = useState(false);
     const [conteudo, setConteudo] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -244,6 +252,8 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
     }, [endpoint, arquivada, onAtualizarConversas, mesclarPagina]);
 
     const atualizarMensagens = useAtualizacaoPeriodica(carregarMensagens, 5000);
+    const endpointPropostas = `${prefixo}/${conversaId}/propostas`;
+    const atualizarNegociacao = () => {atualizarMensagens(); onAtualizarConversas?.();};
 
     useEffect(() => () => {paginaAnterior.current?.abort();}, [endpoint]);
 
@@ -447,6 +457,8 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                 <Button variant="subtle" size="compact-xs" disabled={!mensagens.some(m => m.remetenteTipo !== lado && !m.lida)} onClick={irParaNaoLida}>Ir à não lida ({mensagens.filter(m => m.remetenteTipo !== lado && !m.lida).length})</Button>
                 <Button variant="subtle" size="compact-xs" loading={marcandoTodas} disabled={carregando || !!erro} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Button>
             </Group>
+            {projetoId && <Group gap="xs"><ResumoProjetoChat projetoId={projetoId} lado={lado}/>{!somenteLeitura && <Button size="compact-xs" variant="light" disabled={carregando || !!erro} onClick={() => setNovaProposta(true)}>+ Proposta</Button>}</Group>}
+            {novaProposta && !somenteLeitura && <FormularioProposta endpoint={endpointPropostas} lado={lado} onAlterado={atualizarNegociacao} onFechar={() => setNovaProposta(false)}/>}
             {erroLeitura && <Alert color="red">{erroLeitura}</Alert>}
             <Box pos="relative" className={classes.chatArea}>
                 <ScrollArea className={classes.chatScroll} offsetScrollbars viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
@@ -467,7 +479,7 @@ export function HistoricoMensagens({conversaId, arquivada = false, lado = "admin
                                 {marcadorInicial === mensagem.id && <Divider my="sm" color="violet" label="Mensagens não lidas" labelPosition="center"/>}
                                 <Group data-mensagem-id={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
                                     <Box bg={mensagem.remetenteTipo === lado ? "violet.8" : "var(--mantine-color-default-hover)"} c={mensagem.remetenteTipo === lado ? "white" : undefined} p="sm" maw="80%" style={{borderRadius: 12, outline: mensagem.remetenteTipo !== lado && !mensagem.lida ? "1px solid var(--mantine-color-violet-5)" : undefined}}>
-                                        <TextoExpansivel texto={mensagem.conteudo} linhas={7}/>
+                                        {mensagem.proposta ? <CartaoProposta proposta={mensagem.proposta} endpoint={endpointPropostas} lado={lado} somenteLeitura={somenteLeitura} onAlterado={atualizarNegociacao}/> : <TextoExpansivel texto={mensagem.conteudo} linhas={7}/>} 
                                         <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
                                     </Box>
                                 </Group>

@@ -408,6 +408,7 @@ function CentralMensagens() {
                                 <HistoricoMensagens
                                     key={conversaSelecionada.id}
                                     conversaId={conversaSelecionada.id}
+                                    projetoId={conversaSelecionada.projetoId}
                                     arquivada={!!conversaSelecionada.arquivadaEm}
                                     onAtualizarConversas={atualizarConversas}
                                     acoesArquivada={conversaSelecionada.arquivadaEm && <ReaberturaConversa key={conversaSelecionada.id} conversaId={conversaSelecionada.id} pedido={conversaSelecionada.reabertura} lado="admin" onAlterado={(pedido, restaurada) => atualizarPedido(conversaSelecionada.id, pedido, restaurada)} onAtualizar={atualizarConversas}/>}
