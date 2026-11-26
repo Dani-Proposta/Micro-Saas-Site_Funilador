@@ -9,6 +9,7 @@ import { authClient } from "../lib/auth-client";
 import { MeusProjetos } from "./MeusProjetos";
 import { MinhasSolicitacoes } from "./MinhasSolicitacoes";
 import { DashboardCliente } from "./DashboardCliente";
+import { MensagensCliente } from "./MensagensCliente";
 
 type Cliente = {
     id: string;
@@ -115,7 +116,7 @@ function PortalCliente() {
                 <NavLink label="Visão geral" renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
                 <NavLink label="Meus projetos" renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
                 <NavLink label="Minhas solicitações" renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
-                <NavLink label="Mensagens" disabled/>
+                <NavLink label="Mensagens" renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
             </AppShell.Navbar>
 
             <AppShell.Main>
@@ -130,6 +131,7 @@ function PortalCliente() {
                         <Route index element={<DashboardCliente cliente={cliente}/>}/>
                         <Route path="projetos" element={<MeusProjetos/>}/>
                         <Route path="solicitacoes" element={<MinhasSolicitacoes/>}/>
+                        <Route path="mensagens" element={<MensagensCliente/>}/>
                         <Route path="*" element={<Navigate to="/portal" replace/>}/>
                     </Routes>
                 )}

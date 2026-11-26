@@ -588,6 +588,90 @@ app.get("/api/conversas/:id/mensagens", async (req, res) => {
         res.status(500).json({erro: "Não foi possível carregar as mensagens."});
     }
 });
+
+//cliente carregar conversas
+app.get("/api/me/conversas", async (_req, res) => {
+    const cliente = res.locals.cliente;
+
+    try {
+        const resultado = await pool.query(`
+            SELECT
+                id,
+                titulo,
+                tipo,
+                projeto_id AS "projetoId",
+                criada_em AS "criadaEm",
+                arquivada_em AS "arquivadaEm"
+            FROM conversas
+            WHERE cliente_id = $1
+                AND arquivada_em IS NULL
+            ORDER BY
+                CASE WHEN tipo = 'geral' THEN 0 ELSE 1 END,
+                criada_em DESC,
+                id
+        `, [cliente.id]);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar conversas do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar as conversas."});
+    }
+});
+
+//carregar mensagen da respectiva conversa
+app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
+    const { id } = req.params;
+    const cliente = res.locals.cliente;
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    try {
+        const conversa = await pool.query(`
+            SELECT id
+            FROM conversas
+            WHERE id = $1
+                AND cliente_id = $2
+                AND arquivada_em IS NULL
+        `, [id, cliente.id]);
+
+        if (conversa.rows.length === 0) {
+            res.status(404).json({erro: "Conversa não encontrada."});
+            return;
+        }
+
+        const resultado = await pool.query(`
+            SELECT *
+            FROM (
+                SELECT
+                    m.id,
+                    m.remetente_tipo AS "remetenteTipo",
+                    m.conteudo,
+                    m.enviada_em AS "enviadaEm"
+                FROM mensagens AS m
+                INNER JOIN conversas AS c
+                    ON c.id = m.conversa_id
+                WHERE c.id = $1
+                    AND c.cliente_id = $2
+                    AND c.arquivada_em IS NULL
+                ORDER BY m.enviada_em DESC, m.id DESC
+                LIMIT 50
+            ) AS recentes
+            ORDER BY "enviadaEm" ASC, id ASC
+        `, [id, cliente.id]);
+
+        res.json(resultado.rows);
+
+    } catch (erro) {
+        console.error("Erro ao buscar mensagens do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+    }
+});
 //rotas de atualização ou pedido ou criação
 
 
@@ -1510,6 +1594,71 @@ app.patch("/api/conversas/:id/restaurar", async (req, res) => {
     } catch (erro) {
         console.error("Erro ao restaurar conversa:", erro);
         res.status(500).json({erro: "Não foi possível restaurar a conversa."});
+    }
+});
+
+//cliente mandar mensagem
+app.post("/api/me/conversas/:id/mensagens", async (req, res) => {
+    const { id } = req.params;
+    const { conteudo } = req.body ?? {};
+    const cliente = res.locals.cliente;
+
+    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidValido.test(id)) {
+        res.status(400).json({erro: "Conversa inválida."});
+        return;
+    }
+
+    if (typeof conteudo !== "string" || !conteudo.trim() || conteudo.trim().length > 5000) {
+        res.status(400).json({erro: "Informe uma mensagem válida de até 5000 caracteres."});
+        return;
+    }
+
+    try {
+        const sessao = await auth.api.getSession({
+            headers: fromNodeHeaders(req.headers),
+        });
+
+        if (!sessao) {
+            res.status(401).json({erro: "Sessão indisponível."});
+            return;
+        }
+
+        const resultado = await pool.query(`
+            WITH conversa_disponivel AS (
+                SELECT id
+                FROM conversas
+                WHERE id = $1
+                    AND cliente_id = $2
+                    AND arquivada_em IS NULL
+                FOR UPDATE
+            )
+            INSERT INTO mensagens (
+                conversa_id,
+                remetente_id,
+                remetente_tipo,
+                conteudo
+            )
+            SELECT id, $3, 'cliente', $4
+            FROM conversa_disponivel
+            RETURNING
+                id,
+                remetente_tipo AS "remetenteTipo",
+                conteudo,
+                enviada_em AS "enviadaEm"
+        `, [id, cliente.id, sessao.user.id, conteudo.trim()]);
+
+        if (resultado.rows.length === 0) {
+            res.status(404).json({erro: "Conversa não encontrada ou indisponível."});
+            return;
+        }
+
+        res.status(201).json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.error("Erro ao enviar mensagem do cliente:", erro);
+        res.status(500).json({erro: "Não foi possível enviar a mensagem."});
     }
 });
 
