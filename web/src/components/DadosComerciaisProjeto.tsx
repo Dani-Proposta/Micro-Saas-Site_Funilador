@@ -10,7 +10,7 @@ export function ResumoProjeto({projeto}: {projeto: DadosProjeto}) {
             <Stack gap={2}><Text size="xs" c="dimmed">Valor acordado</Text><Text fw={500}>{formatarValor(projeto.valorAcordado)}</Text></Stack>
             <Stack gap={2}><Text size="xs" c="dimmed">Prazo acordado</Text><Text fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></Stack>
         </SimpleGrid>
-        <Group justify="space-between"><Text size="sm">Progresso</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
+        <Group justify="space-between"><Text size="sm">Progresso ({projeto.modoProgresso === "marcos" ? "por marcos" : "manual"})</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
         {projeto.progresso != null && <Progress value={projeto.progresso} color="violet" aria-label="Progresso do projeto"/>}
         <Text size="sm" fw={500}>Tecnologias</Text>
         {projeto.tecnologias?.length ? <Group gap="xs">{projeto.tecnologias.map(t => <Badge key={t} variant="light" style={{maxWidth: "100%"}}>{t}</Badge>)}</Group> : <Text size="sm" c="dimmed">Não definidas</Text>}
@@ -27,6 +27,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
     const [prazo, setPrazo] = useState("");
     const [prioridade, setPrioridade] = useState<string | null>(null);
     const [progresso, setProgresso] = useState("");
+    const [modoProgresso, setModoProgresso] = useState<DadosProjeto["modoProgresso"]>("manual");
     const [tecnologias, setTecnologias] = useState("");
     const [observacoes, setObservacoes] = useState("");
     const [salvando, setSalvando] = useState(false);
@@ -36,7 +37,8 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
         setValor(projeto.valorAcordado ?? "");
         setPrazo(projeto.prazoAcordado ?? "");
         setPrioridade(projeto.prioridade ?? null);
-        setProgresso(projeto.progresso == null ? "" : String(projeto.progresso));
+        setProgresso(projeto.progressoManual == null ? "" : String(projeto.progressoManual));
+        setModoProgresso(projeto.modoProgresso);
         setTecnologias((projeto.tecnologias ?? []).join("\n"));
         setObservacoes(projeto.observacoesInternas ?? "");
         setErro(null);
@@ -59,6 +61,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
                     valorAcordado: valor,
                     prazoAcordado: prazo,
                     prioridade,
+                    modoProgresso,
                     progresso: progresso === "" ? null : Number(progresso),
                     tecnologias: tecnologias.split("\n").map(t => t.trim()).filter(Boolean),
                     observacoesInternas: observacoes,
@@ -82,7 +85,8 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
                 <SimpleGrid cols={{base: 1, sm: 2}}>
                     <TextInput label="Valor acordado (R$)" placeholder="Ex.: 2500,00" inputMode="decimal" maxLength={13} value={valor} onChange={e => setValor(e.currentTarget.value)} disabled={salvando}/>
                     <TextInput label="Prazo acordado" type="date" value={prazo} onChange={e => setPrazo(e.currentTarget.value)} disabled={salvando}/>
-                    <TextInput label="Progresso (%)" inputMode="numeric" maxLength={3} value={progresso} onChange={e => setProgresso(e.currentTarget.value)} disabled={salvando}/>
+                    <Select label="Modo de progresso" data={[{value: "manual", label: "Manual"}, {value: "marcos", label: "Por marcos"}]} allowDeselect={false} value={modoProgresso} onChange={v => {if (v === "manual" || v === "marcos") setModoProgresso(v);}} disabled={salvando}/>
+                    {modoProgresso === "manual" && <TextInput label="Progresso (%)" inputMode="numeric" maxLength={3} value={progresso} onChange={e => setProgresso(e.currentTarget.value)} disabled={salvando}/>} 
                     <Select label="Prioridade (interna)" placeholder="Não definida" clearable data={prioridades} value={prioridade} onChange={setPrioridade} disabled={salvando}/>
                 </SimpleGrid>
                 <Textarea label="Tecnologias" description="Uma por linha" autosize minRows={2} maxRows={6} value={tecnologias} onChange={e => setTecnologias(e.currentTarget.value)} maxLength={1830} disabled={salvando}/>

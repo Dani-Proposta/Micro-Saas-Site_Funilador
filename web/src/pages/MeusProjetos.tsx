@@ -1,8 +1,10 @@
+import { MarcosProjeto } from "../components/MarcosProjeto";
+import type { ResumoMarcos } from "../components/MarcosProjeto";
 import { ResumoProjeto } from "../components/DadosComerciaisProjeto";
 import type { DadosProjeto } from "../lib/comercial";
 import { TextoExpansivel } from "../components/TextoExpansivel";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Select, Stack, Text, Title } from "@mantine/core";
@@ -26,6 +28,7 @@ const statusProjeto = {
 export function MeusProjetos() {
 
     const [projetos, setProjetos] = useState<Projeto[]>([]);
+    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm} : p)), []);
     const [params, setParams] = useSearchParams();
     const navigate = useNavigate();
     const location = useLocation();
@@ -87,6 +90,7 @@ export function MeusProjetos() {
 
                         <TextoExpansivel texto={projeto.descricao} linhas={5}/>
                         <ResumoProjeto projeto={projeto}/>
+                        <MarcosProjeto projeto={projeto} lado="cliente" onAtualizado={atualizarMarcos}/>
                         <Text size="xs" c="dimmed">Criado em: {new Date(projeto.criadaEm).toLocaleString("pt-BR")}</Text>
                         <Text size="xs" c="dimmed">Última atualização: {new Date(projeto.atualizadaEm).toLocaleString("pt-BR")}</Text>
                         <Group justify="flex-end"><Button size="xs" variant="light" onClick={() => navigate(`/portal/mensagens?projeto=${encodeURIComponent(projeto.id)}`, {state: {voltarPara: location.pathname + location.search}})}>Conversa do projeto</Button></Group>

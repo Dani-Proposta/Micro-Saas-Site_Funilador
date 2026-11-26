@@ -8,9 +8,11 @@ export type DadosProjeto = {
     prazoAcordado: string | null;
     tecnologias: string[];
     progresso: number | null;
+    modoProgresso: "manual" | "marcos";
 };
 
 export type DadosProjetoAdmin = DadosProjeto & {
+    progressoManual: number | null;
     prioridade: "baixa" | "normal" | "alta" | null;
     observacoesInternas: string | null;
 };

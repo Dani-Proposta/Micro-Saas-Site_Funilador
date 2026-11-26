@@ -460,6 +460,62 @@ function dadosComerciaisProjeto(corpo: Record<string, unknown>) {
     return [valor, prazo, prioridade, progresso, [...new Set(tecnologias.map(t => t.trim()))], typeof observacoes === "string" ? observacoes.trim() || null : null];
 }
 
+//validar dados do marco
+function dadosMarco(corpo: Record<string, unknown>) {
+    if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) throw new ErroConversa(400, "Dados inválidos");
+    const {titulo, descricao, status, cobrancaIniciada, bloqueiaProgresso, saldoDispensado} = corpo;
+    if (typeof titulo !== "string" || !titulo.trim() || titulo.trim().length > 150) throw new ErroConversa(400, "Informe um título de até 150 caracteres");
+    if (typeof descricao !== "string" || descricao.length > 5000) throw new ErroConversa(400, "Descrição inválida");
+    if (typeof status !== "string" || !["pendente", "em_andamento", "aguardando_validacao", "concluido", "cancelado"].includes(status)) throw new ErroConversa(400, "Status inválido");
+    if (typeof cobrancaIniciada !== "boolean" || typeof bloqueiaProgresso !== "boolean" || typeof saldoDispensado !== "boolean" || (saldoDispensado && status !== "cancelado")) throw new ErroConversa(400, "Dados de pagamento inválidos");
+    return [titulo.trim(), descricao.trim() || null, status, valorComercial(corpo.valor), prazoComercial(corpo.prazoEntrega), prazoComercial(corpo.vencimento), cobrancaIniciada, bloqueiaProgresso, saldoDispensado];
+}
+
+//buscar marcos e progresso
+async function carregarMarcos(db: PoolClient | typeof pool, id: string, clienteId: string | null = null) {
+    if (!uuidConversa.test(id)) throw new ErroConversa(400, "Projeto inválido");
+    const resultado = await db.query(`
+        SELECT p.id, p.modo_progresso AS "modoProgresso",
+            funilador_progresso_projeto(p.id, p.modo_progresso, p.progresso) AS progresso,
+            p.atualizada_em AS "atualizadaEm",
+            COALESCE(jsonb_agg(jsonb_build_object(
+                'id', m.id, 'titulo', m.titulo, 'descricao', m.descricao, 'status', m.status,
+                'valor', m.valor::text, 'recebido', m.recebido::text, 'saldo', m.saldo::text,
+                'prazoEntrega', to_char(m.prazo_entrega, 'YYYY-MM-DD'),
+                'vencimento', to_char(m.vencimento, 'YYYY-MM-DD'),
+                'cobrancaIniciada', m.cobranca_iniciada, 'bloqueiaProgresso', m.bloqueia_progresso,
+                'saldoDispensado', m.saldo_dispensado, 'pagamentos', m.pagamentos
+            ) ORDER BY m.criada_em, m.id) FILTER (WHERE m.id IS NOT NULL), '[]'::jsonb) AS marcos
+        FROM projetos p
+        LEFT JOIN funilador_marcos_resumo m ON m.projeto_id = p.id
+        WHERE p.id = $1 AND ($2::uuid IS NULL OR (p.cliente_id = $2 AND p.arquivada_em IS NULL))
+        GROUP BY p.id
+    `, [id, clienteId]);
+    if (!resultado.rows.length) throw new ErroConversa(404, "Projeto não encontrado");
+    return resultado.rows[0];
+}
+
+//travar projeto antes de alterar marcos
+async function travarProjetoMarco(db: PoolClient, id: string) {
+    if (!uuidConversa.test(id)) throw new ErroConversa(400, "Projeto inválido");
+    const resultado = await db.query(`SELECT status FROM projetos WHERE id = $1 AND arquivada_em IS NULL FOR UPDATE`, [id]);
+    if (!resultado.rows.length) throw new ErroConversa(404, "Projeto não encontrado ou arquivado");
+    return resultado.rows[0].status as string;
+}
+
+//atualizar data do projeto
+async function atualizarProjetoMarco(db: PoolClient, id: string) {
+    await db.query(`UPDATE projetos SET atualizada_em = NOW() WHERE id = $1`, [id]);
+    return carregarMarcos(db, id);
+}
+
+//erro ao gerenciar marcos
+function responderErroMarco(res: Response, erro: unknown) {
+    if (erro instanceof ErroConversa) {res.status(erro.status).json({erro: erro.message}); return;}
+    console.error("Erro ao gerenciar marcos:", erro);
+    res.status(500).json({erro: "Não foi possível concluir a operação"});
+}
+
 //rotas GET
 
 //verificar conexão com api
@@ -737,7 +793,9 @@ app.get("/api/projetos/:id", async (req, res) => {
             p.valor_acordado::text AS "valorAcordado",
             to_char(p.prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
             p.tecnologias,
-            p.progresso,
+            p.progresso AS "progressoManual",
+            p.modo_progresso AS "modoProgresso",
+            funilador_progresso_projeto(p.id, p.modo_progresso, p.progresso) AS progresso,
             p.prioridade,
             p.observacoes_internas AS "observacoesInternas"
             FROM projetos AS p
@@ -776,7 +834,8 @@ app.get("/api/me/projetos", async (_req, res) => {
             valor_acordado::text AS "valorAcordado",
             to_char(prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
             tecnologias,
-            progresso
+            modo_progresso AS "modoProgresso",
+            funilador_progresso_projeto(id, modo_progresso, progresso) AS progresso
             FROM projetos
             WHERE cliente_id = $1
             AND arquivada_em IS NULL
@@ -790,6 +849,18 @@ app.get("/api/me/projetos", async (_req, res) => {
         console.error("Erro ao buscar projetos do cliente:", erro);
         res.status(500).json({ erro: "Não foi possível carregar seus projetos." });
     }
+});
+
+//admin: marcos do projeto
+app.get("/api/projetos/:id/marcos", async (req, res) => {
+    try {res.json(await carregarMarcos(pool, req.params.id));}
+    catch (erro) {responderErroMarco(res, erro);}
+});
+
+//cliente: marcos do projeto
+app.get("/api/me/projetos/:id/marcos", async (req, res) => {
+    try {res.json(await carregarMarcos(pool, req.params.id, res.locals.cliente.id));}
+    catch (erro) {responderErroMarco(res, erro);}
 });
 
 //admin: convites do DB
@@ -1192,6 +1263,58 @@ app.post("/api/projetos", async (req, res) => {
         console.error("Deu ruim ao criar o projeto", erro);
         res.status(500).json({ erro: "Não deu pra criar o projeto" });
     }
+});
+
+//admin: criar marco
+app.post("/api/projetos/:id/marcos", async (req, res) => {
+    const {id} = req.params;
+    try {
+        const dados = dadosMarco(req.body);
+        const resultado = await transacaoConversa(async db => {
+            if (await travarProjetoMarco(db, id) === "cancelado") throw new ErroConversa(409, "Projeto cancelado");
+            await db.query(`
+                INSERT INTO projetos_marcos (projeto_id, titulo, descricao, status, valor, prazo_entrega, vencimento, cobranca_iniciada, bloqueia_progresso, saldo_dispensado)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            `, [id, ...dados]);
+            return atualizarProjetoMarco(db, id);
+        });
+        res.status(201).json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
+});
+
+//admin: registrar pagamento
+app.post("/api/projetos/:id/marcos/:marcoId/pagamentos", async (req, res) => {
+    const {id, marcoId} = req.params;
+    try {
+        const {pagamentoId, valor, recebidoEm} = req.body ?? {};
+        if (!uuidConversa.test(marcoId) || typeof pagamentoId !== "string" || !uuidConversa.test(pagamentoId)) throw new ErroConversa(400, "Pagamento inválido");
+        const quantia = valorComercial(valor);
+        const data = prazoComercial(recebidoEm);
+        if (!quantia || Number(quantia) <= 0 || !data) throw new ErroConversa(400, "Informe valor e data do pagamento");
+        const resultado = await transacaoConversa(async db => {
+            const statusProjeto = await travarProjetoMarco(db, id);
+            const existente = await db.query(`SELECT marco_id, valor = $2::numeric AND recebido_em = $3::date AS igual FROM marcos_pagamentos WHERE id = $1`, [pagamentoId, quantia, data]);
+            if (existente.rows.length) {
+                if (existente.rows[0].marco_id !== marcoId || !existente.rows[0].igual) throw new ErroConversa(409, "Pagamento já registrado");
+                const vinculo = await db.query(`SELECT 1 FROM projetos_marcos WHERE id = $1 AND projeto_id = $2`, [marcoId, id]);
+                if (!vinculo.rows.length) throw new ErroConversa(404, "Marco não encontrado");
+                return carregarMarcos(db, id);
+            }
+            const marco = await db.query(`
+                SELECT status, saldo_dispensado, cobranca_iniciada, saldo >= $3::numeric AS suficiente,
+                    $4::date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS data_valida
+                FROM funilador_marcos_resumo WHERE id = $1 AND projeto_id = $2
+            `, [marcoId, id, quantia, data]);
+            const atual = marco.rows[0];
+            if (!atual) throw new ErroConversa(404, "Marco não encontrado");
+            if (!atual.data_valida) throw new ErroConversa(400, "Data de recebimento não pode ser futura");
+            if (!atual.suficiente || atual.saldo_dispensado) throw new ErroConversa(409, "Valor acima do saldo do marco");
+            if (statusProjeto === "cancelado" && !["concluido", "cancelado", "aguardando_validacao"].includes(atual.status) && !atual.cobranca_iniciada) throw new ErroConversa(409, "Marco de projeto cancelado");
+            await db.query(`INSERT INTO marcos_pagamentos (id, marco_id, valor, recebido_em, usuario_id) VALUES ($1,$2,$3,$4,$5)`, [pagamentoId, marcoId, quantia, data, res.locals.usuarioId]);
+            return atualizarProjetoMarco(db, id);
+        });
+        res.status(201).json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
 });
 
 //admin: criar convite
@@ -1932,6 +2055,8 @@ app.patch("/api/projetos/:id/comercial", async (req, res) => {
             throw new ErroConversa(400, "Dados incompletos");
         }
         const dados = dadosComerciaisProjeto(corpo);
+        const modo = corpo.modoProgresso ?? "manual";
+        if (modo !== "manual" && modo !== "marcos") throw new ErroConversa(400, "Modo de progresso inválido");
         const resultado = await pool.query(`
             UPDATE projetos SET
                 valor_acordado = $2,
@@ -1940,14 +2065,16 @@ app.patch("/api/projetos/:id/comercial", async (req, res) => {
                 progresso = $5,
                 tecnologias = $6,
                 observacoes_internas = $7,
+                modo_progresso = $8,
                 atualizada_em = NOW()
             WHERE id = $1 AND arquivada_em IS NULL
             RETURNING id, atualizada_em AS "atualizadaEm",
                 valor_acordado::text AS "valorAcordado",
                 to_char(prazo_acordado, 'YYYY-MM-DD') AS "prazoAcordado",
-                prioridade, progresso, tecnologias,
+                prioridade, progresso AS "progressoManual", modo_progresso AS "modoProgresso",
+                funilador_progresso_projeto(id, modo_progresso, progresso) AS progresso, tecnologias,
                 observacoes_internas AS "observacoesInternas"
-        `, [id, ...dados]);
+        `, [id, ...dados, modo]);
         if (!resultado.rows.length) throw new ErroConversa(404, "Projeto não encontrado ou arquivado");
         res.json(resultado.rows[0]);
     } catch (erro) {
@@ -1958,6 +2085,34 @@ app.patch("/api/projetos/:id/comercial", async (req, res) => {
         console.error("Erro ao editar dados comerciais:", erro);
         res.status(500).json({erro: "Não foi possível salvar os dados"});
     }
+});
+
+//admin: editar marco
+app.patch("/api/projetos/:id/marcos/:marcoId", async (req, res) => {
+    const {id, marcoId} = req.params;
+    try {
+        if (!uuidConversa.test(marcoId)) throw new ErroConversa(400, "Marco inválido");
+        const dados = dadosMarco(req.body);
+        const resultado = await transacaoConversa(async db => {
+            const statusProjeto = await travarProjetoMarco(db, id);
+            const marco = await db.query(`
+                SELECT status, (recebido = 0 OR ($3::numeric IS NOT NULL AND $3::numeric >= recebido)) AS valor_valido
+                FROM funilador_marcos_resumo WHERE id = $1 AND projeto_id = $2
+            `, [marcoId, id, dados[3]]);
+            const atual = marco.rows[0];
+            if (!atual) throw new ErroConversa(404, "Marco não encontrado");
+            if (!atual.valor_valido) throw new ErroConversa(409, "O valor não pode ser menor que o recebido");
+            if (statusProjeto === "cancelado" && dados[2] !== "cancelado" && dados[2] !== atual.status) throw new ErroConversa(409, "Projeto cancelado");
+            await db.query(`
+                UPDATE projetos_marcos SET titulo = $3, descricao = $4, status = $5, valor = $6,
+                    prazo_entrega = $7, vencimento = $8, cobranca_iniciada = $9,
+                    bloqueia_progresso = $10, saldo_dispensado = $11, atualizada_em = NOW()
+                WHERE id = $1 AND projeto_id = $2
+            `, [marcoId, id, ...dados]);
+            return atualizarProjetoMarco(db, id);
+        });
+        res.json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
 });
 
 //admin: arquivar projeto

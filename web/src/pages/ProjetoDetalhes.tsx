@@ -1,7 +1,9 @@
+import { MarcosProjeto } from "../components/MarcosProjeto";
+import type { ResumoMarcos } from "../components/MarcosProjeto";
 import { DadosComerciaisProjeto } from "../components/DadosComerciaisProjeto";
 import type { DadosProjetoAdmin } from "../lib/comercial";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
 import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
@@ -42,6 +44,7 @@ export function ProjetoDetalhes() {
     const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : "Voltar aos projetos";
 
     const [projeto, setProjeto] = useState<Projeto | null>(null);
+    const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm} : anterior), []);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
 
@@ -280,6 +283,7 @@ export function ProjetoDetalhes() {
             </Card>
 
             <DadosComerciaisProjeto key={projeto.id} projeto={projeto} onSalvo={dados => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, ...dados} : anterior)}/>
+            <MarcosProjeto key={`marcos-${projeto.id}`} projeto={projeto} onAtualizado={atualizarMarcos}/>
 
             <Card withBorder padding="lg">
                 <Stack gap="sm">
