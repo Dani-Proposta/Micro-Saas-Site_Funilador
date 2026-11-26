@@ -564,59 +564,80 @@ app.get("/api/conversas", async (req, res) => {
     }
 });
 
-//pegar cada mensagem de cada conversa individual
-app.get("/api/conversas/:id/mensagens", async (req, res) => {
-    const { id } = req.params;
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidValido.test(id)) {
-        res.status(400).json({ erro: "Conversa inválida." });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(`
-            SELECT
-                c.arquivada_em AS "arquivadaEm",
-                COALESCE(h.mensagens, '[]'::json) AS mensagens
-            FROM conversas AS c
-            LEFT JOIN LATERAL (
-                SELECT json_agg(
-                    json_build_object(
-                        'id', m.id,
-                        'remetenteTipo', m.remetente_tipo,
-                        'conteudo', m.conteudo,
-                        'lida', (m.remetente_tipo = 'admin' OR EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $2)),
-                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-                    ) ORDER BY m.enviada_em ASC, m.id ASC
-                ) AS mensagens
-                FROM (
-                    SELECT id, remetente_tipo, conteudo, enviada_em
-                    FROM mensagens
-                    WHERE conversa_id = c.id
-                    ORDER BY enviada_em DESC, id DESC
-                    LIMIT 50
-                ) AS m
-            ) AS h ON TRUE
-            WHERE c.id = $1
-        `, [id, res.locals.usuarioId]);
-
-        const conversa = resultado.rows[0];
-
-        if (!conversa) {
-            res.status(404).json({ erro: "Conversa não encontrada." });
+// Histórico paginado: o cursor é resolvido no próprio banco, com precisão integral.
+// Os únicos fragmentos SQL dinâmicos são operadores/direções definidos pelo servidor.
+function rotaHistorico(lado: "admin" | "cliente") {
+    return async (req: Request, res: Response) => {
+        const {id} = req.params;
+        const {antes, depois} = req.query;
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const cursor = antes ?? depois ?? null;
+        if (typeof id !== "string" || !uuid.test(id) ||
+            (antes !== undefined && depois !== undefined) ||
+            (cursor !== null && (typeof cursor !== "string" || !uuid.test(cursor)))) {
+            res.status(400).json({erro: "Conversa ou cursor inválido."});
             return;
         }
 
-        // Mantém o formato anterior para consumidores que não pedem o estado.
-        res.set("Cache-Control", "no-store");
-        res.json(req.query.estado === "true" ? conversa : conversa.mensagens);
+        const crescente = depois !== undefined;
+        const direcao = crescente ? "ASC" : "DESC";
+        const operador = crescente ? ">" : "<";
+        const clienteId = lado === "cliente" ? res.locals.cliente.id : null;
 
-    } catch (erro) {
-        console.error("Erro ao buscar mensagens:", erro);
-        res.status(500).json({ erro: "Não foi possível carregar as mensagens." });
-    }
-});
+        try {
+            const resultado = await pool.query(`
+                SELECT c.arquivada_em AS "arquivadaEm",
+                    COALESCE(h.mensagens, '[]'::json) AS mensagens,
+                    COALESCE(h."temMais", false) AS "temMais"
+                FROM conversas c
+                LEFT JOIN mensagens referencia ON referencia.id = $4::uuid
+                    AND referencia.conversa_id = c.id
+                LEFT JOIN LATERAL (
+                    SELECT json_agg(json_build_object(
+                        'id', m.id,
+                        'remetenteTipo', m.remetente_tipo,
+                        'conteudo', m.conteudo,
+                        'lida', (m.remetente_tipo = $5 OR EXISTS (
+                            SELECT 1 FROM mensagens_leituras l
+                            WHERE l.mensagem_id = m.id AND l.usuario_id = $3
+                        )),
+                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+                    ) ORDER BY m.enviada_em ASC, m.id ASC)
+                        FILTER (WHERE m.pos <= 50) AS mensagens,
+                        COUNT(*) > 50 AS "temMais"
+                    FROM (
+                        SELECT pagina.*, row_number() OVER (ORDER BY enviada_em ${direcao}, id ${direcao}) AS pos
+                        FROM (
+                            SELECT id, remetente_tipo, conteudo, enviada_em
+                            FROM mensagens
+                            WHERE conversa_id = c.id
+                                AND ($4::uuid IS NULL OR (enviada_em, id) ${operador} (referencia.enviada_em, referencia.id))
+                            ORDER BY enviada_em ${direcao}, id ${direcao}
+                            LIMIT 51
+                        ) pagina
+                    ) m
+                ) h ON TRUE
+                WHERE c.id = $1 AND ($2::uuid IS NULL OR c.cliente_id = $2)
+                    AND ($4::uuid IS NULL OR referencia.id IS NOT NULL)
+            `, [id, clienteId, res.locals.usuarioId, cursor, lado]);
+
+            const conversa = resultado.rows[0];
+            if (!conversa) {
+                res.status(404).json({erro: "Conversa ou cursor não encontrado."});
+                return;
+            }
+
+            res.set("Cache-Control", "no-store");
+            // Sem estado/cursor, preserva a resposta em array dos pacotes anteriores.
+            res.json(req.query.estado === "true" || cursor !== null ? conversa : conversa.mensagens);
+        } catch (erro) {
+            console.error("Erro ao buscar histórico:", erro);
+            res.status(500).json({erro: "Não foi possível carregar as mensagens."});
+        }
+    };
+}
+
+app.get("/api/conversas/:id/mensagens", rotaHistorico("admin"));
 
 //cliente carregar conversas
 app.get("/api/me/conversas", async (req, res) => {
@@ -653,60 +674,8 @@ app.get("/api/me/conversas", async (req, res) => {
     }
 });
 
-//carregar mensagen da respectiva conversa
-app.get("/api/me/conversas/:id/mensagens", async (req, res) => {
-    const { id } = req.params;
-    const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidValido.test(id)) {
-        res.status(400).json({ erro: "Conversa inválida." });
-        return;
-    }
-
-    try {
-        const resultado = await pool.query(`
-            SELECT
-                c.arquivada_em AS "arquivadaEm",
-                COALESCE(h.mensagens, '[]'::json) AS mensagens
-            FROM conversas AS c
-            LEFT JOIN LATERAL (
-                SELECT json_agg(
-                    json_build_object(
-                        'id', m.id,
-                        'remetenteTipo', m.remetente_tipo,
-                        'conteudo', m.conteudo,
-                        'lida', (m.remetente_tipo = 'cliente' OR EXISTS (SELECT 1 FROM mensagens_leituras l WHERE l.mensagem_id = m.id AND l.usuario_id = $3)),
-                        'enviadaEm', to_char(m.enviada_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-                    ) ORDER BY m.enviada_em ASC, m.id ASC
-                ) AS mensagens
-                FROM (
-                    SELECT id, remetente_tipo, conteudo, enviada_em
-                    FROM mensagens
-                    WHERE conversa_id = c.id
-                    ORDER BY enviada_em DESC, id DESC
-                    LIMIT 50
-                ) AS m
-            ) AS h ON TRUE
-            WHERE c.id = $1
-                AND c.cliente_id = $2
-        `, [id, res.locals.cliente.id, res.locals.usuarioId]);
-
-        const conversa = resultado.rows[0];
-
-        if (!conversa) {
-            res.status(404).json({ erro: "Conversa não encontrada." });
-            return;
-        }
-
-        // Mantém o formato anterior para consumidores que não pedem o estado.
-        res.set("Cache-Control", "no-store");
-        res.json(req.query.estado === "true" ? conversa : conversa.mensagens);
-
-    } catch (erro) {
-        console.error("Erro ao buscar mensagens do cliente:", erro);
-        res.status(500).json({ erro: "Não foi possível carregar as mensagens." });
-    }
-});
+// Histórico do cliente: o middleware e o filtro de propriedade permanecem obrigatórios.
+app.get("/api/me/conversas/:id/mensagens", rotaHistorico("cliente"));
 
 // Contadores globais e recibos individuais de leitura.
 // Cada rota já passa pelo middleware correspondente; nunca confia em IDs de usuário do JSON.
