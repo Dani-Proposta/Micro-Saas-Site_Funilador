@@ -1,8 +1,10 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
 import { useCallback, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { destinoRetorno, estadoRetorno } from "../lib/navegacaoContextual";
-import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, Loader, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
+import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
 import { ReaberturaConversa } from "../components/ReaberturaConversa";
 import type { PedidoReabertura } from "../components/ReaberturaConversa";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
@@ -216,7 +218,7 @@ function CentralMensagens() {
 
     return (
         <Stack gap="md" className={classes.chatPagina}>
-            <Group justify="space-between"><Title order={2}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}</Group>
+            <Group justify="space-between"><Title order={1} className={estrutura.heading}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}</Group>
             {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
             {pedidosPendentes > 0 && <Alert color="yellow"><Group justify="space-between" gap="xs"><Text size="sm">{pedidosPendentes} pedido(s) de reabertura pendente(s).</Text>{!arquivadas && <Button variant="light" color="yellow" size="compact-xs" onClick={() => alternarVisualizacao("arquivadas")}>Ver pedidos</Button>}</Group></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
@@ -276,7 +278,7 @@ function CentralMensagens() {
                                 <Stack gap={4}>
                                     {carregando && (
                                         <Center>
-                                            <Loader size="sm" />
+                                            <Carregamento tipo="compacto" texto="Carregando conversas..."/>
                                         </Center>
                                     )}
 
@@ -575,7 +577,7 @@ function NovaConversa({
 
                 {tipo === "projeto" && (
                     <Stack gap="xs">
-                        {projetos === null && !erroProjetos && <Loader size="sm" />}
+                        {projetos === null && !erroProjetos && <Carregamento tipo="compacto" texto="Carregando projetos..."/>}
                         {erroProjetos && <Alert color="red">{erroProjetos}</Alert>}
 
                         {projetos !== null && !erroProjetos && (

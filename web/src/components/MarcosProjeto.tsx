@@ -1,5 +1,6 @@
+import { Carregamento } from "./Carregamento";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Card, Checkbox, Divider, Group, Loader, Menu, Modal, Progress, Radio, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Checkbox, Divider, Group, Menu, Modal, Progress, Radio, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import type { DadosProjeto } from "../lib/comercial";
 import { hojePortal, pagamentoNecessario } from "../lib/pendenciasProjeto";
@@ -275,7 +276,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         <Group justify="space-between" wrap="wrap"><Title order={4}>{apenasValidacao ? "Entregas para validar" : apenasPagamento ? "Pagamentos pendentes" : "Marcos"}</Title><Group gap="xs">{!foco && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setAberto(v => !v)}>{aberto ? "Recolher" : "Ver marcos"}</Button>}{aberto && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setRevisao(v => v + 1)}>Atualizar</Button>}{aberto && !somenteLeitura && !cancelado && <Button size="xs" disabled={!resumo || ocupado} onClick={() => {setEdicao(novaEdicao()); setErro(null);}}>+ Novo marco</Button>}</Group></Group>
         {!foco && projeto.modoProgresso === "marcos" && <><Group justify="space-between"><Text size="sm" c="dimmed">{resumo ? `${concluidos} de ${ativos.length} concluídos` : "Progresso por marcos"}</Text><Text size="sm">{progresso == null ? "Não definido" : `${progresso}%`}</Text></Group>{progresso != null && <Progress value={progresso} color="violet" aria-label="Progresso por marcos"/>}</>}
         {aberto && <>
-            {!resumo && !erro && <Loader size="sm"/>}
+            {!resumo && !erro && <Carregamento tipo="detalhes" quantidade={2} texto="Carregando marcos..."/>}
             {erro && !edicao && !pagamento && !cancelamento && !limpeza && !validacao && <Alert color="red">{erro}</Alert>}
             {!foco && resumo && projeto.modoProgresso === "manual" && <Text size="sm" c="dimmed">{concluidos} de {ativos.length} concluídos</Text>}
             {apenasPagamento && resumo && <Card withBorder padding="sm"><Text c="dimmed" size="sm">Total a pagar nesta seleção</Text><Text fw={700} size="xl">{formatarValor((pagamentosPendentes.reduce((n,m)=>n+Math.round(Number(m.saldo)*100),0)/100).toFixed(2))}</Text></Card>}

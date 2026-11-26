@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
@@ -10,7 +12,6 @@ import {
     Center,
     Divider,
     Group,
-    Loader,
     NavLink,
     ScrollArea,
     SegmentedControl,
@@ -145,7 +146,7 @@ function CentralMensagensCliente() {
 
     return (
         <Stack gap="md" className={classes.chatPagina}>
-            <Group justify="space-between"><Title order={2}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}</Group>
+            <Group justify="space-between"><Title order={1} className={estrutura.heading}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}</Group>
             {!carregando && !erro && !selecionou && projetoAlvo && !conversaSelecionada && <Alert color="gray" title="Conversa do projeto">Ainda não há uma conversa disponível para este projeto. <Button size="compact-xs" variant="light" onClick={() => {const geral = conversas.find(c => c.tipo === "geral"); if (geral) selecionarConversa(geral.id);}}>Abrir conversa Geral</Button></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
             {erroAcao && <Alert color="red">{erroAcao}</Alert>}
@@ -163,7 +164,7 @@ function CentralMensagensCliente() {
                                 <Stack gap={4}>
                                     {carregando && (
                                         <Center>
-                                            <Loader size="sm" />
+                                            <Carregamento tipo="compacto" texto="Carregando conversas..."/>
                                         </Center>
                                     )}
                                     {!carregando && !erro && conversasVisiveis.length === 0 && (

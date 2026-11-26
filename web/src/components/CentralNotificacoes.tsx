@@ -1,5 +1,6 @@
+import { Carregamento } from "./Carregamento";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActionIcon, Alert, Badge, Box, Button, Group, Indicator, Loader, Modal, Popover, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
+import { ActionIcon, Alert, Badge, Box, Button, Group, Indicator, Modal, Popover, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
 import classes from "../styles/Estrutura.module.css";
 import { useMediaQuery } from "@mantine/hooks";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
@@ -190,7 +191,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                 </Group>
             </Alert>}
             {erro && <Alert color="red" title="Notificações">{erro}<Button size="compact-xs" variant="subtle" onClick={atualizar}>Tentar novamente</Button></Alert>}
-            {!paginaAtual && !erro && <Loader size="sm"/>}
+            {!paginaAtual && !erro && <Carregamento tipo="compacto" texto="Carregando notificações..."/>}
 
             <ScrollArea.Autosize mah={mobile ? "calc(100dvh - 210px)" : "min(380px, 55dvh)"} offsetScrollbars>
                 <Stack gap={4}>

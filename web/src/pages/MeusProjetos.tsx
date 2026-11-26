@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { MarcosProjeto } from "../components/MarcosProjeto";
 import type { ResumoMarcos } from "../components/MarcosProjeto";
 import { ResumoProjeto } from "../components/DadosComerciaisProjeto";
@@ -7,7 +9,7 @@ import { TextoExpansivel } from "../components/TextoExpansivel";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Loader, Select, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Select, Stack, Text, Title } from "@mantine/core";
 
 type Projeto = DadosProjeto & {
     id: string;
@@ -85,7 +87,7 @@ export function MeusProjetos() {
     return (
         <Stack gap="md">
 
-            <Title order={2}>Meus projetos</Title>
+            <Title order={1} className={estrutura.heading}>Meus projetos</Title>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
             {!carregando && !erro && !focoValidacao && !focoPagamento && projetosPendentes.length > 0 && <Card withBorder padding="md"><Stack gap="sm">
@@ -97,7 +99,7 @@ export function MeusProjetos() {
             </Stack></Card>}
             {!focoValidacao && !focoPagamento && <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco"); setParams(proximo);}}/>}
             {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">{focoValidacao ? "Entregas para validar" : focoPagamento ? "Pagamentos pendentes" : "Exibindo projeto selecionado."}</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
-            {carregando && <Loader size="sm"/>}
+            {carregando && <Carregamento/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}
 

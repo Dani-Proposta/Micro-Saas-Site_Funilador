@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Modal, Pagination, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from "@mantine/core";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -88,7 +90,7 @@ export function Financeiro() {
     const totalPaginas = Math.max(1,Math.ceil((dados?.quantidade ?? 0)/25));
     const opcoes = resultado?.dados;
     return <Stack gap="lg">
-        <Stack gap={2}><Title order={1}>Financeiro</Title><Text c="dimmed">Acompanhe recebimentos, previsões e cobranças.</Text></Stack>
+        <Stack gap={2}><Title order={1} className={estrutura.heading}>Financeiro</Title><Text c="dimmed">Acompanhe recebimentos, previsões e cobranças.</Text></Stack>
         <FinanceiroDashboard completo onSelecionar={selecionar} revisao={revisao}/>
         <Card withBorder padding="md"><Stack gap="md" ref={detalhesRef} style={{scrollMarginTop:80}}>
             <Group justify="space-between"><Title order={3}>Registros financeiros</Title><Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button></Group>
@@ -102,7 +104,7 @@ export function Financeiro() {
             <Group justify="space-between"><Button size="xs" variant="subtle" onClick={()=>{setParams(new URLSearchParams());setErro(null);}}>Limpar filtros</Button>{dados && <Stack gap={2} align="flex-end"><Text size="xs" c="dimmed">{historico ? "Total recebido (sem anulados)" : "Saldo total da seleção"} · {dados.quantidade} registros</Text><Text fw={700}>{formatarValor(dados.total)}</Text></Stack>}</Group>
             {aviso && <Alert color="green" withCloseButton onClose={()=>setAviso(null)}>{aviso}</Alert>}
             {erro && <Alert color="red">{erro}{dados && " · Última consulta disponível."}</Alert>}
-            {!dados && !erro && <Text size="sm" c="dimmed">Carregando registros...</Text>}
+            {!dados && !erro && <Carregamento texto="Carregando registros..."/>}
             {dados && dados.itens.length===0 && <Text size="sm" c="dimmed">Nenhum registro nesta seleção.</Text>}
             {dados?.itens.map(item => {
                 const pendente = !historico && Number(item.valor)>0 && !item.arquivado;

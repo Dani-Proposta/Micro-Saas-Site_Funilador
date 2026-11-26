@@ -1,9 +1,10 @@
+import { Carregamento } from "./components/Carregamento";
 //import externos
 import { NavLink as MantineNavLink, Badge } from '@mantine/core';
 import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 
 // imports importantes sksksksksskksk
-import { AppShell, Group, Text, Burger, Center, Loader} from "@mantine/core";
+import { AppShell, Group, Text, Burger} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
 import { Financeiro } from "./pages/Financeiro";
@@ -24,7 +25,7 @@ function PainelAdmin() {
   const mensagensNaoLidas = useMensagensNaoLidas("admin", adminAutenticado, sessao?.user.id);
 
   if (isPending) {
-    return (<Center h="100vh"><Loader /></Center>);
+    return (<Carregamento tipo="sessao" texto="Verificando sessão..."/>);
   }
 
   if (error) {
@@ -69,12 +70,12 @@ function PainelAdmin() {
   return (
     <AppShell className={classes.shell}
       //cabeçalho
-      header={{ height: 64 }}
-      padding="md"
+      header={{ height: 60 }}
+      padding={{base:"xs", sm:"md"}}
 
       //barra da navegação
       navbar={{
-        width: 224,
+        width: 236,
         breakpoint: "sm",
         collapsed: { mobile: !opened },
       }}>
@@ -85,9 +86,9 @@ function PainelAdmin() {
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
             <MarcaPainel lado="admin"/>
           </Group>
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
             <CentralNotificacoes key={sessao.user.id} lado="admin"/>
-            <MenuConta nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()}/>
+            <MenuConta nome={sessao.user.name} email={sessao.user.email} sair={() => void sair()} aoAbrir={close}/>
           </Group>
         </div>
       </AppShell.Header>

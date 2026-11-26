@@ -1,3 +1,4 @@
+import { Carregamento } from "./Carregamento";
 import classes from "../styles/Usabilidade.module.css";
 import { CartaoProposta, FormularioProposta, ResumoProjetoChat } from "./NegociacaoProjeto";
 import type { Proposta, EstadoProposta } from "./NegociacaoProjeto";
@@ -7,7 +8,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
-import { Alert, Box, Button, Center, Divider, Group, Loader, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
+import { Alert, Box, Button, Center, Divider, Group, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
 
 type Mensagem = {
     id: string;
@@ -464,7 +465,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                 <ScrollArea className={classes.chatScroll} offsetScrollbars viewportRef={viewportRef} onScrollPositionChange={aoRolar}>
                     <Stack gap="sm">
 
-                        {carregando && <Center><Loader size="sm"/></Center>}
+                        {carregando && <Center><Carregamento tipo="compacto" texto="Carregando mensagens..."/></Center>}
 
                         {erro && <Alert color="red">{erro}</Alert>}
 

@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { MarcosProjeto } from "../components/MarcosProjeto";
 import type { ResumoMarcos } from "../components/MarcosProjeto";
 import { DadosComerciaisProjeto } from "../components/DadosComerciaisProjeto";
@@ -6,7 +8,7 @@ import type { DadosProjetoAdmin } from "../lib/comercial";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Loader, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Stack, Text, Title, Modal, Textarea, TextInput, Select } from "@mantine/core";
 
 type Projeto = DadosProjetoAdmin & {
     id: string;
@@ -199,7 +201,7 @@ export function ProjetoDetalhes() {
     }
 
     if (carregando) {
-        return <Loader size="sm" />;
+        return <Carregamento tipo="detalhes" quantidade={3}/>;
     }
 
     if (erro || !projeto) {
@@ -242,7 +244,7 @@ export function ProjetoDetalhes() {
             <Group justify="space-between" align="start">
                 <Stack gap="xs" style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
-                    <Title order={2} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
+                    <Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
                 </Stack>
 
                 <Group gap="xs" wrap="wrap">

@@ -1,3 +1,4 @@
+import { Carregamento } from "./Carregamento";
 import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import classes from "../styles/Estrutura.module.css";
@@ -68,10 +69,10 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
             <Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button>
         </Group>
         {erro && <Alert color="red">{erro}{dados && " Exibindo a última consulta."}</Alert>}
-        {!dados && !erro && <Text c="dimmed" size="sm">Carregando pendências...</Text>}
+        {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando pendências..."/>}
         {dados && <>
-            <SimpleGrid cols={{base: 1, xs: 2, lg: 3}} spacing="xs">
-                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="md" className={classes.metric}>
+            <SimpleGrid cols={{base: 1, xs: 2, lg: 3, xl: 4}} spacing="xs">
+                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={classes.metric}>
                     <Group justify="space-between" wrap="nowrap"><Text size="sm" fw={500}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
                     <Group justify="space-between" align="center"><Stack gap={0}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}>{quantidade(c.id)}</Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
                 </Card>)}
@@ -79,7 +80,7 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
             {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
         </>}
         {children}
-        {dados && <Stack gap="sm" mt="md" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
+        {dados && <Stack gap="sm" mt="sm" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
             <Group justify="space-between"><Title order={4}>{filtro === "todos" ? "Pendências detalhadas" : disponiveis.find(c => c.id === filtro)?.nome}</Title>{filtro !== "todos" && <Button size="compact-xs" variant="subtle" onClick={() => selecionar("todos")}>Mostrar todas</Button>}</Group>
             {visiveis.length === 0 && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
             {visiveis.slice(0, limite).map((item, i) => {

@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { formatarValor, formatarPrazo } from "../lib/comercial";
 import { SeletorCliente } from "../components/SeletorCliente";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
@@ -6,7 +8,7 @@ import type { SolicitacaoDetalhada, StatusSolicitacao } from "../lib/solicitacoe
 import { useState, useEffect, } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
-import { Card, Text, Badge, Loader, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
+import { Card, Text, Badge, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
 import type { SubmitEvent, } from 'react';
 
 type Solicitacao = SolicitacaoDetalhada & {clienteNome: string};
@@ -212,12 +214,12 @@ export function Solicitacoes(){
     return(
         <div>
             <Group justify="space-between" mb={"md"}>
-                <Title order={2}>Solicitações</Title>
+                <Title order={1} className={estrutura.heading}>Solicitações</Title>
                 <Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button>
             </Group>
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
             {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
-            {carregando && <Loader size="sm"/>}
+            {carregando && <Carregamento/>}
             
             {!carregando && erro && (
                 <Alert color="red" title="Erro">{erro}</Alert>

@@ -1,8 +1,10 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
 import { caminhoMensagens, destinoRetorno, registrarOrigem, estadoRetorno } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Divider, Group, Loader, Stack, Text, Title, Modal, TextInput } from "@mantine/core";
+import { Alert, Badge, Button, Card, Divider, Group, Stack, Text, Title, Modal, TextInput } from "@mantine/core";
 
 type ProjetoRelacionado = {
   id: string;
@@ -131,7 +133,7 @@ export function ClienteDetalhes() {
 
 
   if (carregando) {
-    return <Loader size="sm" />;
+    return <Carregamento tipo="detalhes" quantidade={3}/>;
   }
 
   if (erro || !cliente) {
@@ -170,7 +172,7 @@ export function ClienteDetalhes() {
         </Group>
 
         <Group justify="space-between" align="center">
-            <Title order={2} style={{ overflowWrap: "anywhere" }}>{cliente.nome}</Title>
+            <Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{cliente.nome}</Title>
             <Group gap="xs"><Button size="xs" onClick={() => navigate(caminhoMensagens(cliente.id), {state: registrarOrigem(`/clientes/${cliente.id}`, location.state)})}>Enviar mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cliente</Button></Group>
         </Group>
 

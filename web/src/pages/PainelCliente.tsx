@@ -1,6 +1,7 @@
+import { Carregamento } from "../components/Carregamento";
 
 import { useEffect, useState } from "react";
-import { AppShell, Alert, Badge, Burger, Center, Group, Loader, NavLink, Stack, Text } from "@mantine/core";
+import { AppShell, Alert, Badge, Burger, Group, NavLink, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
 import { authClient } from "../lib/auth-client";
@@ -25,7 +26,7 @@ export function PainelCliente() {
 
     const { data: sessao, isPending, error } = authClient.useSession();
 
-    if (isPending) return <Center h="100vh"><Loader/></Center>;
+    if (isPending) return <Carregamento tipo="sessao" texto="Verificando sessão..."/>;
 
     if (error) return <Text>Não foi possível verificar sua sessão.</Text>;
 
@@ -93,7 +94,7 @@ function PortalCliente() {
     }
 
     return (
-        <AppShell className={classes.shell} header={{height: 64}} padding="md" navbar={{width: 224, breakpoint: "sm", collapsed: {mobile: !opened}}}>
+        <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: 236, breakpoint: "sm", collapsed: {mobile: !opened}}}>
 
             <AppShell.Header className={classes.header}>
                 <div className={classes.headerInner}>
@@ -101,9 +102,9 @@ function PortalCliente() {
                         <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
                         <MarcaPainel lado="cliente"/>
                     </Group>
-                    <Group gap="xs" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
                         {cliente && <CentralNotificacoes lado="cliente"/>}
-                        <MenuConta nome={cliente?.nome} email={cliente?.email} sair={() => void sair()} saindo={saindo}/>
+                        <MenuConta nome={cliente?.nome} email={cliente?.email} sair={() => void sair()} aoAbrir={close} saindo={saindo}/>
                     </Group>
                 </div>
             </AppShell.Header>
@@ -119,7 +120,7 @@ function PortalCliente() {
                 <Stack gap="md">
 
                     {erroSaida && <Alert color="red">{erroSaida}</Alert>}
-                    {carregando && <Loader size="sm"/>}
+                    {carregando && <Carregamento tipo="detalhes" texto="Carregando sua conta..." quantidade={2}/>}
                     {erro && <Alert color="red">{erro}</Alert>}
 
                 {cliente && (

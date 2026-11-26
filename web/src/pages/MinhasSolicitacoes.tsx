@@ -1,3 +1,5 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { formatarValor, formatarPrazo } from "../lib/comercial";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
 import { statusSolicitacao } from "../lib/solicitacoes";
@@ -6,7 +8,7 @@ import type { SolicitacaoDetalhada } from "../lib/solicitacoes";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Loader, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 
 type Solicitacao = SolicitacaoDetalhada;
 
@@ -114,7 +116,7 @@ export function MinhasSolicitacoes() {
         <Stack gap="md">
 
             <Group justify="space-between">
-                <Title order={2}>Minhas solicitações</Title>
+                <Title order={1} className={estrutura.heading}>Minhas solicitações</Title>
                 <Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button>
             </Group>
 
@@ -137,7 +139,7 @@ export function MinhasSolicitacoes() {
 
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
             {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
-            {carregando && <Loader size="sm"/>}
+            {carregando && <Carregamento/>}
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>}
 

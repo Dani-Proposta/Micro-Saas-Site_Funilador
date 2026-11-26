@@ -1,3 +1,4 @@
+import { Carregamento } from "./Carregamento";
 import { useCallback, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
 import classes from "../styles/Estrutura.module.css";
@@ -40,15 +41,15 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
             {completo ? <Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button> : <Button size="xs" variant="light" onClick={() => navigate("/financeiro")}>Financeiro completo</Button>}
         </Group>
         {erro && <Alert color="red">{erro}{dados && " · Exibindo a última consulta disponível."}</Alert>}
-        {!dados && !erro && <Text size="sm" c="dimmed">Carregando financeiro...</Text>}
+        {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando financeiro..."/>}
         {dados && <>
             {consulta?.revisao !== revisao && <Text size="xs" c="dimmed">Atualizando valores...</Text>}
-            <SimpleGrid cols={{base: 1, xs: 2, lg: completo ? 4 : 3}} spacing="md">
+            <SimpleGrid cols={{base: 1, xs: 2, lg: completo ? 4 : 3}} spacing="xs">
                 {[{nome: "Recebido no mês", valor: dados.recebidoMes, cor: "green", categoria: "recebidos", ajuda: "Pagamentos registrados neste mês, sem os anulados."},
                   {nome: "A receber no mês", valor: dados.aReceberMes, cor: undefined, categoria: "mes", ajuda: "Saldos com vencimento de hoje até o fim do mês."},
                   {nome: "Total estimado do mês", valor: dados.totalMes, cor: undefined, categoria: null, ajuda: "Recebido mais previsto no mês. Não inclui atrasados."},
                   ...(completo ? [{nome: "Pagamentos atrasados", valor: dados.atrasado, cor: Number(dados.atrasado) > 0 ? "red" : undefined, categoria: "atrasado", ajuda: "Saldos com vencimento ultrapassado."}] : [])].map(item =>
-                    <Card key={item.nome} withBorder padding="md" className={classes.metric}><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text className={classes.metricValue} size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
+                    <Card key={item.nome} withBorder padding="sm" className={classes.metric}><Group gap={5}><Text size="sm" c="dimmed">{item.nome}</Text><Tooltip label={item.ajuda} multiline w={240} events={{hover:true,focus:true,touch:true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={item.ajuda}>?</Button></Tooltip></Group><Text className={classes.metricValue} size="xl" fw={700} c={item.cor}>{formatarValor(item.valor)}</Text>{item.categoria && <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria!)}>Consultar</Button>}</Card>)}
             </SimpleGrid>
             {completo && <Card withBorder padding="md"><Stack gap="md">
                 <Group justify="space-between"><Text fw={600}>Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>

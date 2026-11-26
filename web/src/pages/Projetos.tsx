@@ -1,10 +1,12 @@
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
 import { SeletorCliente } from "../components/SeletorCliente";
 import { TextoExpansivel } from "../components/TextoExpansivel";
 
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
 import { useEffect, useState } from "react";
-import { Alert, Badge, Card, Group, Loader, Stack, Select, SegmentedControl, Text, Title, Button, Modal, TextInput, Textarea } from "@mantine/core";
+import { Alert, Badge, Card, Group, Stack, Select, SegmentedControl, Text, Title, Button, Modal, TextInput, Textarea } from "@mantine/core";
 import type { SubmitEvent } from "react";
 
 type Projeto = {
@@ -198,7 +200,7 @@ export function Projetos() {
         <Stack gap="md">
 
             <Group justify="space-between">
-                <Title order={2}>Projetos</Title>
+                <Title order={1} className={estrutura.heading}>Projetos</Title>
                 <Button size="xs" onClick={() => setModalAberto(true)}>+ Novo projeto</Button>
             </Group>
 
@@ -218,7 +220,7 @@ export function Projetos() {
                 </form>
             </Modal>
 
-            {carregando && <Loader size="sm"/>}
+            {carregando && <Carregamento/>}
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && (<Text c="dimmed">{status !== "todos" ? "Nenhum projeto com este status." : filtro === "arquivados" ? "Nenhum projeto arquivado" : "Nenhum projeto ativo encontrado"}</Text>)}
             {!carregando && !erro && projetosVisiveis.map((projeto) => (
