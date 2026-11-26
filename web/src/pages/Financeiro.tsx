@@ -6,10 +6,10 @@ import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import { caminhoMensagens, registrarOrigem } from "../lib/navegacaoContextual";
 
-type Item = {id:string; marcoId:string; projetoId:string; clienteId:string; marco:string; projeto:string; cliente:string; data:string|null; valor:string; categoria:string; arquivado:boolean; cobrancaIniciada:boolean; bloqueiaProgresso:boolean; status:string; projetoStatus:string; saldoDispensado:boolean; anuladoEm:string|null; valorMarco:string|null; recebido:string};
+type Item = {id:string; marcoId:string; projetoId:string; clienteId:string; marco:string; projeto:string; cliente:string; data:string|null; valor:string; categoria:string; arquivado:boolean; cobrancaIniciada:boolean; bloqueiaProgresso:boolean; status:string; projetoStatus:string; saldoDispensado:boolean; anuladoEm:string|null; valorMarco:string|null; recebido:string; ultimoLembrete:string|null};
 type Opcao = {value:string; label:string};
 type Detalhes = {quantidade:number; total:string; itens:Item[]; clientes:Opcao[]; projetos:(Opcao & {clienteId:string})[]; mes:string};
-type Operacao = {tipo:"cobrar"|"receber"; item:Item; pagamentoId:string; valor:string; data:string};
+type Operacao = {tipo:"cobrar"|"receber"|"lembrar"; item:Item; pagamentoId:string; valor:string; data:string};
 const filtros = [{value:"todos",label:"Todas as pendências"},{value:"atrasado",label:"Pagamentos atrasados"},{value:"mes",label:"A receber neste mês"},{value:"futuro",label:"Recebimentos futuros"},{value:"sem_data",label:"Sem vencimento"},{value:"cobrados",label:"Cobrança iniciada"},{value:"nao_cobrados",label:"Cobrança não iniciada"},{value:"recebidos",label:"Histórico de recebimentos"},{value:"cancelados",label:"Marcos e projetos cancelados"}];
 const hojeBR = () => new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 
@@ -76,11 +76,11 @@ export function Financeiro() {
         bloqueio.current = true;setSalvando(true);setErroOperacao(null);
         const {item,tipo,pagamentoId,valor,data} = operacao;
         try {
-            const resposta = await fetch(`/api/projetos/${item.projetoId}/marcos/${item.marcoId}/${tipo === "cobrar" ? "cobranca" : "pagamentos"}`,{
-                method:tipo === "cobrar" ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(tipo === "cobrar" ? {} : {pagamentoId,valor,recebidoEm:data})});
+            const resposta = await fetch(`/api/projetos/${item.projetoId}/marcos/${item.marcoId}/${tipo === "cobrar" ? "cobranca" : tipo === "lembrar" ? "lembretes" : "pagamentos"}`,{
+                method:tipo === "cobrar" ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(tipo === "receber" ? {pagamentoId,valor,recebidoEm:data} : {})});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível concluir a operação");
-            setOperacao(null);setAviso(tipo === "cobrar" ? "Cobrança iniciada" : "Pagamento registrado");setRevisao(v=>v+1);atualizar();
+            setOperacao(null);setAviso(tipo === "cobrar" ? "Cobrança iniciada" : tipo === "lembrar" ? (corpo.conversa ? "Lembrete enviado no portal e na conversa" : "Lembrete enviado no portal") : "Pagamento registrado");setRevisao(v=>v+1);atualizar();
         } catch(e) {setErroOperacao(e instanceof Error ? e.message : "Não foi possível concluir a operação");}
         finally {bloqueio.current=false;setSalvando(false);}
     }
@@ -106,15 +106,19 @@ export function Financeiro() {
             {dados && dados.itens.length===0 && <Text size="sm" c="dimmed">Nenhum registro nesta seleção.</Text>}
             {dados?.itens.map(item => {
                 const pendente = !historico && Number(item.valor)>0 && !item.arquivado;
+                const podeLembrar = pendente && (item.cobrancaIniciada || item.bloqueiaProgresso || (item.data !== null && item.data <= hojeBR()));
+                const lembreteRecente = !!item.ultimoLembrete && Date.now() - new Date(item.ultimoLembrete).getTime() < 86400000;
                 return <Card key={item.id} withBorder padding="sm"><Stack gap="xs">
                     <Group justify="space-between" align="start" wrap="wrap"><Stack gap={2}><Text fw={600}>{item.marco}</Text><Text size="xs" c="dimmed">{item.projeto} · {item.cliente}</Text><Text size="xs" c="dimmed">{historico ? "Recebido em" : "Vencimento"}: {formatarPrazo(item.data)}</Text></Stack><Text fw={700} td={item.anuladoEm ? "line-through" : undefined} c={item.anuladoEm ? "dimmed" : historico ? "green" : item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : undefined}>{formatarValor(item.valor)}</Text></Group>
                     <Group gap={5}>{historico ? <Badge color={item.anuladoEm ? "gray" : "green"} variant="light">{item.anuladoEm ? "Anulado" : "Recebido"}</Badge> : <><Badge color={item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : "gray"} variant="light">{Number(item.valor)===0 ? "Sem saldo exigível" : filtros.find(f=>f.value===item.categoria)?.label ?? item.categoria}</Badge><Badge color="gray" variant="outline">{item.cobrancaIniciada ? "Cobrança iniciada" : "Cobrança não iniciada"}</Badge>{item.saldoDispensado && <Badge color="gray">Saldo dispensado</Badge>}{item.bloqueiaProgresso && Number(item.valor)>0 && <Badge color="orange">Aguardando pagamento</Badge>}</>}{item.arquivado && <Badge color="gray">Arquivado</Badge>}{(item.status==="cancelado" || item.projetoStatus==="cancelado") && <Badge color="gray">Cancelado</Badge>}</Group>
                     {!historico && <Text size="xs" c="dimmed">Valor do marco: {formatarValor(item.valorMarco)} · Recebido: {formatarValor(item.recebido)}</Text>}
+                    {!historico && item.ultimoLembrete && <Text size="xs" c="dimmed">Último lembrete: {new Date(item.ultimoLembrete).toLocaleString("pt-BR")}</Text>}
                     {item.anuladoEm && <Text size="xs" c="dimmed">Anulado em {new Date(item.anuladoEm).toLocaleString("pt-BR")}</Text>}
                     <Group gap="xs" wrap="wrap">
                         <Tooltip label="Abre o marco na ficha do projeto." events={{hover:true,focus:true,touch:true}}><Button size="xs" variant="default" onClick={()=>abrir(item)}>Abrir marco</Button></Tooltip>
                         <Tooltip label="Abre a conversa vinculada ao projeto." events={{hover:true,focus:true,touch:true}}><Button size="xs" variant="subtle" onClick={()=>abrir(item,true)}>Abrir conversa</Button></Tooltip>
                         {pendente && !item.cobrancaIniciada && <Tooltip label="Sinaliza a cobrança; não registra pagamento." events={{hover:true,focus:true,touch:true}}><Button size="xs" variant="light" color="orange" onClick={()=>iniciar(item,"cobrar")}>Iniciar cobrança</Button></Tooltip>}
+                        {podeLembrar && <Tooltip label={lembreteRecente ? "Um lembrete por marco a cada 24 horas." : "Envia um lembrete no portal e na conversa, se disponível."} events={{hover:true,focus:true,touch:true}}><span><Button size="xs" variant="light" disabled={lembreteRecente} onClick={()=>iniciar(item,"lembrar")}>Lembrar cliente</Button></span></Tooltip>}
                         {pendente && <Tooltip label="Registra dinheiro efetivamente recebido." events={{hover:true,focus:true,touch:true}}><Button size="xs" variant="light" color="green" onClick={()=>iniciar(item,"receber")}>Registrar pagamento</Button></Tooltip>}
                     </Group>
                 </Stack></Card>;
@@ -122,9 +126,9 @@ export function Financeiro() {
             {dados && totalPaginas>1 && <Pagination total={totalPaginas} value={Math.min(pagina,totalPaginas)} onChange={v=>alterar("pagina",String(v))}/>}
             {dados && pagina>totalPaginas && <Button variant="light" onClick={()=>alterar("pagina",String(totalPaginas))}>Voltar à última página disponível</Button>}
         </Stack></Card>
-        <Modal opened={!!operacao} onClose={()=>{if (!salvando) setOperacao(null);}} title={operacao?.tipo==="cobrar" ? "Iniciar cobrança" : "Registrar pagamento"} closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
+        <Modal opened={!!operacao} onClose={()=>{if (!salvando) setOperacao(null);}} title={operacao?.tipo==="cobrar" ? "Iniciar cobrança" : operacao?.tipo==="lembrar" ? "Lembrar cliente" : "Registrar pagamento"} closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
             {operacao && <Stack gap="sm"><Text fw={600}>{operacao.item.marco}</Text><Text size="sm" c="dimmed">Saldo pendente: {formatarValor(operacao.item.valor)}</Text>
-                {operacao.tipo==="cobrar" ? <Text size="sm">O marco será sinalizado como cobrado e o cliente receberá a atualização do projeto. Nenhum pagamento será registrado.</Text> : <><Text size="sm">Informe somente o dinheiro efetivamente recebido.</Text><TextInput label="Valor recebido (R$)" inputMode="decimal" maxLength={13} value={operacao.valor} disabled={salvando} onChange={e=>{const valor=e.currentTarget.value;setOperacao(o=>o?{...o,valor}:o);}}/><TextInput label="Data do recebimento" type="date" max={hojeBR()} value={operacao.data} disabled={salvando} onChange={e=>{const data=e.currentTarget.value;setOperacao(o=>o?{...o,data}:o);}}/></>}
+                {operacao.tipo==="cobrar" ? <Text size="sm">O marco será sinalizado como cobrado e o cliente receberá a atualização do projeto. Nenhum pagamento será registrado.</Text> : operacao.tipo==="lembrar" ? <Text size="sm">Envia uma notificação importante e uma mensagem na conversa do projeto, se estiver ativa. Não altera o saldo.</Text> : <><Text size="sm">Informe somente o dinheiro efetivamente recebido.</Text><TextInput label="Valor recebido (R$)" inputMode="decimal" maxLength={13} value={operacao.valor} disabled={salvando} onChange={e=>{const valor=e.currentTarget.value;setOperacao(o=>o?{...o,valor}:o);}}/><TextInput label="Data do recebimento" type="date" max={hojeBR()} value={operacao.data} disabled={salvando} onChange={e=>{const data=e.currentTarget.value;setOperacao(o=>o?{...o,data}:o);}}/></>}
                 {erroOperacao && <Alert color="red">{erroOperacao}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={()=>setOperacao(null)}>Cancelar</Button><Button loading={salvando} disabled={operacao.tipo==="receber" && (!operacao.valor.trim() || !operacao.data)} onClick={()=>void confirmar()}>Confirmar</Button></Group>
             </Stack>}
         </Modal>

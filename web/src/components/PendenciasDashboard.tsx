@@ -3,6 +3,7 @@ import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Tool
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
+import { caminhoPagamento } from "../lib/pendenciasProjeto";
 
 const categorias = [
     {id: "pagamento_atrasado", nome: "Pagamentos atrasados", cor: "red", ajuda: "Saldos com vencimento ultrapassado."},
@@ -52,7 +53,8 @@ export function PendenciasDashboard({lado}: {lado: "admin" | "cliente"}) {
         } else if (item.projetoId) {
             const id = encodeURIComponent(item.projetoId);
             if (lado === "admin") navigate(`/projetos/${id}${item.marcoId ? `?marco=${encodeURIComponent(item.marcoId)}` : ""}`, {state: {voltarPara: origem}});
-            else navigate(`/portal/projetos?projeto=${id}${item.categoria === "validacao_pendente" ? "&validar=1" : ""}`, {state: {voltarPara: origem}});
+            else if (item.categoria === "pagamento_atrasado" || item.categoria === "pagamento_pendente") navigate(caminhoPagamento(item.projetoId,item.marcoId), {state:{voltarPara:origem}});
+            else navigate(`/portal/projetos?projeto=${id}${item.categoria === "validacao_pendente" ? `&validar=1${item.marcoId ? `&marco=${encodeURIComponent(item.marcoId)}` : ""}` : ""}`, {state: {voltarPara: origem}});
         }
     }
 
@@ -77,7 +79,7 @@ export function PendenciasDashboard({lado}: {lado: "admin" | "cliente"}) {
                 const cat = disponiveis.find(c => c.id === item.categoria);
                 return <Card key={`${item.categoria}-${item.projetoId}-${item.marcoId}-${item.conversaId}-${i}`} withBorder padding="sm"><Group justify="space-between" align="center" wrap="wrap">
                     <Stack gap={3} style={{flex: 1, minWidth: 0}}><Text fw={600} style={{overflowWrap: "anywhere"}}>{item.titulo}</Text><Text size="xs" c="dimmed" style={{overflowWrap: "anywhere"}}>{item.subtitulo}</Text><Group gap={5} wrap="wrap"><Badge size="sm" variant="light" color={cat?.cor}>{cat?.nome}</Badge><Text size="xs" c="dimmed">{item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</Text></Group>{item.valor !== null && <Text fw={600}>{formatarValor(item.valor)}</Text>}</Stack>
-                    <Button size="xs" variant="light" onClick={() => abrir(item)}>{item.conversaId ? "Abrir conversa" : lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : "Abrir projeto"}</Button>
+                    <Button size="xs" variant="light" onClick={() => abrir(item)}>{item.conversaId ? "Abrir conversa" : lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : lado === "cliente" && item.categoria.startsWith("pagamento_") ? "Ver pagamento" : "Abrir projeto"}</Button>
                 </Group></Card>;
             })}
             {visiveis.length > limite && <Button size="xs" variant="subtle" onClick={() => setLimite(n => n + 10)}>Mostrar mais ({visiveis.length - limite})</Button>}

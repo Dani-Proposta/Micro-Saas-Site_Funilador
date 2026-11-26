@@ -351,13 +351,15 @@ function listarNotificacoes(lado: "admin" | "cliente") {
                     FROM eventos
                 ), grupos AS (
                     SELECT id, tipo, referencia_id AS "referenciaId", titulo, resumo,
-                        criada_em AS "criadaEm", quantidade FROM agrupadas WHERE ordem = 1
+                        criada_em AS "criadaEm", quantidade, marco_id AS "marcoId",
+                        CASE WHEN quantidade > 0 AND (titulo = 'Lembrete de pagamento' OR titulo IN ('Nova solicitação', 'Pedido de reabertura', 'Negociação · Nova proposta', 'Negociação · Contraproposta') OR titulo IN ('Marco aguardando validação', 'Marco aguardando pagamento')) THEN 'importante' ELSE 'normal' END AS prioridade
+                    FROM agrupadas WHERE ordem = 1
                 ), pagina AS (
-                    SELECT * FROM grupos ORDER BY "criadaEm" DESC, id DESC LIMIT 20 OFFSET $4
+                    SELECT * FROM grupos ORDER BY (prioridade = 'importante') DESC, "criadaEm" DESC, id DESC LIMIT 20 OFFSET $4
                 )
                 SELECT (SELECT COUNT(*)::int FROM grupos WHERE quantidade > 0) AS total,
                     (SELECT COUNT(*)::int FROM grupos) AS "totalGrupos",
-                    COALESCE((SELECT json_agg(p ORDER BY p."criadaEm" DESC, p.id DESC) FROM pagina p), '[]'::json) AS itens
+                    COALESCE((SELECT json_agg(p ORDER BY (p.prioridade = 'importante') DESC, p."criadaEm" DESC, p.id DESC) FROM pagina p), '[]'::json) AS itens
             `, [lado, clienteId, res.locals.usuarioId, pagina * 20]);
             res.set("Cache-Control", "no-store").json(resultado.rows[0]);
         } catch (erro) {
@@ -903,7 +905,8 @@ app.get("/api/dashboard/financeiro/detalhes", async (req, res) => {
                     'marco',marco,'projeto',projeto,'cliente',cliente,'data',to_char(data,'YYYY-MM-DD'),'valor',valor::text,
                     'categoria',categoria,'arquivado',arquivado,'cobrancaIniciada',cobranca_iniciada,'bloqueiaProgresso',bloqueia_progresso,
                     'status',status,'projetoStatus',projeto_status,'saldoDispensado',saldo_dispensado,'anuladoEm',anulado_em,
-                    'valorMarco',valor_marco::text,'recebido',recebido::text) ORDER BY CASE WHEN $1 = 'recebidos' THEN data END DESC NULLS LAST,
+                    'valorMarco',valor_marco::text,'recebido',recebido::text,
+                    'ultimoLembrete',(SELECT MAX(n.criada_em) FROM notificacoes n WHERE n.marco_id = itens.marco_id AND n.titulo = 'Lembrete de pagamento' AND n.publico = 'cliente')) ORDER BY CASE WHEN $1 = 'recebidos' THEN data END DESC NULLS LAST,
                     CASE WHEN $1 <> 'recebidos' THEN data END ASC NULLS LAST,id),'[]'::jsonb) FROM itens) AS itens,
                 (SELECT COALESCE(jsonb_agg(jsonb_build_object('value',id,'label',nome) ORDER BY nome,id),'[]'::jsonb) FROM clientes) AS clientes,
                 (SELECT COALESCE(jsonb_agg(jsonb_build_object('value',p.id,'label',p.titulo || ' · ' || c.nome,'clienteId',c.id) ORDER BY p.titulo,p.id),'[]'::jsonb)
@@ -1716,6 +1719,43 @@ app.post("/api/projetos/:id/marcos/:marcoId/pagamentos", async (req, res) => {
             if (statusProjeto === "cancelado" && !["concluido", "cancelado", "aguardando_validacao"].includes(atual.status) && !atual.cobranca_iniciada) throw new ErroConversa(409, "Marco de projeto cancelado");
             await db.query(`INSERT INTO marcos_pagamentos (id, marco_id, valor, recebido_em, usuario_id) VALUES ($1,$2,$3,$4,$5)`, [pagamentoId, marcoId, quantia, data, res.locals.usuarioId]);
             return atualizarProjetoMarco(db, id, res.locals.usuarioId);
+        });
+        res.status(201).json(resultado);
+    } catch (erro) {responderErroMarco(res, erro);}
+});
+
+//admin: lembrar pagamento do marco
+app.post("/api/projetos/:id/marcos/:marcoId/lembretes", async (req, res) => {
+    const {id, marcoId} = req.params;
+    try {
+        if (typeof id !== "string" || typeof marcoId !== "string" || !uuidConversa.test(id) || !uuidConversa.test(marcoId)) throw new ErroConversa(400, "Marco inválido");
+        const resultado = await transacaoConversa(async db => {
+            //travar conversa antes do projeto, como na negociação
+            const conversa = await db.query(`SELECT id FROM conversas WHERE projeto_id = $1 AND tipo = 'projeto' AND arquivada_em IS NULL FOR UPDATE`, [id]);
+            const statusProjeto = await travarProjetoMarco(db, id);
+            const dados = await db.query(`SELECT m.titulo, m.status, m.saldo::text AS saldo, m.saldo > 0 AS pendente,
+                m.cobranca_iniciada, m.bloqueia_progresso, m.vencimento <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS vencido,
+                to_char(m.vencimento,'DD/MM/YYYY') AS vencimento, p.cliente_id, p.titulo AS projeto
+                FROM funilador_marcos_resumo m JOIN projetos p ON p.id = m.projeto_id WHERE m.id = $1 AND p.id = $2`, [marcoId,id]);
+            const m = dados.rows[0];
+            if (!m) throw new ErroConversa(404, "Marco não encontrado");
+            if (!m.pendente || (statusProjeto === "cancelado" && !m.cobranca_iniciada && !["concluido","cancelado","aguardando_validacao"].includes(m.status))) throw new ErroConversa(409, "Não há saldo para cobrar");
+            if (!m.cobranca_iniciada && !m.bloqueia_progresso && !m.vencido) throw new ErroConversa(409, "Inicie a cobrança antes de enviar o lembrete");
+            const recente = await db.query(`SELECT 1 FROM notificacoes WHERE marco_id = $1 AND publico = 'cliente' AND titulo = 'Lembrete de pagamento' AND criada_em > NOW() - interval '24 hours' LIMIT 1`, [marcoId]);
+            if (recente.rows.length) throw new ErroConversa(409, "Já foi enviado um lembrete nas últimas 24 horas");
+            const valor = Number(m.saldo).toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
+            const texto = `Lembrete de pagamento: ${m.titulo} · Saldo: ${valor}${m.vencimento ? ` · Vencimento: ${m.vencimento}` : ""}.`;
+            let mensagemId: string | null = null;
+            if (conversa.rows.length) {
+                const mensagem = await db.query(`INSERT INTO mensagens (conversa_id,remetente_id,remetente_tipo,conteudo,enviada_em) VALUES ($1,$2,'admin',$3,clock_timestamp()) RETURNING id`, [conversa.rows[0].id,res.locals.usuarioId,texto]);
+                mensagemId = mensagem.rows[0].id;
+                //usar a notificação do lembrete em vez de duplicar a de mensagem
+                const evento = await db.query(`UPDATE notificacoes SET tipo = 'projeto', referencia_id = $2, titulo = 'Lembrete de pagamento', resumo = left($3,180), marco_id = $4 WHERE mensagem_id = $1`, [mensagemId,id,`${m.projeto} · ${texto}`,marcoId]);
+                if (evento.rowCount !== 1) throw new ErroConversa(500, "Não foi possível registrar o lembrete");
+            } else {
+                await db.query(`INSERT INTO notificacoes (publico,cliente_id,tipo,referencia_id,titulo,resumo,marco_id) VALUES ('cliente',$1,'projeto',$2,'Lembrete de pagamento',left($3,180),$4)`, [m.cliente_id,id,`${m.projeto} · ${texto}`,marcoId]);
+            }
+            return {enviado:true, conversa: mensagemId !== null};
         });
         res.status(201).json(resultado);
     } catch (erro) {responderErroMarco(res, erro);}

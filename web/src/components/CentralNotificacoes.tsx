@@ -4,6 +4,8 @@ import { useMediaQuery } from "@mantine/hooks";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
+import { caminhoPagamento } from "../lib/pendenciasProjeto";
+import { formatarValor } from "../lib/comercial";
 
 type Notificacao = {
     id: string;
@@ -13,9 +15,23 @@ type Notificacao = {
     resumo: string;
     criadaEm: string;
     quantidade: number;
+    prioridade: "importante" | "normal";
+    marcoId: string | null;
 };
 type Resumo = {total: number; totalGrupos: number; itens: Notificacao[]};
 const rotulos = {mensagem: "Mensagem", solicitacao: "Solicitação", projeto: "Projeto", conversa: "Conversa", reabertura: "Reabertura"};
+
+type Pendencia = {categoria: string; titulo: string; subtitulo: string; projetoId: string | null; marcoId: string | null; conversaId: string | null; total: number; totalValor: string | null};
+const alertas = [
+    {id:"pagamento_atrasado",nome:"Pagamentos atrasados",urgente:true},
+    {id:"entrega_atrasada",nome:"Entregas atrasadas",urgente:true},
+    {id:"pagamento_pendente",nome:"Pagamentos necessários",urgente:false},
+    {id:"entrega_proxima",nome:"Entregas próximas",urgente:false},
+    {id:"aguardando_resposta",nome:"Clientes aguardando resposta",urgente:false},
+    {id:"proposta_pendente",nome:"Propostas pendentes",urgente:false},
+    {id:"validacao_pendente",nome:"Entregas para validar",urgente:false},
+    {id:"reabertura_pendente",nome:"Reaberturas pendentes",urgente:false},
+];
 
 export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const navigate = useNavigate();
@@ -26,6 +42,20 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const [resumo, setResumo] = useState<(Resumo & {pagina: number}) | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [ocupada, setOcupada] = useState(false);
+    const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+    const [erroPendencias, setErroPendencias] = useState(false);
+    const carregarPendencias = useCallback(async (signal: AbortSignal) => {
+        try {
+            const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal,cache:"no-store"});
+            if (!resposta.ok) {
+                if (!signal.aborted && [401,403].includes(resposta.status)) setPendencias([]);
+                throw new Error("Falha ao carregar pendências");
+            }
+            const dados = await resposta.json();
+            if (!signal.aborted) {setPendencias(dados); setErroPendencias(false);}
+        } catch {if (!signal.aborted) setErroPendencias(true);}
+    },[lado]);
+    const atualizarPendencias = useAtualizacaoPeriodica(carregarPendencias,30000);
     const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
     const revisao = useRef(0);
     const bloqueio = useRef(false);
@@ -56,6 +86,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         setAberta(valor);
         setConfirmarLimpeza(false);
         if (valor) {
+            atualizarPendencias();
             if (pagina !== 0) setPagina(0);
             else atualizar();
         }
@@ -108,8 +139,11 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                     navigate(`${raiz}/solicitacoes?${params}`);
                 } else if (lado === "admin") {
                     navigate(`/projetos/${notificacao.referenciaId}`);
+                } else if (["Lembrete de pagamento","Marco aguardando pagamento"].includes(notificacao.titulo)) {
+                    navigate(`${caminhoPagamento(notificacao.referenciaId,notificacao.marcoId)}&notificacao=${encodeURIComponent(notificacao.id)}`);
                 } else {
                     params.set("projeto", notificacao.referenciaId);
+                    if (notificacao.titulo === "Marco aguardando validação") {params.set("validar","1"); if (notificacao.marcoId) params.set("marco",notificacao.marcoId); }
                     navigate(`/portal/projetos?${params}`);
                 }
                 setAberta(false);
@@ -122,11 +156,24 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         }
     }
 
+    //alertas permanecem enquanto a pendência existir
+    const categoriasAtivas = alertas.filter(a => pendencias.some(p=>p.categoria === a.id));
+    const urgentes = categoriasAtivas.some(a=>a.urgente);
+    function abrirPendencia(p: Pendencia) {
+        if (p.conversaId) navigate(`${lado === "admin" ? "" : "/portal"}/mensagens?conversa=${encodeURIComponent(p.conversaId)}`);
+        else if (p.projetoId) {
+            const id = encodeURIComponent(p.projetoId);
+            if (lado === "admin") navigate(`/projetos/${id}${p.marcoId ? `?marco=${encodeURIComponent(p.marcoId)}` : ""}`);
+            else if (p.categoria.startsWith("pagamento_")) navigate(caminhoPagamento(p.projetoId,p.marcoId));
+            else navigate(`/portal/projetos?projeto=${id}${p.categoria === "validacao_pendente" ? `&validar=1${p.marcoId ? `&marco=${encodeURIComponent(p.marcoId)}` : ""}` : ""}`);
+        }
+        setAberta(false);
+    }
     const total = resumo?.total ?? 0;
     const paginaAtual = resumo?.pagina === pagina ? resumo : null;
     const gatilho = (
-        <ActionIcon size="lg" variant="subtle" aria-label={`Notificações: ${total} não lidas`} aria-expanded={aberta} onClick={() => alterarAbertura(!aberta)}>
-            <Indicator disabled={total === 0} label={total > 99 ? "99+" : total} size={17} color="red" offset={2}>
+        <ActionIcon size="lg" variant="subtle" aria-label={`Notificações: ${total} não lidas; ${categoriasAtivas.length} categorias de pendências ativas`} aria-expanded={aberta} onClick={() => alterarAbertura(!aberta)}>
+            <Indicator disabled={total === 0 && !categoriasAtivas.length} label={total > 99 ? "99+" : total || "!"} size={17} color={urgentes || !categoriasAtivas.length ? "red" : "orange"} offset={2}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
             </Indicator>
         </ActionIcon>
@@ -147,13 +194,30 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
             </Alert>}
             {erro && <Alert color="red" title="Notificações">{erro}<Button size="compact-xs" variant="subtle" onClick={atualizar}>Tentar novamente</Button></Alert>}
             {!paginaAtual && !erro && <Loader size="sm"/>}
-            {paginaAtual && paginaAtual.itens.length === 0 && <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>}
+
             <ScrollArea.Autosize mah={mobile ? "calc(100dvh - 210px)" : "min(380px, 55dvh)"} offsetScrollbars>
                 <Stack gap={4}>
+                    {pagina === 0 && categoriasAtivas.length > 0 && <>
+                        <Text size="xs" fw={700} c="dimmed">PENDÊNCIAS ATIVAS</Text>
+                        {categoriasAtivas.map(a => {
+                            const itens = pendencias.filter(p=>p.categoria===a.id);
+                            return <Box key={a.id} p="xs" style={{borderRadius:8,border:"1px solid var(--mantine-color-default-border)"}}>
+                                <Group justify="space-between" gap="xs"><Text size="sm" fw={600} c={a.urgente?"red":"orange"}>{a.nome} · {itens[0].total}</Text><Badge color={a.urgente?"red":"orange"} size="xs">{a.urgente?"Urgente":"Importante"}</Badge></Group>
+                                {itens[0].totalValor !== null && <Text size="sm" fw={600}>{formatarValor(itens[0].totalValor)}</Text>}
+                                {itens.slice(0,2).map((p,i)=><UnstyledButton key={i} w="100%" py={4} onClick={()=>abrirPendencia(p)}><Text size="sm" lineClamp={1}>{p.titulo} ›</Text><Text size="xs" c="dimmed" lineClamp={1}>{p.subtitulo}</Text></UnstyledButton>)}
+                                {itens[0].total > 2 && <Button size="compact-xs" variant="subtle" onClick={()=>{navigate(lado === "admin"?"/":"/portal");setAberta(false);}}>Ver todas no Dashboard</Button>}
+                            </Box>;
+                        })}
+                        <Text size="xs" c="dimmed">Resolva a pendência para retirar o alerta.</Text>
+                    </>}
+                    {erroPendencias && <Text size="xs" c="red">Não foi possível atualizar os alertas ativos.</Text>}
+                    <Text size="xs" fw={700} c="dimmed" mt="xs">NOTIFICAÇÕES</Text>
+                    {paginaAtual && paginaAtual.itens.length === 0 && <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>}
                     {paginaAtual?.itens.map(n => (
                         <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} style={{borderRadius: 8, cursor: ocupada ? "wait" : "pointer", border: "1px solid var(--mantine-color-default-border)"}}>
                             <Group align="flex-start" justify="space-between" wrap="nowrap" gap="xs">
                                 <Box miw={0} flex={1}>
+                                    {n.prioridade === "importante" && <Badge color="orange" size="xs">Importante</Badge>}
                                     <Text size="xs" c="dimmed">{rotulos[n.tipo]} · {new Date(n.criadaEm).toLocaleString("pt-BR")}</Text>
                                     <Text size="sm" fw={n.quantidade ? 700 : 500} lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.titulo}</Text>
                                     <Text size="xs" c="dimmed" lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.resumo}</Text>
