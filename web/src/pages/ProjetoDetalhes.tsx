@@ -1,3 +1,4 @@
+import { AbasNavegacao } from "../components/NavegacaoPainel";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import classes from "../styles/Trabalho.module.css";
 import estrutura from "../styles/Estrutura.module.css";
@@ -265,7 +266,7 @@ export function ProjetoDetalhes() {
             
             <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={600}>{formatarValor(projeto.valorAcordado)}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={600}>{formatarPrazo(projeto.prazoAcordado)}</Text></div><div><Text size="xs" c="dimmed">Progresso</Text><Text size="sm" fw={600}>{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></div></div>
             <Tabs value={aba} onChange={setAba} keepMounted className={classes.pagina}>
-                <Tabs.List className={classes.abas}><Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="comercial">Dados comerciais</Tabs.Tab><Tabs.Tab value="marcos">Marcos e pagamentos</Tabs.Tab></Tabs.List>
+                <AbasNavegacao className={classes.abas}><Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="comercial">Dados comerciais</Tabs.Tab><Tabs.Tab value="marcos">Marcos e pagamentos</Tabs.Tab></AbasNavegacao>
                 <Tabs.Panel value="geral" pt="sm"><Stack gap="sm">
             <Card withBorder padding="sm">
                 <Stack gap="sm">

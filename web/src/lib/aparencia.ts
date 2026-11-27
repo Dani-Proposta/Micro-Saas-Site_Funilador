@@ -1,7 +1,7 @@
 import type { MantineColorsTuple } from "@mantine/core";
 
 export const paletasAparencia = [
-    {id:"neutra", nome:"Neutra", descricao:"Cinza original"},
+    {id:"neutra", nome:"Neutra", descricao:"Cinza quente e discreto"},
     {id:"obsidiana", nome:"Obsidiana", descricao:"Preto e branco"},
     {id:"meia-noite", nome:"Meia-noite", descricao:"Azul profundo"},
     {id:"ametista", nome:"Ametista", descricao:"Violeta suave"},
@@ -15,6 +15,15 @@ export const escalasPaleta: Record<Exclude<Paleta,"neutra">,{dark:MantineColorsT
     "meia-noite": {dark:["#e6eefb","#c0d0e6","#96aac7","#667c9a","#3a506d","#273b55","#1d2b40","#121e30","#0c1524","#080f1b"],gray:["#f6f9fd","#eaf0f8","#dce6f3","#c6d5e8","#aabed7","#7e96b5","#526e91","#3b5271","#263b55","#14253a"]},
     ametista: {dark:["#f2eafa","#d9cae8","#b7a3cb","#85739c","#564565","#382b46","#2b2137","#1b1525","#140e1c","#0d0913"],gray:["#faf7fd","#f2edf8","#e8dff1","#d6c8e5","#bdabd2","#9b85b5","#745c92","#584570","#3e2e53","#241a32"]},
     floresta: {dark:["#e7f3ed","#c2d9ce","#99b7a8","#678b7b","#395b4c","#294438","#1d3329","#12251c","#0c1a14","#07110c"],gray:["#f5faf7","#e9f3ed","#d9e9df","#c3d8cb","#a6c3b2","#7c9e8b","#527963","#385b48","#263e32","#17291f"]},
+};
+
+// escala clara independente, com superfícies foscas e contraste de leitura
+export const escalasClaras: Record<Paleta,MantineColorsTuple> = {
+    neutra:["#ebe8e2","#e1ddd5","#d5d0c7","#c7c1b6","#a49b8d","#80776a","#63594d","#51483e","#39332c","#29241f"],
+    obsidiana:["#e5e7ec","#dadde4","#cdd1da","#bfc4d0","#969dad","#707989","#545e70","#434c5e","#303747","#202633"],
+    "meia-noite":["#dae8f5","#caddef","#bbd0e6","#a9c3dd","#829fbe","#5d7c9c","#425f80","#344e6d","#253950","#192b40"],
+    ametista:["#eaddf4","#dfcfee","#d1bde4","#c2a8d9","#9e82bb","#795e98","#5e437d","#50376c","#38254f","#291b3d"],
+    floresta:["#dcece0","#cfe4d5","#bdd9c6","#abcdb6","#81a88d","#5d8669","#41694d","#34563e","#24402d","#192e20"],
 };
 
 export function obterEscalasPaleta(paleta:Paleta) { return paleta === "neutra" ? undefined : escalasPaleta[paleta]; }

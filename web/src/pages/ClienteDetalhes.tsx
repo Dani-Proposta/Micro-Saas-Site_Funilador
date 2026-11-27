@@ -1,3 +1,4 @@
+import { AbasNavegacao } from "../components/NavegacaoPainel";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 import { Alert, Avatar, Badge, Button, Card, Group, Modal, Select, Stack, Tabs, Text, TextInput, Title } from "@mantine/core";
@@ -101,9 +102,9 @@ export function ClienteDetalhes() {
             <Group gap="xs" className={classes.fichaAcoes}><Button size="xs" leftSection={<IconePainel nome="mensagens" tamanho={15}/>} onClick={()=>navigate(caminhoMensagens(cliente.id),{state:origem()})}>Mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cadastro</Button></Group>
         </div></Card>
         <Tabs value={aba} onChange={selecionarAba} keepMounted={false} className={classes.abas}>
-            <Tabs.List className={classes.abasLista}>
+            <AbasNavegacao className={classes.abasLista}>
                 <Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="projetos">Projetos ({cliente.projetos.length})</Tabs.Tab><Tabs.Tab value="solicitacoes">Solicitações ({cliente.solicitacoes.length})</Tabs.Tab><Tabs.Tab value="acesso">Acesso e segurança</Tabs.Tab>
-            </Tabs.List>
+            </AbasNavegacao>
             <Tabs.Panel value="geral" pt="md"><Stack gap="sm">
                 <div className={classes.indicadores}>{[{label:"Projetos ativos",valor:ativos,aba:"projetos"},{label:"Solicitações pendentes",valor:pendentes,aba:"solicitacoes"},{label:"Projetos arquivados",valor:arquivados,aba:"projetos"}].map((i,index)=><button type="button" className={classes.indicador} key={i.label} onClick={()=>{if(index===0)setFiltroProjeto("ativos");if(index===1)setFiltroSolicitacao("pendente");if(index===2)setFiltroProjeto("arquivados");selecionarAba(i.aba);}}><Text size="xs" c="dimmed">{i.label}</Text><Text size="xl" fw={700} className={classes.numero}>{i.valor}</Text></button>)}</div>
                 <Card withBorder padding="md"><Stack gap="sm"><Title order={4}>Cadastro</Title><dl className={classes.dados}><div><dt>Nome</dt><dd>{cliente.nome}</dd></div><div><dt>E-mail de contato</dt><dd>{cliente.email??"Não cadastrado"}</dd></div><div><dt>Cliente desde</dt><dd>{new Date(cliente.criadoEm).toLocaleDateString("pt-BR")}</dd></div><div><dt>Conta de acesso</dt><dd>{cliente.usuarioId?"Vinculada":"Sem conta"}</dd></div></dl></Stack></Card>

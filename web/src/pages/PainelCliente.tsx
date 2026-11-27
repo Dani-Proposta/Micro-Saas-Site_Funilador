@@ -1,11 +1,12 @@
 import { Carregamento } from "../components/Carregamento";
 
 import { useEffect, useState } from "react";
-import { AppShell, Alert, Badge, Burger, Group, NavLink, Stack, Text } from "@mantine/core";
+import { AppShell, Alert, Burger, Group, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Navigate, useLocation, useNavigate, Routes, Route, NavLink as RouterNavLink } from "react-router";
+import { Navigate, useLocation, useNavigate, Routes, Route } from "react-router";
 import { authClient } from "../lib/auth-client";
-import { IconePainel, MarcaPainel, MenuConta } from "../components/MenuConta";
+import { MarcaPainel, MenuConta } from "../components/MenuConta";
+import { NavegacaoPainel } from "../components/NavegacaoPainel";
 import classes from "../styles/Estrutura.module.css";
 import { CentralNotificacoes } from "../components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
@@ -120,11 +121,7 @@ function PortalCliente() {
                 </div>
             </AppShell.Header>
             <AppShell.Navbar className={classes.navbar}>
-                <Text size="xs" c="dimmed" fw={600} className={classes.navLabel}>Navegação</Text>
-                <NavLink className={classes.navLink} label="Visão geral" leftSection={<IconePainel nome="painel"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal" end {...props}/>)}/>
-                <NavLink className={classes.navLink} label="Meus projetos" leftSection={<IconePainel nome="projetos"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/projetos" {...props}/>)}/>
-                <NavLink className={classes.navLink} label="Minhas solicitações" leftSection={<IconePainel nome="solicitacoes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/solicitacoes" {...props}/>)}/>
-                <NavLink className={classes.navLink} label="Mensagens" leftSection={<IconePainel nome="mensagens"/>} rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/portal/mensagens" {...props}/>)}/>
+                <NavegacaoPainel lado="cliente" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
             </AppShell.Navbar>
 
             <AppShell.Main className={classes.main}>

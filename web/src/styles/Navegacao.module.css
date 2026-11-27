@@ -1,0 +1,77 @@
+/* trilho compartilhado, medido pela seleção real */
+.trilho, .abas { position: relative; isolation: isolate; min-width: 0; }
+.trilho { display: flex; flex-direction: column; gap: 3px; padding: 2px; }
+.trilho > .link { position: relative; z-index: 1; min-width: 0; margin: 0; }
+.trilho > .link :global(.mantine-NavLink-body) { min-width: 0; }
+.trilho > .link :global(.mantine-NavLink-section) { flex-shrink: 0; }
+.trilho > .link:focus-visible { outline-offset: -2px; }
+.trilho::before, .abas::after {
+    content: ""; position: absolute; pointer-events: none; z-index: 0;
+    top: 0; left: 0; width: var(--trilho-w, 0px); height: var(--trilho-h, 0px);
+    transform: translate(var(--trilho-x, 0px), var(--trilho-y, 0px));
+    opacity: 0; transition: transform 260ms cubic-bezier(.22,.75,.22,1), width 220ms ease, height 220ms ease, opacity 150ms ease;
+}
+/* minimalista: destaque plano, sem trilho animado */
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link { border-radius: 4px; }
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] {
+    color: var(--mantine-color-text); background: var(--mantine-color-default-hover); box-shadow: inset 2px 0 var(--mantine-primary-color-filled);
+}
+/* moderno: indicador linear móvel e ícone em destaque */
+:global(html[data-funilador-estilo="moderno"]) .trilho::before {
+    width: 3px; border-radius: 4px; background: var(--mantine-primary-color-filled);
+}
+:global(html[data-funilador-estilo="moderno"]) .trilho[data-trilho-ativo]::before { opacity: 1; }
+:global(html[data-funilador-estilo="moderno"]) .trilho > .link { border-radius: 7px; }
+:global(html[data-funilador-estilo="moderno"]) .trilho[data-trilho-ativo] > .link[aria-current="page"] {
+    box-shadow: none; background: color-mix(in srgb, var(--mantine-primary-color-filled) 9%, transparent); color: var(--mantine-color-text);
+}
+:global(html[data-funilador-estilo="moderno"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+/* expressivo: cápsula móvel com relevo e realce */
+:global(html[data-funilador-estilo="expressivo"]) .trilho::before {
+    border-radius: 999px;
+    background: linear-gradient(110deg, color-mix(in srgb, var(--mantine-primary-color-filled) 24%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-primary-color-filled) 9%, var(--mantine-color-body)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 55%, var(--mantine-color-default-border)), 0 2px 8px color-mix(in srgb, var(--mantine-primary-color-filled) 16%, transparent);
+    transition-timing-function: cubic-bezier(.18,.8,.25,1.18);
+}
+:global(html[data-funilador-estilo="expressivo"]) .trilho[data-trilho-ativo]::before { opacity: 1; }
+:global(html[data-funilador-estilo="expressivo"]) .trilho > .link { border-radius: 999px; }
+:global(html[data-funilador-estilo="expressivo"]) .trilho[data-trilho-ativo] > .link[aria-current="page"] { background: transparent; box-shadow: none; color: var(--mantine-color-text); }
+:global(html[data-funilador-estilo="expressivo"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+/* abas mantêm a semântica e o teclado nativos do mantine */
+.abas > button { position: relative; z-index: 1; min-height: 36px; overflow-wrap: anywhere; }
+.abas > button:focus-visible { outline-offset: -2px; }
+:global(html[data-funilador-estilo="moderno"]) .abas,
+:global(html[data-funilador-estilo="expressivo"]) .abas {
+    gap: 4px; padding: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-default-hover); border-radius: 12px;
+}
+:global(html[data-funilador-estilo="expressivo"]) .abas { border-radius: 20px; }
+:global(html[data-funilador-estilo="moderno"]) .abas::before,
+:global(html[data-funilador-estilo="expressivo"]) .abas::before { display: none; }
+:global(html[data-funilador-estilo="moderno"]) .abas > button,
+:global(html[data-funilador-estilo="expressivo"]) .abas > button { border: 0; border-radius: 999px; margin: 0; background: transparent; }
+:global(html[data-funilador-estilo="moderno"]) .abas > button:hover:not([aria-selected="true"]),
+:global(html[data-funilador-estilo="expressivo"]) .abas > button:hover:not([aria-selected="true"]) { background: color-mix(in srgb, var(--mantine-color-text) 6%, transparent); }
+:global(html[data-funilador-estilo="moderno"]) .abas[data-trilho-ativo]::after {
+    opacity: 1; border-radius: 999px; background: var(--mantine-color-body); box-shadow: inset 0 0 0 1px var(--mantine-color-default-border), var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="expressivo"]) .abas[data-trilho-ativo]::after {
+    opacity: 1; border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--mantine-primary-color-filled) 28%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-primary-color-filled) 10%, var(--mantine-color-body)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 55%, var(--mantine-color-default-border));
+    transition-timing-function: cubic-bezier(.18,.8,.25,1.18);
+}
+:global(html[data-funilador-estilo="moderno"]) .abas > button[aria-selected="true"],
+:global(html[data-funilador-estilo="expressivo"]) .abas > button[aria-selected="true"] { font-weight: 650; color: var(--mantine-color-text); }
+/* entrada escalonada apenas ao abrir o menu no celular */
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="expressivo"]) .trilho[data-mobile-aberto="true"] > .link { animation: entradaNav 220ms ease-out both; animation-delay: calc(var(--ordem-nav, 0) * 22ms); }
+}
+@media (max-width: 30em) {
+    .abas { width: 100%; }
+    .abas > button { flex: 1 1 44%; padding-inline: 6px; font-size: var(--mantine-font-size-xs); white-space: normal; }
+}
+@keyframes entradaNav { from { transform: translateX(-7px); opacity: .65; } to { transform: translateX(0); opacity: 1; } }
+:global(html[data-funilador-movimento="reduzido"]) .trilho::before,
+:global(html[data-funilador-movimento="reduzido"]) .abas::after,
+:global(html[data-funilador-movimento="reduzido"]) .trilho > .link { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .trilho::before, .abas::after, .trilho > .link { transition: none !important; animation: none !important; } }

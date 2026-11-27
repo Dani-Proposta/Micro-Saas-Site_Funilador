@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Carregamento } from "./components/Carregamento";
 //import externos
-import { NavLink as MantineNavLink, Badge } from '@mantine/core';
-import { NavLink as RouterNavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Burger} from "@mantine/core";
@@ -11,7 +10,8 @@ import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, Pr
 import { RedefinirSenha } from "./pages/RedefinirSenha";
 import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
-import { IconePainel, MarcaPainel, MenuConta } from "./components/MenuConta";
+import { MarcaPainel, MenuConta } from "./components/MenuConta";
+import { NavegacaoPainel } from "./components/NavegacaoPainel";
 import classes from "./styles/Estrutura.module.css";
 import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
@@ -100,14 +100,7 @@ function PainelAdmin() {
         </div>
       </AppShell.Header>
       <AppShell.Navbar className={classes.navbar}>
-        <Text size="xs" c="dimmed" fw={600} className={classes.navLabel}>Área de trabalho</Text>
-        <MantineNavLink className={classes.navLink} label="Visão geral" leftSection={<IconePainel nome="painel"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/" end {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Clientes" leftSection={<IconePainel nome="clientes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/clientes" {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Solicitações" leftSection={<IconePainel nome="solicitacoes"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/solicitacoes" {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Projetos" leftSection={<IconePainel nome="projetos"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/projetos" {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Financeiro" leftSection={<IconePainel nome="financeiro"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/financeiro" {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Mensagens" leftSection={<IconePainel nome="mensagens"/>} rightSection={!!mensagensNaoLidas && <Badge color="red" size="sm">{mensagensNaoLidas}</Badge>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/mensagens" {...props}/>)}/>
-        <MantineNavLink className={classes.navLink} label="Convites" leftSection={<IconePainel nome="convites"/>} onClick={close} renderRoot={(props) => (<RouterNavLink to="/convites" {...props}/>)}/>
+        <NavegacaoPainel lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
       </AppShell.Navbar>
 
       <AppShell.Main className={classes.main}>

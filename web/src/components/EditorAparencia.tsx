@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import { Button, DEFAULT_THEME, Group, Radio, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { aparenciaPadrao, coresAparencia, paletasAparencia, obterEscalasPaleta } from "../lib/aparencia";
+import { aparenciaPadrao, coresAparencia, paletasAparencia, obterEscalasPaleta, escalasClaras } from "../lib/aparencia";
 import type { Aparencia } from "../lib/aparencia";
 
 const estilos = [{id:"minimalista",nome:"Minimalista",descricao:"Contornos simples e pouca ornamentação"},{id:"moderno",nome:"Moderno",descricao:"Equilíbrio entre superfícies e destaque"},{id:"expressivo",nome:"Expressivo",descricao:"Mais cor, relevo e identidade visual"}] as const;
@@ -16,10 +16,11 @@ export function EditorAparencia({inicial, salvando, salvar}: {inicial:Aparencia;
     const escuro = rascunho.tema === "dark" || (rascunho.tema === "auto" && escuroSistema);
     const cor = coresAparencia.find(c => c.id === rascunho.acento)!;
     const paleta = obterEscalasPaleta(rascunho.paleta) ?? DEFAULT_THEME.colors;
-    const fundo = escuro ? paleta.dark[7] : rascunho.paleta === "neutra" ? "#ffffff" : paleta.gray[0];
-    const superficie = escuro ? paleta.dark[6] : "#ffffff";
-    const texto = escuro ? paleta.dark[0] : paleta.gray[9];
-    const contorno = escuro ? paleta.dark[4] : paleta.gray[3];
+    const clara = escalasClaras[rascunho.paleta];
+    const fundo = escuro ? paleta.dark[7] : clara[2];
+    const superficie = escuro ? paleta.dark[6] : clara[0];
+    const texto = escuro ? paleta.dark[0] : clara[9];
+    const contorno = escuro ? paleta.dark[4] : clara[4];
     const alterado = Object.keys(inicial).some(c => inicial[c as keyof Aparencia] !== rascunho[c as keyof Aparencia]);
     function alterar<K extends keyof Aparencia>(chave:K, valor:Aparencia[K]) {setRascunho(a => ({...a,[chave]:valor}));}
     return <Stack gap="md">
@@ -28,11 +29,11 @@ export function EditorAparencia({inicial, salvando, salvar}: {inicial:Aparencia;
         </Radio.Group>
         <div><Text size="sm" fw={500}>Paleta de superfícies</Text>
             <div className="funilador-paletas" role="group" aria-label="Paleta de superfícies">
-                {paletasAparencia.map(p=>{const escala=obterEscalasPaleta(p.id) ?? DEFAULT_THEME.colors; return <UnstyledButton key={p.id} type="button" className="funilador-paleta" aria-label={p.nome} aria-pressed={p.id===rascunho.paleta} disabled={salvando} onClick={()=>alterar("paleta",p.id)}>
-                    <span className="funilador-paleta-amostra" style={{background:escuro?escala.dark[7]:escala.gray[0],color:escuro?escala.dark[0]:escala.gray[9],borderColor:escuro?escala.dark[4]:escala.gray[3]}}><span style={{background:escuro?escala.dark[5]:escala.gray[2]}}/><span style={{background:escuro?escala.dark[3]:escala.gray[4]}}/>{p.id===rascunho.paleta && <MarcaSelecao/>}</span>
+                {paletasAparencia.map(p=>{const escala=obterEscalasPaleta(p.id) ?? DEFAULT_THEME.colors; const luz=escalasClaras[p.id]; return <UnstyledButton key={p.id} type="button" className="funilador-paleta" aria-label={p.nome} aria-pressed={p.id===rascunho.paleta} disabled={salvando} onClick={()=>alterar("paleta",p.id)}>
+                    <span className="funilador-paleta-amostra" style={{background:escuro?escala.dark[7]:luz[2],color:escuro?escala.dark[0]:luz[9],borderColor:escuro?escala.dark[4]:luz[4]}}><span style={{background:escuro?escala.dark[5]:luz[0]}}/><span style={{background:escuro?escala.dark[3]:luz[3]}}/>{p.id===rascunho.paleta && <MarcaSelecao/>}</span>
                     <Text component="span" size="xs" fw={p.id===rascunho.paleta?700:400}>{p.nome}</Text>
                 </UnstyledButton>;})}
-            </div><Text size="xs" c="dimmed" mt={4}>Muda fundos, superfícies e tons neutros sem alterar a cor de destaque.</Text>
+            </div><Text size="xs" c="dimmed" mt={4}>Paletas claras foscas e escuras independentes, sem alterar a cor de destaque.</Text>
         </div>
         <Radio.Group label="Estilo da interface" value={rascunho.estilo} onChange={v => {const e=estilos.find(x=>x.id===v); if(e) alterar("estilo",e.id);}}>
             <Stack gap={6} mt={6}>{estilos.map(e => <Radio key={e.id} value={e.id} label={e.nome} description={e.descricao} disabled={salvando}/>)}</Stack>
