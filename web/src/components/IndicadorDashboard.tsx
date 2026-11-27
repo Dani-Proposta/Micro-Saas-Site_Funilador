@@ -38,7 +38,7 @@ export function IndicadorDashboard({titulo, valor, icone, cor, abrir}: Props) {
         </Group>
         <Group justify="space-between" align="end" gap={4} wrap="nowrap">
             <Text fw={700} size="xl" c={cor} className={classes.numero}><ContadorDashboard valor={valor}/></Text>
-            <span className={classes.seta} aria-hidden="true">↗</span>
+            <span className={classes.seta} aria-hidden="true"><span className={classes.acaoIndicador}>Detalhes </span>↗</span>
         </Group>
     </Card>;
 }

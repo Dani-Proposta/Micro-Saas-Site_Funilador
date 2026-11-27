@@ -1,0 +1,99 @@
+/* 06.5.3.5 — Campos e formulários.
+   Estrutura compartilhada; acabamento visual restrito ao Minimalista. */
+
+/* Grade de até duas colunas, baseada na largura real do formulário.
+   Usar em pares de campos sem mensagens de erro/descrições individuais;
+   nesses casos, o alinhamento pela base mantém os controles na mesma altura. */
+.funilador-campos-alinhados.funilador-campos-alinhados {
+    --campos-gap: var(--funilador-gap-painel, 12px);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(11.5rem, calc((100% - var(--campos-gap)) / 2))), 1fr));
+    gap: var(--campos-gap);
+    align-items: end;
+    min-width: 0;
+}
+.funilador-campos-alinhados > * {
+    min-width: 0;
+    max-width: 100%;
+}
+.funilador-campos-alinhados input[type="date"] {
+    min-width: 0;
+    max-width: 100%;
+}
+.funilador-moeda {
+    font-size: var(--mantine-font-size-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Não alterar valores, validação, tamanhos explícitos ou cores semânticas. */
+html[data-funilador-estilo="minimalista"] .mantine-Input-input {
+    border-radius: 6px;
+    box-shadow: none;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+html[data-funilador-estilo="minimalista"] .mantine-InputWrapper-label {
+    font-weight: 600;
+    line-height: 1.35;
+    margin-bottom: 4px;
+    overflow-wrap: break-word;
+}
+html[data-funilador-estilo="minimalista"] .mantine-InputWrapper-description {
+    line-height: 1.4;
+    margin-bottom: 4px;
+    overflow-wrap: break-word;
+}
+html[data-funilador-estilo="minimalista"] .mantine-InputWrapper-error {
+    line-height: 1.4;
+    margin-top: 4px;
+    overflow-wrap: break-word;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Input-input:focus-visible:not(:disabled):not([data-error]):not([aria-invalid="true"]) {
+    outline: 1px solid var(--mantine-primary-color-filled);
+    outline-offset: 1px;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Input-input:is([data-error], [aria-invalid="true"]):focus-visible {
+    outline: 1px solid var(--mantine-color-error);
+    outline-offset: 1px;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Input-input:disabled {
+    cursor: not-allowed;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Input-input[readonly]:not([data-pointer]) {
+    cursor: default;
+}
+
+/* Controles de seleção: preserva o comportamento nativo e o teclado. */
+html[data-funilador-estilo="minimalista"] .mantine-Combobox-dropdown {
+    border-radius: 6px;
+    border-color: var(--mantine-color-default-border);
+    box-shadow: var(--mantine-shadow-xs);
+}
+html[data-funilador-estilo="minimalista"] .mantine-Combobox-option {
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Modal-content {
+    border-radius: 8px;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Modal-title {
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Modal-header {
+    gap: 8px;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Modal-body {
+    min-width: 0;
+}
+html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"] .mantine-Input-input {
+    transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-funilador-estilo="minimalista"] .mantine-Input-input {
+        transition: none !important;
+    }
+}

@@ -1,4 +1,4 @@
-
+import { toast } from "../lib/toasts";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Loader, Modal, SegmentedControl, Select, Stack, Text, Title } from "@mantine/core";
 
@@ -154,9 +154,19 @@ export function Convites() {
         try {
             await navigator.clipboard.writeText(conviteGerado);
             setCopiado(true);
+            toast.mostrar("sucesso", {titulo:"Link copiado", mensagem:"O link do convite está na área de transferência."});
         } catch (erro) {
             console.error(erro);
             setErroGeracao("Não foi possível copiar automaticamente. Copie o link manualmente.");
+        }
+    }
+
+    async function copiarLink(token: string) {
+        try {
+            await navigator.clipboard.writeText(`${window.location.origin}/convite/${token}`);
+            toast.mostrar("sucesso", {titulo:"Link copiado", mensagem:"O link do convite está na área de transferência."});
+        } catch {
+            toast.mostrar("erro", {titulo:"Não foi possível copiar", mensagem:"Tente copiar o link novamente."});
         }
     }
 
@@ -178,6 +188,7 @@ export function Convites() {
             ));
 
             setConfirmarRevogacao(null);
+            toast.mostrar("sucesso", {titulo:"Convite revogado", mensagem:"O convite não poderá mais ser utilizado."});
 
         } catch (erro) {
             console.error(erro);
@@ -201,6 +212,7 @@ export function Convites() {
 
             setConvites((anteriores) => anteriores.filter((convite) => convite.id !== id));
             setConfirmarExclusao(null);
+            toast.mostrar("sucesso", {titulo:"Convite excluído", mensagem:"O convite foi removido."});
 
         } catch (erro) {
             console.error(erro);
@@ -291,7 +303,7 @@ export function Convites() {
                         <Group justify="flex-end">
                             {convite.estado === "pendente" && (
                                 <>
-                                    {convite.token && <Button size="xs" variant="light" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/convite/${convite.token}`)}>Copiar link</Button>}
+                                    {convite.token && <Button size="xs" variant="light" onClick={() => {if (convite.token) void copiarLink(convite.token);}}>Copiar link</Button>}
                                     <Button color="red" variant="subtle" size="xs" onClick={() => {setErroRevogacao(null); setConfirmarRevogacao(convite.id);}}>Revogar</Button>
                                 </>
                             )}

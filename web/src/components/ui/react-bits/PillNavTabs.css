@@ -1,0 +1,67 @@
+/* Adaptador visual do React Bits: os botões continuam sendo Tabs.Tab. */
+.funilador-abas-pill[role="tablist"] {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0;
+    padding: 3px 2px 5px;
+    overflow-x: auto;
+    border: 0;
+    background: transparent;
+}
+.funilador-abas-pill[role="tablist"]::before,
+.funilador-abas-pill[role="tablist"]::after { display: none; }
+/* Margens automáticas centralizam quando há espaço e não cortam a primeira aba no mobile. */
+.funilador-abas-pill .pill-nav {
+    flex: 0 0 auto;
+    max-width: none;
+    width: max-content;
+    margin-inline: auto;
+}
+/* O texto original fica atrás da cápsula opaca; a cópia recortada fica acima.
+   O contexto de empilhamento da lista contém o z-index do foco nativo do Mantine. */
+.funilador-abas-pill .pill-nav__track { isolation: isolate; }
+.funilador-abas-pill .pill-nav__list { position: relative; z-index: 0; }
+.funilador-abas-pill .pill-nav__glide { z-index: 1; pointer-events: none; }
+.funilador-abas-pill .pill-nav__ink { z-index: 2; pointer-events: none; }
+.funilador-abas-pill .pill-nav__slot > button[role="tab"] {
+    flex: 0 0 auto;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0 var(--pn-x);
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--pn-text);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -.005em;
+    white-space: nowrap;
+}
+/* Não permita que os estados do Mantine desenhem um fundo adicional. */
+.funilador-abas-pill .pill-nav__slot > button[role="tab"]:is(:hover, :focus, :active, [aria-selected="true"]) {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+.funilador-abas-pill .pill-nav__slot[data-lit] > button[role="tab"],
+.funilador-abas-pill .pill-nav__slot > button[aria-selected="true"] { color: var(--pn-strong); }
+.funilador-abas-pill .mantine-Tabs-tabLabel { font: inherit; line-height: inherit; }
+.funilador-abas-pill .pill-nav__slot > button[role="tab"]:focus-visible { outline: 2px solid var(--pn-ring); outline-offset: -2px; }
+.funilador-abas-pill .pill-nav__ink-item { box-sizing: border-box; }
+.pill-nav[data-reduced-motion] .pill-nav__face,
+.pill-nav[data-reduced-motion] .pill-nav__face-alt,
+.pill-nav[data-reduced-motion] .pill-nav__fill,
+.pill-nav[data-reduced-motion] .pill-nav__line,
+.pill-nav[data-reduced-motion] .pill-nav__item,
+.pill-nav[data-reduced-motion] .pill-nav__row,
+.pill-nav[data-reduced-motion] .pill-nav__dot { transition: none !important; animation: none !important; }

@@ -1,0 +1,97 @@
+/* 06.5.3.7.1 — Central de notificações: acabamento exclusivo do Minimalista. */
+:global(html[data-funilador-estilo="minimalista"]) .dropdown {
+    max-width: calc(100vw - 24px);
+    padding: 12px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central { min-width: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .ferramentas {
+    padding-block: 6px 10px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+:global(html[data-funilador-estilo="minimalista"]) .secao {
+    letter-spacing: .045em;
+    font-size: 10px;
+    padding-block: 5px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .icone {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-dimmed);
+    background: var(--mantine-color-body);
+}
+:global(html[data-funilador-estilo="minimalista"]) .lista { gap: 6px; }
+:global(html[data-funilador-estilo="minimalista"]) .central .pendencia {
+    border-radius: 6px;
+    border-inline-start: 2px solid var(--mantine-color-orange-6);
+    padding: 10px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .pendencia[data-urgente="true"] { border-inline-start-color: var(--mantine-color-red-6); }
+:global(html[data-funilador-estilo="minimalista"]) .tituloPendencia { min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
+:global(html[data-funilador-estilo="minimalista"]) .linkPendencia {
+    border-top: 1px solid var(--mantine-color-default-border);
+    margin-top: 6px;
+    padding: 7px 4px 3px;
+    border-radius: 3px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .evento {
+    border: 0;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    border-radius: 4px;
+    background: transparent !important;
+    padding: 10px 5px;
+    transition: background-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .evento[data-nova="true"] .icone {
+    color: var(--mantine-primary-color-light-color);
+    border-color: var(--mantine-primary-color-5);
+}
+:global(html[data-funilador-estilo="minimalista"]) .naoLida {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--mantine-primary-color-light-color);
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+:global(html[data-funilador-estilo="minimalista"]) .naoLida i {
+    width: 6px;
+    height: 6px;
+    background: var(--mantine-primary-color-filled);
+    border-radius: 50%;
+}
+:global(html[data-funilador-estilo="minimalista"]) .vazio {
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: 6px;
+    padding: 18px 10px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .paginacao {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding-top: 8px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central button:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (hover: hover) {
+    :global(html[data-funilador-estilo="minimalista"]) .central .evento:not(:disabled):hover,
+    :global(html[data-funilador-estilo="minimalista"]) .linkPendencia:hover { background: var(--mantine-color-default-hover) !important; }
+}
+@media (max-width: 30em) {
+    :global(html[data-funilador-estilo="minimalista"]) .central .evento { padding: 12px 3px; }
+    :global(html[data-funilador-estilo="minimalista"]) .ferramentas button { min-height: 36px; }
+    :global(html[data-funilador-estilo="minimalista"]) .paginacao button { min-height: 36px; }
+    :global(html[data-funilador-estilo="minimalista"]) .linkPendencia { min-height: 44px; }
+}
+:global(html[data-funilador-movimento="reduzido"]) .central .evento { transition: none; }
+@media (prefers-reduced-motion: reduce) { .central .evento { transition: none; } }
+
+:global(html:not([data-funilador-estilo="minimalista"])) .tituloPendencia { display: contents; }

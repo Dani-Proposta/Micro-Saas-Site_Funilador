@@ -35,3 +35,18 @@
 .clienteLongo { max-width: 100%; height: auto; min-height: 30px; }
 .clienteLongo :global(.mantine-Button-label) { white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 25em) { .campos { grid-template-columns: 1fr; } }
+
+/* Alinhamento e hierarquia exclusivos do Minimalista. */
+:global(html[data-funilador-estilo="minimalista"]) .cardTopo { align-items: center; }
+:global(html[data-funilador-estilo="minimalista"]) .cardAcoes { padding-top: 6px; }
+:global(html[data-funilador-estilo="minimalista"]) .card .dados {
+    padding: 6px 0;
+    background: transparent;
+    border-radius: 0;
+    font-variant-numeric: tabular-nums;
+}
+:global(html[data-funilador-estilo="minimalista"]) .filtros > * { flex-basis: 145px; }
+:global(html[data-funilador-estilo="minimalista"]) .filtros > :first-child { flex-basis: 210px; }
+@media (max-width: 30em) {
+    :global(html[data-funilador-estilo="minimalista"]) .filtros > :first-child { flex-basis: 100%; }
+}

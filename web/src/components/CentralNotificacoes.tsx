@@ -1,4 +1,5 @@
 import chat from "../styles/Chat.module.css";
+import visual from "../styles/Notificacoes.module.css";
 import { Carregamento } from "./Carregamento";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionIcon, Alert, Badge, Box, Button, Group, Indicator, Modal, Popover, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
@@ -10,6 +11,7 @@ import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { caminhoPendencia } from "../lib/selecionarPendencias";
 import { caminhoPagamento } from "../lib/pendenciasProjeto";
 import { formatarValor } from "../lib/comercial";
+import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
 
 type Notificacao = {
     id: string;
@@ -23,6 +25,33 @@ type Notificacao = {
     marcoId: string | null;
 };
 type Resumo = {total: number; totalGrupos: number; itens: Notificacao[]};
+
+const desenhos = {
+    mensagem: "M20 11a8 8 0 0 1-8 8H4l2-4a8 8 0 1 1 14-4z",
+    conversa: "M20 11a8 8 0 0 1-8 8H4l2-4a8 8 0 1 1 14-4z M9 11h6",
+    solicitacao: "M6 3h9l3 3v15H6z M9 10h6 M9 14h6 M9 18h4",
+    projeto: "M3 6h7l2 2h9v12H3z",
+    reabertura: "M4 11a8 8 0 1 1 2 6 M4 5v6h6",
+    pagamento: "M3 6h18v13H3z M16 11h5v4h-5z",
+    prazo: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
+    alerta: "M12 3 2 20h20L12 3z M12 9v4 M12 16v.1",
+    pronto: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M8 12l3 3 5-6",
+    sino: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4",
+} as const;
+
+function IconeNotificacao({tipo, tamanho = 18}: {tipo: keyof typeof desenhos; tamanho?: number}) {
+    return <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={desenhos[tipo]}/></svg>;
+}
+
+function iconePendencia(categoria: string): keyof typeof desenhos {
+    if (categoria.startsWith("pagamento")) return "pagamento";
+    if (categoria.startsWith("entrega")) return "prazo";
+    if (categoria === "aguardando_resposta") return "conversa";
+    if (categoria === "proposta_pendente") return "solicitacao";
+    if (categoria === "validacao_pendente") return "pronto";
+    if (categoria === "reabertura_pendente") return "reabertura";
+    return "alerta";
+}
 const rotulos = {mensagem: "Mensagem", solicitacao: "Solicitação", projeto: "Projeto", conversa: "Conversa", reabertura: "Reabertura"};
 
 type Pendencia = {categoria: string; titulo: string; subtitulo: string; projetoId: string | null; marcoId: string | null; conversaId: string | null; total: number; totalValor: string | null};
@@ -39,6 +68,9 @@ const alertas = [
 
 export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const navigate = useNavigate();
+    const {aparencia} = useAparencia();
+    const reduzirMovimento = useMovimentoReduzido();
+    const minimalista = aparencia.estilo === "minimalista";
     const mobile = useMediaQuery("(max-width: 48em)");
     const prefixo = lado === "admin" ? "/api/notificacoes" : "/api/me/notificacoes";
     const [aberta, setAberta] = useState(false);
@@ -178,10 +210,10 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         </ActionIcon>
     );
     const conteudo = (
-        <Stack gap="sm" className={chat.notificacoes}>
-            {!mobile && <Text fw={700}>Notificações</Text>}
-            <Text size="xs" c="dimmed">{total ? `${total} grupo(s) não lido(s)` : "Nenhuma notificação não lida"}</Text>
-            <Group justify="space-between" gap="xs" wrap="wrap">
+        <Stack gap="sm" className={`${chat.notificacoes} ${visual.central}`}>
+            {!mobile && (minimalista ? <Group gap={8} wrap="nowrap"><span className={visual.icone}><IconeNotificacao tipo="sino"/></span><Text fw={700}>Notificações</Text></Group> : <Text fw={700}>Notificações</Text>)}
+            <Text size="xs" c="dimmed" aria-live="polite">{!resumo ? (erro ? "Resumo indisponível" : "Consultando notificações...") : total ? `${total} ${total === 1 ? "grupo não lido" : "grupos não lidos"}` : "Nenhuma notificação não lida"}</Text>
+            <Group justify="space-between" gap="xs" wrap="wrap" className={visual.ferramentas}>
                 <Button size="compact-xs" variant="subtle" disabled={!total || ocupada} onClick={() => void marcar()}>Marcar todas como lidas</Button>
                 <Button size="compact-xs" color="red" variant="subtle" disabled={!resumo?.totalGrupos || ocupada} onClick={() => setConfirmarLimpeza(true)}>Limpar todas</Button>
             </Group>
@@ -196,40 +228,48 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
             {!paginaAtual && !erro && <Carregamento tipo="compacto" texto="Carregando notificações..."/>}
 
             <ScrollArea.Autosize mah={mobile ? "calc(100dvh - 210px)" : "min(380px, 55dvh)"} offsetScrollbars>
-                <Stack gap={4}>
+                <Stack gap={4} className={visual.lista}>
                     {pagina === 0 && categoriasAtivas.length > 0 && <>
-                        <Text size="xs" fw={700} c="dimmed">PENDÊNCIAS ATIVAS</Text>
+                        <Text size="xs" fw={700} c="dimmed" className={visual.secao}>PENDÊNCIAS ATIVAS</Text>
                         {categoriasAtivas.map(a => {
                             const itens = pendencias.filter(p=>p.categoria===a.id);
-                            return <Box key={a.id} p="xs" className={chat.pendencia} data-urgente={a.urgente}>
-                                <Group justify="space-between" gap="xs"><Text size="sm" fw={600} c={a.urgente?"red":"orange"}>{a.nome} · {itens[0].total}</Text><Badge color={a.urgente?"red":"orange"} size="xs">{a.urgente?"Urgente":"Importante"}</Badge></Group>
+                            return <Box key={a.id} p="xs" className={`${chat.pendencia} ${visual.pendencia}`} data-urgente={a.urgente}>
+                                <Group justify="space-between" gap="xs" wrap="wrap">
+                                    <Group gap={8} wrap="nowrap" className={visual.tituloPendencia}>{minimalista && <span className={visual.icone}><IconeNotificacao tipo={iconePendencia(a.id)}/></span>}<Text size="sm" fw={600} c={a.urgente?"red":"orange"}>{a.nome} · {itens[0].total}</Text></Group>
+                                    <Badge color={a.urgente?"red":"orange"} variant={minimalista ? "outline" : undefined} size="xs">{a.urgente?"Urgente":"Importante"}</Badge>
+                                </Group>
                                 {itens[0].totalValor !== null && <Text size="sm" fw={600}>{formatarValor(itens[0].totalValor)}</Text>}
-                                {itens.slice(0,2).map((p,i)=><UnstyledButton key={i} w="100%" py={4} onClick={()=>abrirPendencia(p)}><Text size="sm" lineClamp={1}>{p.titulo} ›</Text><Text size="xs" c="dimmed" lineClamp={1}>{p.subtitulo}</Text></UnstyledButton>)}
+                                {itens.slice(0,2).map((p,i)=><UnstyledButton key={i} w="100%" py={4} className={visual.linkPendencia} onClick={()=>abrirPendencia(p)}><Text size="sm" lineClamp={1}>{p.titulo} ›</Text><Text size="xs" c="dimmed" lineClamp={1}>{p.subtitulo}</Text></UnstyledButton>)}
                                 {itens[0].total > 2 && <Button size="compact-xs" variant="subtle" onClick={()=>{navigate(lado === "admin"?"/":"/portal");setAberta(false);}}>Ver todas no Dashboard</Button>}
                             </Box>;
                         })}
                         <Text size="xs" c="dimmed">Resolva a pendência para retirar o alerta.</Text>
                     </>}
                     {erroPendencias && <Text size="xs" c="red">Não foi possível atualizar os alertas ativos.</Text>}
-                    <Text size="xs" fw={700} c="dimmed" mt="xs">NOTIFICAÇÕES</Text>
-                    {paginaAtual && paginaAtual.itens.length === 0 && <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>}
+                    <Text size="xs" fw={700} c="dimmed" mt="xs" className={visual.secao}>NOTIFICAÇÕES</Text>
+                    {paginaAtual && paginaAtual.itens.length === 0 && (minimalista ? <Stack align="center" gap={6} className={visual.vazio}>
+                        <span className={visual.icone}><IconeNotificacao tipo={pagina === 0 && !categoriasAtivas.length && !erroPendencias ? "pronto" : "sino"} tamanho={22}/></span>
+                        <Text size="sm" fw={600} ta="center">{pagina === 0 ? "Nenhuma notificação" : "Nenhum registro nesta página"}</Text>
+                        <Text size="xs" c="dimmed" ta="center">{pagina === 0 && categoriasAtivas.length ? "As pendências ativas continuam acima." : "Novas notificações aparecerão aqui."}</Text>
+                    </Stack> : <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>)}
                     {paginaAtual?.itens.map(n => (
-                        <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} className={chat.evento} data-nova={n.quantidade > 0} style={{cursor: ocupada ? "wait" : "pointer"}}>
+                        <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} className={`${chat.evento} ${visual.evento}`} data-nova={n.quantidade > 0} data-importante={n.prioridade === "importante"} style={{cursor: ocupada ? "wait" : "pointer"}}>
                             <Group align="flex-start" justify="space-between" wrap="nowrap" gap="xs">
+                                {minimalista && <span className={visual.icone}><IconeNotificacao tipo={n.tipo}/></span>}
                                 <Box miw={0} flex={1}>
-                                    {n.prioridade === "importante" && <Badge color="orange" size="xs">Importante</Badge>}
+                                    {n.prioridade === "importante" && <Badge color="orange" variant={minimalista ? "outline" : undefined} size="xs">Importante</Badge>}
                                     <Text size="xs" c="dimmed">{rotulos[n.tipo]} · {new Date(n.criadaEm).toLocaleString("pt-BR")}</Text>
                                     <Text size="sm" fw={n.quantidade ? 700 : 500} lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.titulo}</Text>
                                     <Text size="xs" c="dimmed" lineClamp={2} style={{overflowWrap: "anywhere"}}>{n.resumo}</Text>
                                 </Box>
-                                {n.quantidade > 0 && <Badge color="red" size="sm">{n.quantidade > 1 || n.tipo === "mensagem" ? n.quantidade : "Nova"}</Badge>}
+                                {n.quantidade > 0 && (minimalista ? <span className={visual.naoLida} aria-label={`${n.quantidade} não lida(s)`}><i aria-hidden="true"/>{n.quantidade > 1 ? n.quantidade : "Nova"}</span> : <Badge color="red" size="sm">{n.quantidade > 1 || n.tipo === "mensagem" ? n.quantidade : "Nova"}</Badge>)}
                                 <Text c="dimmed" aria-hidden="true">›</Text>
                             </Group>
                         </UnstyledButton>
                     ))}
                 </Stack>
             </ScrollArea.Autosize>
-            {paginaAtual && <Group justify="space-between" gap="xs">
+            {paginaAtual && <Group justify="space-between" gap="xs" className={visual.paginacao}>
                 <Button size="compact-xs" variant="default" disabled={pagina === 0 || ocupada} onClick={() => {setPagina(p => p - 1);}}>Mais recentes</Button>
                 <Text size="xs" c="dimmed">Página {pagina + 1}</Text>
                 <Button size="compact-xs" variant="default" disabled={(pagina + 1) * 20 >= paginaAtual.totalGrupos || ocupada} onClick={() => {setPagina(p => p + 1);}}>Anteriores</Button>
@@ -249,9 +289,9 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     );
 
     return (
-        <Popover opened={aberta} onChange={alterarAbertura} position="bottom-end" width={360} shadow="md" withinPortal middlewares={{flip: true, shift: true}}>
+        <Popover opened={aberta} onChange={alterarAbertura} position="bottom-end" width={minimalista ? 400 : 360} shadow="md" withinPortal middlewares={{flip: true, shift: true}} transitionProps={reduzirMovimento ? {duration:0} : minimalista ? {transition:"fade",duration:120} : undefined}>
             <Popover.Target>{gatilho}</Popover.Target>
-            <Popover.Dropdown p="sm">{conteudo}</Popover.Dropdown>
+            <Popover.Dropdown p="sm" className={`${classes.notificationDropdown} ${visual.dropdown}`}>{conteudo}</Popover.Dropdown>
         </Popover>
     );
 }

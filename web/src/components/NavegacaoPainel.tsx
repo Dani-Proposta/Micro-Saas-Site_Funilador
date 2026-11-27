@@ -1,7 +1,11 @@
-import { useLayoutEffect, useRef } from "react";
-import type { ComponentPropsWithoutRef, CSSProperties, RefObject } from "react";
-import { Badge, NavLink, Tabs, Text } from "@mantine/core";
-import { NavLink as RouterNavLink } from "react-router";
+import { Children, cloneElement, isValidElement, useLayoutEffect, useRef } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties, RefObject, ReactElement, ReactNode } from "react";
+import { Badge, NavLink, Tabs, Text, useComputedColorScheme, useTabsContext } from "@mantine/core";
+import { NavLink as RouterNavLink, useLocation, matchPath } from "react-router";
+import LineSidebar from "./ui/react-bits/LineSidebar";
+import PillNav from "./ui/react-bits/PillNav";
+import "./ui/react-bits/PillNavTabs.css";
+import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
 import { IconePainel } from "./MenuConta";
 import estrutura from "../styles/Estrutura.module.css";
 import classes from "../styles/Navegacao.module.css";
@@ -65,23 +69,105 @@ function useTrilho(ref: RefObject<HTMLElement | null>, seletor: string) {
     }, [ref, seletor]);
 }
 
-export function NavegacaoPainel({lado, naoLidas, fechar, aberto}: {lado: "admin" | "cliente"; naoLidas: number | null; fechar: () => void; aberto: boolean}) {
-    const itens = lado === "admin" ? admin : cliente;
+type PropsNavegacao = {lado: "admin" | "cliente"; naoLidas: number | null; fechar: () => void; aberto: boolean};
+
+function NavegacaoMantine({itens, lado, naoLidas, fechar, aberto}: PropsNavegacao & {itens: ItemNavegacao[]}) {
     const ref = useRef<HTMLElement>(null);
     useTrilho(ref, 'a[aria-current="page"]');
+    return <nav ref={ref} className={classes.trilho} aria-label={lado === "admin" ? "Área de trabalho" : "Navegação do cliente"} data-mobile-aberto={aberto}>
+        {itens.map((item, i) => <NavLink key={item.rota} className={`${estrutura.navLink} ${classes.link}`} label={item.texto}
+            leftSection={<IconePainel nome={item.icone}/>} rightSection={item.mensagens && !!naoLidas ? <Badge color="red" size="sm" aria-label={`${naoLidas} mensagens não lidas`}>{naoLidas}</Badge> : undefined}
+            style={{"--ordem-nav":i} as CSSProperties}
+            onClick={fechar} renderRoot={props => <RouterNavLink to={item.rota} end={item.exato} {...props}/>}/>) }
+    </nav>;
+}
+
+export function NavegacaoPainel({lado, naoLidas, fechar, aberto}: PropsNavegacao) {
+    const itens = lado === "admin" ? admin : cliente;
+    const {aparencia} = useAparencia();
+    const reduzir = useMovimentoReduzido();
+    const {pathname} = useLocation();
+    const ativo = itens.findIndex(item => matchPath({path:item.rota, end:item.exato ?? false}, pathname));
+    const titulo = lado === "admin" ? "Área de trabalho" : "Navegação";
+    const altura = aparencia.densidade === "compacta" ? 3 : aparencia.densidade === "confortavel" ? 8 : 5;
     return <>
-        <Text size="xs" c="dimmed" fw={600} className={estrutura.navLabel}>{lado === "admin" ? "Área de trabalho" : "Navegação"}</Text>
-        <nav ref={ref} className={classes.trilho} aria-label={lado === "admin" ? "Área de trabalho" : "Navegação do cliente"} data-mobile-aberto={aberto}>
-            {itens.map((item, i) => <NavLink key={item.rota} className={`${estrutura.navLink} ${classes.link}`} label={item.texto}
-                leftSection={<IconePainel nome={item.icone}/>} rightSection={item.mensagens && !!naoLidas ? <Badge color="red" size="sm" aria-label={`${naoLidas} mensagens não lidas`}>{naoLidas}</Badge> : undefined}
-                style={{"--ordem-nav":i} as CSSProperties}
-                onClick={fechar} renderRoot={props => <RouterNavLink to={item.rota} end={item.exato} {...props}/>}/>) }
-        </nav>
+        <Text size="xs" c="dimmed" fw={600} className={estrutura.navLabel}>{titulo}</Text>
+        {aparencia.estilo === "moderno" ? <LineSidebar
+            className={classes.lineOriginal}
+            ariaLabel={lado === "admin" ? "Área de trabalho" : "Navegação do cliente"}
+            items={itens.map(item => item.texto)} activeIndex={ativo < 0 ? null : ativo}
+            accentColor="var(--mantine-primary-color-light-color)" textColor="var(--mantine-color-text)" markerColor="var(--mantine-color-dimmed)"
+            showIndex={false} showMarker markerLength={20} markerGap={10} tickScale={.45}
+            maxShift={25} proximityRadius={50} itemGap={altura} fontSize={.875} smoothing={100}
+            reducedMotion={reduzir}
+            renderItem={(index, _label, content) => {
+                const item = itens[index];
+                return <RouterNavLink className={classes.lineLink} to={item.rota} end={item.exato} onClick={fechar}>
+                    <span className={classes.lineIcon} aria-hidden="true"><IconePainel nome={item.icone}/></span>
+                    {content}
+                    {item.mensagens && !!naoLidas && <Badge color="red" size="sm" className={classes.lineBadge} aria-label={`${naoLidas} mensagens não lidas`}>{naoLidas}</Badge>}
+                </RouterNavLink>;
+            }}/>
+        : <NavegacaoMantine itens={itens} lado={lado} naoLidas={naoLidas} fechar={fechar} aberto={aberto}/>}
     </>;
 }
 
-export function AbasNavegacao({className, ...props}: ComponentPropsWithoutRef<typeof Tabs.List>) {
+function AbasMantine({className, ...props}: ComponentPropsWithoutRef<typeof Tabs.List>) {
     const ref = useRef<HTMLDivElement>(null);
     useTrilho(ref, 'button[role="tab"][aria-selected="true"]');
     return <Tabs.List {...props} ref={ref} className={`${classes.abas} ${className ?? ""}`}/>;
+}
+
+
+type PropsAba = ComponentPropsWithoutRef<typeof Tabs.Tab>;
+
+// Somente abas textuais: qualquer configuração mais complexa mantém o Mantine.
+function textoAba(node: ReactNode): string | null {
+    if (typeof node === "string" || typeof node === "number") return String(node);
+    if (Array.isArray(node)) {
+        const partes = node.map(textoAba);
+        return partes.some(parte => parte === null) ? null : partes.join("");
+    }
+    return null;
+}
+
+export function AbasNavegacao({className, children, ...props}: ComponentPropsWithoutRef<typeof Tabs.List>) {
+    const {aparencia} = useAparencia();
+    const reduzir = useMovimentoReduzido();
+    const tema = useComputedColorScheme("light", {getInitialValueInEffect: true});
+    const contexto = useTabsContext();
+    const elementos = Children.toArray(children);
+    const abas: {elemento: ReactElement<PropsAba>; label: string; href: string}[] = [];
+
+    for (const elemento of elementos) {
+        if (!isValidElement<PropsAba>(elemento) || elemento.type !== Tabs.Tab) break;
+        const {value, children: conteudo, leftSection, rightSection, disabled} = elemento.props;
+        const label = textoAba(conteudo);
+        if (typeof value !== "string" || label === null || leftSection || rightSection || disabled) break;
+        abas.push({elemento, label, href: value});
+    }
+
+    if (aparencia.estilo !== "moderno" || contexto.orientation === "vertical" || props.grow || !abas.length || abas.length !== elementos.length) {
+        return <AbasMantine {...props} className={className}>{children}</AbasMantine>;
+    }
+
+    const tamanho = aparencia.densidade === "compacta" ? "sm" : aparencia.densidade === "confortavel" ? "lg" : "md";
+    return <Tabs.List {...props} className={`funilador-abas-pill ${className ?? ""}`}>
+        <PillNav
+            items={abas.map(({label, href}) => ({label, href}))}
+            activeHref={contexto.value ?? ""}
+            theme={tema}
+            layout="joined" size={tamanho} surface="solid" itemStyle="plain"
+            hoverEffect="glide" indicator="pill" bounce={.45} stretch={.65}
+            barColor="var(--mantine-color-default-hover)" textColor="var(--mantine-color-text)"
+            collapse="never" intro={false} reducedMotion={reduzir}
+            renderTab={(index, classe, content) => {
+                const elemento = abas[index].elemento;
+                return cloneElement(elemento, {
+                    className: `${elemento.props.className ?? ""} ${classe}`,
+                    children: content,
+                });
+            }}
+        />
+    </Tabs.List>;
 }

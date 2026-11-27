@@ -75,3 +75,82 @@
 :global(html[data-funilador-movimento="reduzido"]) .abas::after,
 :global(html[data-funilador-movimento="reduzido"]) .trilho > .link { transition: none !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .trilho::before, .abas::after, .trilho > .link { transition: none !important; animation: none !important; } }
+
+/* integração do LineSidebar original, sem alterar o css instalado pelo jsrepo */
+.lineOriginal { width: 100%; min-width: 0; box-sizing: border-box; }
+.lineOriginal :global(.line-sidebar__list) { position: relative; width: 100%; min-width: 0; padding: 4px 0; }
+.lineOriginal :global(.line-sidebar__item) { min-width: 0; }
+.lineOriginal :global(.line-sidebar__item)::before { pointer-events: none; inset: 0; }
+.lineLink { display: flex; align-items: center; gap: 7px; min-height: 38px; min-width: 0; padding: 6px 8px 6px 3px; border-radius: 7px; text-decoration: none; color: var(--mantine-color-text); }
+.lineLink:hover { background: var(--mantine-color-default-hover); }
+.lineLink[aria-current="page"] { font-weight: 600; background: color-mix(in srgb, var(--mantine-primary-color-filled) 8%, transparent); }
+.lineLink:focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: -2px; }
+.lineIcon { flex: 0 0 auto; display: inline-flex; color: var(--mantine-color-dimmed); }
+.lineLink[aria-current="page"] .lineIcon { color: var(--mantine-primary-color-light-color); }
+.lineLink :global(.line-sidebar__label) { flex: 1 1 auto; min-width: 0; align-items: center; }
+.lineLink :global(.line-sidebar__text) { overflow-wrap: anywhere; }
+.lineBadge { flex-shrink: 0; max-width: 60px; }
+:global(html[data-funilador-densidade="compacta"]) .lineLink { min-height: 34px; padding-block: 4px; }
+:global(html[data-funilador-densidade="confortavel"]) .lineLink { min-height: 46px; padding-block: 9px; }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__label) { transform: none; }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__marker) { transform: translateY(-50%); }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__item)::after { transform: translateY(-50%); }
+
+/* 06.5.3.1 — Minimalista: navegação plana, foco de teclado e densidade. */
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link {
+    min-height: 40px;
+    padding-block: 7px;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link:hover {
+    background: var(--mantine-color-default-hover);
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    box-shadow: inset 2px 0 var(--mantine-primary-color-filled);
+    font-weight: 600;
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] {
+    color: var(--mantine-primary-color-light-color);
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button {
+    border-radius: 4px 4px 0 0;
+    min-height: 40px;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button[aria-selected="true"] {
+    color: var(--mantine-color-text);
+    font-weight: 600;
+    border-bottom-color: var(--mantine-primary-color-filled);
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .trilho > .link,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .abas:not([aria-orientation="vertical"]) > button {
+    min-height: 34px;
+    padding-block: 4px;
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="confortavel"]) .trilho > .link,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="confortavel"]) .abas:not([aria-orientation="vertical"]) > button {
+    min-height: 46px;
+    padding-block: 9px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas > button:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="minimalista"]) .trilho > .link,
+    :global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button {
+        min-height: 44px;
+    }
+    :global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .trilho > .link,
+    :global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .abas:not([aria-orientation="vertical"]) > button {
+        min-height: 44px;
+    }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .abas > button {
+    transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    :global(html[data-funilador-estilo="minimalista"]) .abas > button { transition: none !important; }
+}

@@ -1,12 +1,16 @@
+import { toast } from "../lib/toasts";
+import { CampoData, CampoMes } from "../components/CampoData";
 import { DistribuicaoFinanceira, type GrupoFinanceiro } from "../components/GraficosFinanceiros";
 import fin from "../styles/Financeiro.module.css";
 import estrutura from "../styles/Estrutura.module.css";
+import { EstadoLista } from "../components/EstadoLista";
 import { Carregamento } from "../components/Carregamento";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Menu, Modal, Pagination, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { FinanceiroDashboard } from "../components/FinanceiroDashboard";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
+import { useRelogio } from "../hooks/useRelogio";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import { caminhoMensagens, registrarOrigem } from "../lib/navegacaoContextual";
 
@@ -15,12 +19,15 @@ type Opcao = {value:string; label:string};
 type Detalhes = {quantidade:number; total:string; itens:Item[]; clientes:Opcao[]; projetos:(Opcao & {clienteId:string})[]; mes:string; porCliente?:GrupoFinanceiro[]; porProjeto?:GrupoFinanceiro[]};
 type Operacao = {tipo:"cobrar"|"receber"|"lembrar"; item:Item; pagamentoId:string; valor:string; data:string};
 const filtros = [{value:"todos",label:"Todas as pendências"},{value:"agenda",label:"Agenda de vencimentos"},{value:"atrasado",label:"Pagamentos atrasados"},{value:"mes",label:"A receber neste mês"},{value:"futuro",label:"Recebimentos futuros"},{value:"sem_data",label:"Sem vencimento"},{value:"cobrados",label:"Cobrança iniciada"},{value:"nao_cobrados",label:"Cobrança não iniciada"},{value:"recebidos",label:"Histórico de recebimentos"},{value:"cancelados",label:"Marcos e projetos cancelados"}];
-const hojeBR = () => new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const hojeBR = (agora = Date.now()) => new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(agora));
 
 //evitar fórmulas em campos de texto exportados
 function celulaCsv(valor:unknown) {
     let texto = String(valor ?? "");
-    if (/^[\s\u0000-\u001f]*[=+@-]|^[\t\r\n]/.test(texto)) texto = "'" + texto;
+    // Ignora espaços e controles iniciais ao identificar fórmulas.
+    let indice = 0;
+    while (indice < texto.length && (texto.charCodeAt(indice) <= 31 || /\s/u.test(texto.charAt(indice)))) indice++;
+    if (/^[=+@-]/.test(texto.slice(indice)) || texto.startsWith("\t") || texto.startsWith("\r") || texto.startsWith("\n")) texto = "'" + texto;
     return '"' + texto.replaceAll('"','""') + '"';
 }
 function criarCsv(itens:Item[]) {
@@ -30,13 +37,15 @@ function criarCsv(itens:Item[]) {
 }
 
 export function Financeiro() {
+    const agora = useRelogio();
+    const hoje = hojeBR(agora);
     const navigate = useNavigate();
     const location = useLocation();
     const [params, setParams] = useSearchParams();
     const categoria = filtros.some(f => f.value === params.get("categoria")) ? params.get("categoria")! : "todos";
     const cliente = params.get("cliente") ?? "";
     const projeto = params.get("projeto") ?? "";
-    const mes = params.get("mes") ?? hojeBR().slice(0,7);
+    const mes = params.get("mes") ?? hoje.slice(0,7);
     const inicio = params.get("inicio") ?? "";
     const fim = params.get("fim") ?? "";
     const periodoInvalido = !!inicio && !!fim && inicio > fim;
@@ -50,7 +59,6 @@ export function Financeiro() {
     const [revisao,setRevisao] = useState(0);
     const [exportando,setExportando] = useState(false);
     const [erroExportacao,setErroExportacao] = useState<string|null>(null);
-    const [aviso,setAviso] = useState<string|null>(null);
     const bloqueio = useRef(false);
     const detalhesRef = useRef<HTMLDivElement>(null);
     const focoInicial = useRef(params.has("categoria"));
@@ -111,6 +119,7 @@ export function Financeiro() {
             const url = URL.createObjectURL(new Blob(["\uFEFF",texto],{type:"text/csv;charset=utf-8"}));
             const link = document.createElement("a");link.href=url;link.download=`funilador-${categoria}-${hojeBR()}.csv`;
             document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+            toast.mostrar("sucesso", {titulo:"CSV preparado", mensagem:"O download dos registros foi solicitado."});
         } catch(e) {setErroExportacao(e instanceof Error ? e.message : "Não foi possível exportar");}
         finally {setExportando(false);}
     }
@@ -119,7 +128,7 @@ export function Financeiro() {
         navigate(destino,{state:{...registrarOrigem(location.pathname + location.search,location.state), ...(conversa ? {projetoArquivado:item.arquivado} : {})}});
     }
     function iniciar(item:Item,tipo:Operacao["tipo"]) {
-        setErroOperacao(null);setAviso(null);
+        setErroOperacao(null);
         setOperacao({tipo,item,pagamentoId:crypto.randomUUID(),valor:item.valor,data:hojeBR()});
     }
     async function confirmar() {
@@ -131,7 +140,9 @@ export function Financeiro() {
                 method:tipo === "cobrar" ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(tipo === "receber" ? {pagamentoId,valor,recebidoEm:data} : {})});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível concluir a operação");
-            setOperacao(null);setAviso(tipo === "cobrar" ? "Cobrança iniciada" : tipo === "lembrar" ? (corpo.conversa ? "Lembrete enviado no portal e na conversa" : "Lembrete enviado no portal") : "Pagamento registrado");setRevisao(v=>v+1);atualizar();
+            setOperacao(null);
+            toast.mostrar("sucesso", {titulo:tipo === "cobrar" ? "Cobrança iniciada" : tipo === "lembrar" ? "Lembrete enviado" : "Pagamento registrado", mensagem:tipo === "lembrar" ? (corpo.conversa ? "Notificação enviada no portal e na conversa." : "Notificação enviada no portal.") : "Os registros financeiros foram atualizados."});
+            setRevisao(v=>v+1);atualizar();
         } catch(e) {setErroOperacao(e instanceof Error ? e.message : "Não foi possível concluir a operação");}
         finally {bloqueio.current=false;setSalvando(false);}
     }
@@ -141,32 +152,31 @@ export function Financeiro() {
     return <Stack gap="md" className={fin.pagina}>
         <Stack gap={2}><Title order={1} className={estrutura.heading}>Financeiro</Title><Text c="dimmed">Acompanhe recebimentos, previsões e cobranças.</Text></Stack>
         <FinanceiroDashboard completo onSelecionar={selecionar} revisao={revisao}/>
-        <Card withBorder padding="sm"><Stack gap="sm" ref={detalhesRef} style={{scrollMarginTop:80}}>
+        <Card withBorder padding="sm" className="funilador-financeiro-registros"><Stack gap="sm" ref={detalhesRef} style={{scrollMarginTop:80}}>
             <Group justify="space-between"><Title order={3}>Registros financeiros</Title><Group gap="xs"><Button size="xs" variant="light" loading={exportando} disabled={!dados || periodoInvalido} onClick={()=>void exportarCsv()}>Exportar CSV</Button><Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button></Group></Group>
             <Text size="xs" c="dimmed">Os filtros abaixo afetam os registros, a distribuição e o total da seleção. O resumo e os gráficos acima são gerais.</Text>
-            <SimpleGrid cols={{base:1,xs:2,lg:4}}>
+            <SimpleGrid cols={{base:1,xs:2,lg:4}} className="funilador-financeiro-filtros">
                 <Select label="Situação" data={filtros} value={categoria} allowDeselect={false} onChange={v=>alterar("categoria",v ?? "todos")}/>
                 <Select searchable clearable label="Cliente" placeholder="Todos" data={opcoes?.clientes ?? []} value={cliente || null} onChange={v=>alterar("cliente",v ?? "")}/>
                 <Select searchable clearable label="Projeto" placeholder="Todos" data={opcoes?.projetos.filter(p=>!cliente || p.clienteId===cliente).map(p=>({value:p.value,label:p.label})) ?? []} value={projeto || null} onChange={v=>alterar("projeto",v ?? "")}/>
-                {historico && !inicio && !fim && <TextInput type="month" label="Mês do recebimento" value={mes} max={hojeBR().slice(0,7)} onChange={e=>{if (/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(e.currentTarget.value)) alterar("mes",e.currentTarget.value);}}/>}
-                <TextInput type="date" label={historico ? "Recebido a partir de" : "Vencimento a partir de"} value={inicio} max={fim || (historico ? hojeBR() : undefined)} onChange={e=>alterar("inicio",e.currentTarget.value)}/>
-                <TextInput type="date" label={historico ? "Recebido até" : "Vencimento até"} value={fim} min={inicio || undefined} max={historico ? hojeBR() : undefined} onChange={e=>alterar("fim",e.currentTarget.value)}/>
+                {historico && !inicio && !fim && <CampoMes label="Mês do recebimento" value={mes} maxDate={hoje} onChange={v=>alterar("mes",v)}/>}
+                <CampoData label={historico ? "Recebido a partir de" : "Vencimento a partir de"} value={inicio} maxDate={historico ? (fim && fim < hoje ? fim : hoje) : fim || undefined} onChange={v=>alterar("inicio",v)}/>
+                <CampoData label={historico ? "Recebido até" : "Vencimento até"} value={fim} minDate={inicio || undefined} maxDate={historico ? hoje : undefined} onChange={v=>alterar("fim",v)}/>
             </SimpleGrid>
             {categoria==="agenda" && <Text size="xs" c="dimmed">Agenda em ordem de vencimento. Sem datas selecionadas, mostra hoje e os próximos 29 dias.</Text>}
             {(inicio || fim) && <Text size="xs" c="dimmed">Intervalo inclusivo. Registros sem data não entram neste filtro.{historico ? " O intervalo substitui o filtro mensal." : ""}</Text>}
             {periodoInvalido && <Alert color="red">A data inicial deve ser anterior ou igual à final.</Alert>}
             {erroExportacao && <Alert color="red" withCloseButton onClose={()=>setErroExportacao(null)}>{erroExportacao}</Alert>}
             <Group justify="space-between"><Button size="xs" variant="subtle" onClick={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}>Limpar filtros</Button>{dados && <Stack gap={2} align="flex-end"><Text size="xs" c="dimmed">{historico ? "Total recebido (sem anulados)" : "Saldo total da seleção"} · {dados.quantidade} registros</Text><Text fw={700}>{formatarValor(dados.total)}</Text></Stack>}</Group>
-            {aviso && <Alert color="green" withCloseButton onClose={()=>setAviso(null)}>{aviso}</Alert>}
             {erro && <Alert color="red">{erro}{dados && " · Última consulta disponível."}</Alert>}
             {!dados && !erro && !periodoInvalido && <Carregamento texto="Carregando registros..."/>}
-            {dados && dados.itens.length===0 && <Text size="sm" c="dimmed">Nenhum registro nesta seleção.</Text>}
+            {dados && dados.itens.length===0 && <EstadoLista titulo="Nenhum registro nesta seleção" descricao="Ajuste os filtros ou o período para consultar outros lançamentos." acao="Limpar filtros" onAcao={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}/>}
             {dados && <DistribuicaoFinanceira clientes={dados.porCliente} projetos={dados.porProjeto} total={dados.total} historico={historico} onSelecionar={filtrarGrupo}/>}
             {dados && dados.itens.length > 0 && <Text fw={600} size="sm">Lançamentos</Text>}
-            <div className={fin.registros}>{dados?.itens.map(item => {
+            <div className={`${fin.registros} funilador-lista-registros`}>{dados?.itens.map(item => {
                 const pendente = !historico && Number(item.valor)>0 && !item.arquivado;
-                const podeLembrar = pendente && (item.cobrancaIniciada || item.bloqueiaProgresso || (item.data !== null && item.data <= hojeBR()));
-                const lembreteRecente = !!item.ultimoLembrete && Date.now() - new Date(item.ultimoLembrete).getTime() < 86400000;
+                const podeLembrar = pendente && (item.cobrancaIniciada || item.bloqueiaProgresso || (item.data !== null && item.data <= hoje));
+                const lembreteRecente = !!item.ultimoLembrete && agora - new Date(item.ultimoLembrete).getTime() < 86400000;
                 return <Card key={item.id} withBorder padding="sm" className={fin.registro}><Stack gap={6}>
                     <Group justify="space-between" align="start" wrap="wrap"><Stack gap={2} className={fin.identidade}><Text fw={600}>{item.marco}</Text><Text size="xs" c="dimmed">{item.projeto} · {item.cliente}</Text><Text size="xs" c="dimmed">{historico ? "Recebido em" : "Vencimento"}: {formatarPrazo(item.data)}</Text></Stack><Text fw={700} td={item.anuladoEm ? "line-through" : undefined} c={item.anuladoEm ? "dimmed" : historico ? "green" : item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : undefined}>{formatarValor(item.valor)}</Text></Group>
                     <Group gap={5}>{historico ? <Badge color={item.anuladoEm ? "gray" : "green"} variant="light">{item.anuladoEm ? "Anulado" : "Recebido"}</Badge> : <><Badge color={item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : "gray"} variant="light">{Number(item.valor)===0 ? "Sem saldo exigível" : filtros.find(f=>f.value===item.categoria)?.label ?? item.categoria}</Badge><Badge color="gray" variant="outline">{item.cobrancaIniciada ? "Cobrança iniciada" : "Cobrança não iniciada"}</Badge>{item.saldoDispensado && <Badge color="gray">Saldo dispensado</Badge>}{item.bloqueiaProgresso && Number(item.valor)>0 && <Badge color="orange">Aguardando pagamento</Badge>}</>}{item.arquivado && <Badge color="gray">Arquivado</Badge>}{(item.status==="cancelado" || item.projetoStatus==="cancelado") && <Badge color="gray">Cancelado</Badge>}</Group>
@@ -192,7 +202,7 @@ export function Financeiro() {
         </Stack></Card>
         <Modal opened={!!operacao} onClose={()=>{if (!salvando) setOperacao(null);}} title={operacao?.tipo==="cobrar" ? "Iniciar cobrança" : operacao?.tipo==="lembrar" ? "Lembrar cliente" : "Registrar pagamento"} closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
             {operacao && <Stack gap="sm"><Text fw={600}>{operacao.item.marco}</Text><Text size="sm" c="dimmed">Saldo pendente: {formatarValor(operacao.item.valor)}</Text>
-                {operacao.tipo==="cobrar" ? <Text size="sm">O marco será sinalizado como cobrado e o cliente receberá a atualização do projeto. Nenhum pagamento será registrado.</Text> : operacao.tipo==="lembrar" ? <Text size="sm">Envia uma notificação importante e uma mensagem na conversa do projeto, se estiver ativa. Não altera o saldo.</Text> : <><Text size="sm">Informe somente o dinheiro efetivamente recebido.</Text><TextInput label="Valor recebido (R$)" inputMode="decimal" maxLength={13} value={operacao.valor} disabled={salvando} onChange={e=>{const valor=e.currentTarget.value;setOperacao(o=>o?{...o,valor}:o);}}/><TextInput label="Data do recebimento" type="date" max={hojeBR()} value={operacao.data} disabled={salvando} onChange={e=>{const data=e.currentTarget.value;setOperacao(o=>o?{...o,data}:o);}}/></>}
+                {operacao.tipo==="cobrar" ? <Text size="sm">O marco será sinalizado como cobrado e o cliente receberá a atualização do projeto. Nenhum pagamento será registrado.</Text> : operacao.tipo==="lembrar" ? <Text size="sm">Envia uma notificação importante e uma mensagem na conversa do projeto, se estiver ativa. Não altera o saldo.</Text> : <><Text size="sm">Informe somente o dinheiro efetivamente recebido.</Text><TextInput label="Valor recebido (R$)" inputMode="decimal" maxLength={13} value={operacao.valor} disabled={salvando} onChange={e=>{const valor=e.currentTarget.value;setOperacao(o=>o?{...o,valor}:o);}}/><CampoData label="Data do recebimento" maxDate={hoje} value={operacao.data} required disabled={salvando} onChange={data=>setOperacao(o=>o?{...o,data}:o)}/></>}
                 {erroOperacao && <Alert color="red">{erroOperacao}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={()=>setOperacao(null)}>Cancelar</Button><Button loading={salvando} disabled={operacao.tipo==="receber" && (!operacao.valor.trim() || !operacao.data)} onClick={()=>void confirmar()}>Confirmar</Button></Group>
             </Stack>}
         </Modal>

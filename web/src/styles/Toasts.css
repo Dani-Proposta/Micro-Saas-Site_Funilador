@@ -1,0 +1,55 @@
+/* 06.5.3.7.2 — infraestrutura compartilhada e acabamento Minimalista. */
+.funilador-toast { overflow-wrap: anywhere; }
+html[data-funilador-estilo="minimalista"] .funilador-toast {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 6px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-xs);
+    padding: 12px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-toast::before { display: none; }
+html[data-funilador-estilo="minimalista"] .funilador-toast .mantine-Notification-icon {
+    background: transparent;
+    color: var(--notification-color);
+    width: 24px;
+    height: 24px;
+    margin-inline-end: 10px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-toast .mantine-Notification-title {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    line-height: 1.4;
+}
+html[data-funilador-estilo="minimalista"] .funilador-toast .mantine-Notification-description {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    line-height: 1.5;
+}
+.funilador-toast button:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: 2px;
+}
+.funilador-toast-teste {
+    position: fixed;
+    z-index: 1090;
+    top: 80px;
+    left: 12px;
+    max-width: min(350px, calc(100vw - 24px));
+    padding: 10px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 6px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-sm);
+    font-size: var(--mantine-font-size-xs);
+}
+.funilador-toast-teste summary { cursor: pointer; font-weight: 600; }
+html[data-funilador-movimento="reduzido"] .funilador-toast,
+html[data-funilador-movimento="reduzido"] .funilador-toast * { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    .funilador-toast, .funilador-toast * { transition: none !important; }
+}
+
+/* 06.5.3.7.3 — separar visualmente toasts na lista Minimalista. */
+html[data-funilador-estilo="minimalista"] .funilador-toasts[data-layout="default"] :is(.funilador-toast-item, .funilador-toast) + :is(.funilador-toast-item, .funilador-toast) {
+    margin-top: 8px;
+}

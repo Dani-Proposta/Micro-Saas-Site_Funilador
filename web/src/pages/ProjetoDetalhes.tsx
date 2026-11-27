@@ -1,3 +1,4 @@
+import { toast } from "../lib/toasts";
 import { AbasNavegacao } from "../components/NavegacaoPainel";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import classes from "../styles/Trabalho.module.css";
@@ -48,8 +49,15 @@ export function ProjetoDetalhes() {
     const origemAnterior = estadoRetorno(location.state)?.estadoAnterior;
     const rotuloVoltar = voltarPara.startsWith("/clientes/") ? "Voltar ao cliente" : voltarPara === "/" ? "Voltar à visão geral" : voltarPara.startsWith("/financeiro") ? "Voltar ao financeiro" : "Voltar aos projetos";
 
-    const [aba, setAba] = useState<string | null>(()=>new URLSearchParams(location.search).has("marco") ? "marcos" : "geral");
-    useEffect(()=>{setAba(new URLSearchParams(location.search).has("marco") ? "marcos" : "geral");},[id,location.search]);
+    const contextoAtual = JSON.stringify([id, location.search]);
+    const abaInicial = new URLSearchParams(location.search).has("marco") ? "marcos" : "geral";
+    const [contextoAba, setContextoAba] = useState(contextoAtual);
+    const [aba, setAba] = useState<string | null>(abaInicial);
+    // Reinicia apenas a aba ao trocar de projeto ou de parâmetros da URL.
+    if (contextoAba !== contextoAtual) {
+        setContextoAba(contextoAtual);
+        setAba(abaInicial);
+    }
     const [projeto, setProjeto] = useState<Projeto | null>(null);
     const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado} : anterior), []);
     const [carregando, setCarregando] = useState(true);
@@ -149,6 +157,7 @@ export function ProjetoDetalhes() {
             );
 
             setEditando(false);
+            toast.mostrar("sucesso", {titulo:"Projeto atualizado", mensagem:"As alterações foram salvas."});
         } catch (erro) {
             console.error(erro);
             setErroEdicao("Não foi possível salvar as alterações");
@@ -182,6 +191,7 @@ export function ProjetoDetalhes() {
             );
 
             setConfirmarArquivamento(false);
+            toast.mostrar("sucesso", {titulo:acao === "arquivar" ? "Projeto arquivado" : "Projeto restaurado", mensagem:"A lista de projetos foi atualizada."});
     } catch (erro) {
         console.error(erro);
         setErroArquivo("Não foi possível concluir a operação.");
@@ -201,6 +211,7 @@ export function ProjetoDetalhes() {
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível atualizar o status.");
             setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, status: dados.status, atualizadaEm: dados.atualizadaEm} : anterior);
+            toast.mostrar("sucesso", {titulo:"Status atualizado", mensagem:"O status do projeto foi salvo."});
         } catch (e) {setErroStatus(e instanceof Error ? e.message : "Falha ao atualizar status.");}
         finally {setAlterandoStatus(false);}
     }

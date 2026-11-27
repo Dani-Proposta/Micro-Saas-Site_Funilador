@@ -1,3 +1,4 @@
+import { CampoData } from "./CampoData";
 import chat from "../styles/Chat.module.css";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from "@mantine/core";
@@ -42,14 +43,16 @@ export function FormularioProposta({endpoint, lado, onAlterado, anterior, onFech
         } catch (e) {setErro(e instanceof Error ? e.message : "Falha ao enviar proposta");}
         finally {bloqueio.current = false; setSalvando(false);}
     }
-    return <Modal opened onClose={() => {if (!salvando) onFechar();}} title={anterior ? "Enviar contraproposta" : "Nova proposta"} centered closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
+    return <Modal opened onClose={() => {if (!salvando) onFechar();}} title={anterior ? "Enviar contraproposta" : "Nova proposta"} centered size="lg" classNames={{content: chat.modalProposta}} closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
         <Stack gap="sm">
             <Select label="Tipo" data={[{value: "marco", label: "Novo marco"}, {value: "dados", label: "Valor ou prazo do projeto"}]} value={edicao.tipo} allowDeselect={false} disabled={salvando || !!anterior} onChange={v => {if (v === "marco" || v === "dados") alterar("tipo", v);}}/>
             <TextInput label="Título" required maxLength={150} value={edicao.titulo} disabled={salvando} onChange={e => alterar("titulo", e.currentTarget.value)}/>
             <Textarea label="Descrição" autosize minRows={2} maxRows={6} maxLength={5000} value={edicao.descricao} disabled={salvando} onChange={e => alterar("descricao", e.currentTarget.value)}/>
-            {edicao.tipo === "marco" && <><TextInput label="Valor do marco (R$)" inputMode="decimal" maxLength={13} value={edicao.valor} disabled={salvando} onChange={e => alterar("valor", e.currentTarget.value)}/><SimpleGrid cols={{base: 1, sm: 2}}><TextInput label="Prazo de entrega" type="date" value={edicao.prazoEntrega} disabled={salvando} onChange={e => alterar("prazoEntrega", e.currentTarget.value)}/><TextInput label="Vencimento do pagamento" type="date" value={edicao.vencimento} disabled={salvando} onChange={e => alterar("vencimento", e.currentTarget.value)}/></SimpleGrid></>}
-            <TextInput label="Novo valor total do projeto (R$)" description="Deixe vazio para manter o valor atual" inputMode="decimal" maxLength={13} value={edicao.novoTotal} disabled={salvando} onChange={e => alterar("novoTotal", e.currentTarget.value)}/>
-            <TextInput label="Novo prazo do projeto" description="Deixe vazio para manter o prazo atual" type="date" value={edicao.novoPrazo} disabled={salvando} onChange={e => alterar("novoPrazo", e.currentTarget.value)}/>
+            {edicao.tipo === "marco" && <fieldset className={chat.secaoProposta}><legend>Dados do marco</legend><Stack gap="sm"><TextInput label="Valor do marco" aria-label="Valor do marco (R$)" leftSection={<span className="funilador-moeda" aria-hidden="true">R$</span>} leftSectionWidth={36} leftSectionPointerEvents="none" inputMode="decimal" maxLength={13} value={edicao.valor} disabled={salvando} onChange={e => alterar("valor", e.currentTarget.value)}/><SimpleGrid cols={{base: 1, sm: 2}} className={`${chat.datasProposta} funilador-campos-alinhados`}><CampoData label="Prazo de entrega" value={edicao.prazoEntrega} disabled={salvando} onChange={valor => alterar("prazoEntrega", valor)}/><CampoData label="Vencimento do pagamento" value={edicao.vencimento} disabled={salvando} onChange={valor => alterar("vencimento", valor)}/></SimpleGrid></Stack></fieldset>}
+            <fieldset className={chat.secaoProposta}><legend>Alterações no projeto</legend><Stack gap="sm">
+            <TextInput label="Novo valor total do projeto" aria-label="Novo valor total do projeto (R$)" leftSection={<span className="funilador-moeda" aria-hidden="true">R$</span>} leftSectionWidth={36} leftSectionPointerEvents="none" description="Deixe vazio para manter o valor atual" inputMode="decimal" maxLength={13} value={edicao.novoTotal} disabled={salvando} onChange={e => alterar("novoTotal", e.currentTarget.value)}/>
+            <CampoData label="Novo prazo do projeto" description="Deixe vazio para manter o prazo atual" value={edicao.novoPrazo} disabled={salvando} onChange={valor => alterar("novoPrazo", valor)}/>
+            </Stack></fieldset>
             <Text size="xs" c="dimmed">{lado === "cliente" ? "A proposta depende do aceite da administração." : "A proposta depende do aceite do cliente."} Nenhum valor será alterado antes do aceite.</Text>
             {erro && <Alert color="red">{erro}</Alert>}
             <Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={onFechar}>Cancelar</Button><Button loading={salvando} disabled={!edicao.titulo.trim() || (edicao.tipo === "dados" && !edicao.novoTotal.trim() && !edicao.novoPrazo)} onClick={() => void salvar()}>Enviar proposta</Button></Group>

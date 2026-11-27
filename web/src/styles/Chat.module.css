@@ -66,3 +66,45 @@
     .identidade { flex-basis: 100px; }
     .titulo { font-size: var(--mantine-font-size-sm); }
 }
+
+/* filtros e ícones compartilhados: legibilidade independente do estilo */
+.filtros { min-width: 0; width: 100%; }
+.filtros :global(.mantine-SegmentedControl-root) { width: 100%; min-width: 0; }
+.filtros :global(.mantine-SegmentedControl-control) { min-width: 0; }
+.filtros :global(.mantine-SegmentedControl-label) {
+    padding-inline: 3px; font-size: 11px; white-space: nowrap; overflow-wrap: normal; word-break: normal; line-height: 1.35;
+}
+.filtroConteudo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 22px; }
+.filtroContagem { font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.iconeChat { display: block; flex-shrink: 0; }
+.lista :global(.mantine-NavLink-body) { min-width: 0; }
+.lista :global(.mantine-NavLink-section) { flex-shrink: 0; }
+.lista :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-color-dimmed); }
+.lista :global(.mantine-NavLink-root)[data-active] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+.menuConversa { max-width: calc(100vw - 16px); }
+.menuConversa :global(.mantine-Menu-itemLabel) { min-width: 0; overflow-wrap: break-word; }
+.menuConversa :global(.mantine-Menu-itemSection) { flex-shrink: 0; }
+
+/* proposta: campos agrupados por finalidade e datas alinhadas pela base */
+.modalProposta { max-width: calc(100vw - 24px); }
+.secaoProposta {
+    min-width: 0; margin: 0; padding: 10px 12px 12px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-default);
+}
+.secaoProposta > legend { padding-inline: 5px; font-size: var(--mantine-font-size-xs); font-weight: 600; color: var(--mantine-color-dimmed); }
+.datasProposta { align-items: end; min-width: 0; }
+.datasProposta > * { min-width: 0; }
+.datasProposta input { min-width: 0; max-width: 100%; }
+
+/* acabamento exclusivamente minimalista */
+:global(html[data-funilador-estilo="minimalista"]) .lista :global(.mantine-NavLink-root) { border-radius: 4px; }
+:global(html[data-funilador-estilo="minimalista"]) .lista :global(.mantine-NavLink-root)[data-active] {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    box-shadow: inset 2px 0 var(--mantine-primary-color-filled);
+}
+:global(html[data-funilador-estilo="minimalista"]) .lista :global(.mantine-NavLink-root)[data-active] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+:global(html[data-funilador-estilo="minimalista"]) .menuConversa { border-radius: 6px; box-shadow: var(--mantine-shadow-xs); }
+:global(html[data-funilador-estilo="minimalista"]) .menuConversa :global(.mantine-Menu-item) { border-radius: 4px; }
+:global(html[data-funilador-estilo="minimalista"]) .secaoProposta { border-radius: 4px; }

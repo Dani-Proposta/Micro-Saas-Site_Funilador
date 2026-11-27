@@ -1,3 +1,5 @@
+import { toast } from "../lib/toasts";
+import { CampoData } from "./CampoData";
 import classes from "../styles/Trabalho.module.css";
 import { useState } from "react";
 import { Alert, Badge, Button, Card, Group, Progress, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
@@ -74,6 +76,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível salvar");
             onSalvo(dados);
             setEditando(false);
+            toast.mostrar("sucesso", {titulo:"Dados comerciais salvos", mensagem:"As informações do projeto foram atualizadas."});
         } catch (erroRecebido) {
             setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível salvar");
         } finally {
@@ -87,7 +90,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
             {editando && !projeto.arquivadaEm ? <>
                 <SimpleGrid cols={{base: 1, xs: 2}}>
                     <TextInput label="Valor acordado (R$)" placeholder="Ex.: 2500,00" inputMode="decimal" maxLength={13} value={valor} onChange={e => setValor(e.currentTarget.value)} disabled={salvando}/>
-                    <TextInput label="Prazo acordado" type="date" value={prazo} onChange={e => setPrazo(e.currentTarget.value)} disabled={salvando}/>
+                    <CampoData label="Prazo acordado" value={prazo} onChange={setPrazo} disabled={salvando}/>
                     <Select label="Modo de progresso" data={[{value: "manual", label: "Manual"}, {value: "marcos", label: "Por marcos"}]} allowDeselect={false} value={modoProgresso} onChange={v => {if (v === "manual" || v === "marcos") setModoProgresso(v);}} disabled={salvando}/>
                     {modoProgresso === "manual" && <TextInput label="Progresso (%)" inputMode="numeric" maxLength={3} value={progresso} onChange={e => setProgresso(e.currentTarget.value)} disabled={salvando}/>} 
                     <Select label="Prioridade (interna)" placeholder="Não definida" clearable data={prioridades} value={prioridade} onChange={setPrioridade} disabled={salvando}/>

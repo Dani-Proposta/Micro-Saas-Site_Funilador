@@ -1,0 +1,58 @@
+/* 06.5.3.5.1 — infraestrutura compartilhada dos calendários */
+.funilador-campo-data { min-width: 0; }
+.funilador-calendario { max-width: calc(100vw - 24px); overflow-x: auto; }
+.funilador-calendario-atalho { white-space: nowrap; }
+/* Atalhos ficam abaixo do calendário: menor largura em modais e celulares. */
+.funilador-calendario .funilador-calendario-corpo {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.funilador-calendario .funilador-calendario-atalhos {
+    order: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    border: 0;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+.funilador-calendario .funilador-calendario-atalho {
+    min-height: 32px;
+    min-width: 0;
+    padding: 4px 6px;
+    text-align: center;
+}
+.funilador-calendario--minimalista {
+    border: 1px solid var(--mantine-color-default-border);
+    padding: 10px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-campo-data .mantine-DateInput-input { border-radius: 6px; }
+.funilador-calendario--minimalista :is(.mantine-DateInput-day, .mantine-DateInput-calendarHeaderControl, .mantine-DateInput-calendarHeaderLevel, .mantine-DateInput-monthsListControl, .mantine-DateInput-yearsListControl, .funilador-calendario-atalho) {
+    border-radius: 4px;
+}
+.funilador-calendario--minimalista .funilador-calendario-atalho {
+    border: 1px solid var(--mantine-color-default-border);
+    background: transparent;
+    color: var(--mantine-color-text);
+    font-size: var(--mantine-font-size-xs);
+}
+@media (hover: hover) {
+    .funilador-calendario--minimalista .funilador-calendario-atalho:hover { background: var(--mantine-color-default-hover); }
+}
+.funilador-calendario--minimalista .mantine-DateInput-day[data-today]:not([data-selected]) {
+    box-shadow: inset 0 0 0 1px var(--mantine-primary-color-filled);
+    font-weight: 700;
+}
+.funilador-calendario button:focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: -2px; }
+html[data-funilador-movimento="reduzido"] .funilador-calendario *,
+html[data-funilador-movimento="reduzido"] .funilador-campo-data * { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    .funilador-calendario *, .funilador-campo-data * { transition: none !important; }
+}
+
+/* 06.5.3.5.2 — seletor mensal com a mesma identidade. */
+html[data-funilador-estilo="minimalista"] .funilador-campo-data .mantine-MonthPickerInput-input { border-radius: 6px; }
+.funilador-calendario--minimalista :is(.mantine-MonthPickerInput-monthsListControl, .mantine-MonthPickerInput-yearsListControl, .mantine-MonthPickerInput-calendarHeaderControl, .mantine-MonthPickerInput-calendarHeaderLevel) { border-radius: 4px; }

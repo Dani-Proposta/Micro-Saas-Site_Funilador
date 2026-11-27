@@ -21,3 +21,14 @@
   .chatColuna:first-child { height: clamp(180px, 30dvh, 270px); }
   .chatColuna:last-child { height: max(440px, calc(100dvh - 100px)); }
 }
+
+/* 06.5.3.9 — resposta de elementos interativos sem alterar o layout do chat. */
+:global(html[data-funilador-estilo="minimalista"]) .interativo:not(:disabled):not([aria-disabled="true"]):not([data-disabled]):active {
+    background-color: var(--mantine-color-default-hover);
+    border-color: var(--mantine-primary-color-5);
+}
+@media (prefers-reduced-motion: no-preference) {
+    :global(html[data-funilador-estilo="minimalista"]:not([data-funilador-movimento="reduzido"])) .interativo {
+        transition: background-color 140ms ease, border-color 140ms ease;
+    }
+}

@@ -1,5 +1,9 @@
+import { toast } from "../lib/toasts";
 import classes from "../styles/Trabalho.module.css";
-import { correspondeBusca, FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { correspondeBusca } from "../lib/buscaRegistros";
+import { EstadoLista } from "../components/EstadoLista";
+import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { SeletorCliente } from "../components/SeletorCliente";
@@ -55,8 +59,14 @@ export function Projetos() {
     const filtro: FiltroProjetos = params.get("arquivados") === "true" ? "arquivados" : "ativos";
     const status = filtroStatus(params, statusProjetos);
     const [busca, setBusca] = useState("");
+    const [ordem, setOrdem] = useState<OrdemRegistros>("padrao");
     const [clienteFiltro, setClienteFiltro] = useState("todos");
-    const projetosVisiveis = projetos.filter(p => (status === "todos" || p.status === status) && (clienteFiltro === "todos" || p.clienteId === clienteFiltro) && correspondeBusca(busca, p.titulo, p.descricao, p.clienteNome));
+    const projetosVisiveis = ordenarRegistros(projetos.filter(p => (status === "todos" || p.status === status) && (clienteFiltro === "todos" || p.clienteId === clienteFiltro) && correspondeBusca(busca, p.titulo, p.descricao, p.clienteNome)), ordem);
+    const filtrosAtivos = !!busca.trim() || status !== "todos" || clienteFiltro !== "todos" || ordem !== "padrao";
+    function limparFiltros() {
+        setBusca(""); setOrdem("padrao"); setClienteFiltro("todos");
+        setParams(comStatus(params, "todos"));
+    }
 
     function setFiltro(valor: FiltroProjetos) {
         const proximo = new URLSearchParams(params);
@@ -156,13 +166,14 @@ export function Projetos() {
                 }, ...anteriores]);
             }
             // O novo projeto deve ficar visível, mesmo vindo de um filtro.
-            setBusca(""); setClienteFiltro("todos");
+            setBusca(""); setOrdem("padrao"); setClienteFiltro("todos");
             setParams(new URLSearchParams());
 
             setClienteId(null);
             setTitulo("");
             setDescricao("");
             setModalAberto(false);
+            toast.mostrar("sucesso", {titulo:"Projeto criado", mensagem:"O projeto foi adicionado à lista."});
 
         } catch (erro) {
             console.error(erro);
@@ -192,6 +203,7 @@ export function Projetos() {
             setProjetos((anteriores) => anteriores.map((projeto) =>
                 projeto.id === dados.id ? { ...projeto, status: dados.status, atualizadaEm: dados.atualizadaEm } : projeto
             ));
+            toast.mostrar("sucesso", {titulo:"Status atualizado", mensagem:"O status do projeto foi salvo."});
 
         } catch (erro) {
             console.error(erro);
@@ -211,7 +223,7 @@ export function Projetos() {
 
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}
 
-            <FiltrosTrabalho busca={busca} onBusca={setBusca} total={projetos.length} visiveis={projetosVisiveis.length} carregando={carregando || !!erro}>
+            <FiltrosTrabalho ordem={ordem} onOrdem={setOrdem} onLimpar={limparFiltros} filtrosAtivos={filtrosAtivos} busca={busca} onBusca={setBusca} total={projetos.length} visiveis={projetosVisiveis.length} carregando={carregando || !!erro}>
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
             <Select label="Cliente" value={clienteFiltro} allowDeselect={false} searchable data={[{value:"todos",label:"Todos os clientes"}, ...clientes.map(c=>({value:c.id,label:c.nome}))]} onChange={v=>setClienteFiltro(v ?? "todos")}/>
             </FiltrosTrabalho>
@@ -230,8 +242,8 @@ export function Projetos() {
 
             {carregando && <Carregamento/>}
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && projetosVisiveis.length === 0 && (<Text c="dimmed">Nenhum projeto corresponde aos filtros.</Text>)}
-            {!carregando && !erro && <div className={classes.grade}>
+            {!carregando && !erro && projetosVisiveis.length === 0 && (<EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>)}
+            {!carregando && !erro && projetosVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
                 {projetosVisiveis.map(projeto => <Card key={projeto.id} withBorder padding="sm" className={classes.card}>
                     <div className={classes.cardTopo}>
                         <Stack gap={4} className={classes.minimo}>

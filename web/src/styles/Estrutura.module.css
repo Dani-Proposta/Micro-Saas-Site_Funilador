@@ -107,3 +107,73 @@
   .headerInner { padding-inline: 6px; gap: 4px; }
   .headerIdentity, .headerActions { gap: 3px; }
 }
+
+/* 06.5.3.1 — Minimalista: cabeçalho e menus, sem alterar os outros estilos. */
+:global(html[data-funilador-estilo="minimalista"]) .brandMark {
+    border-radius: 5px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-primary-color-light-color);
+    box-shadow: none;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell) {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 6px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+    box-shadow: none;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell):hover,
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell)[aria-expanded="true"] {
+    background: var(--mantine-color-default-hover);
+    border-color: var(--mantine-primary-color-5);
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.accountDropdown, .notificationDropdown, .accountDialog) {
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    box-shadow: var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="minimalista"]) .accountDropdown :global(.mantine-Menu-item) {
+    border-radius: 4px;
+    min-height: 38px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .accountDropdown :global(.mantine-Menu-label) {
+    overflow-wrap: anywhere;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.accountDropdown, .notificationDropdown) :global(button):focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell) {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .navbar,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .header :global(.mantine-ActionIcon-root) {
+    transition: none !important;
+}
+
+/* 06.5.3.1.1 — contador ancorado ao botão, não ao desenho do sino. */
+:global(html[data-funilador-estilo="minimalista"]) .bell :global(.mantine-Indicator-root) {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+:global(html[data-funilador-estilo="minimalista"]) .bell :global(.mantine-Indicator-indicator) {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    transform: translate(15%, -15%);
+    box-shadow: 0 0 0 2px var(--mantine-color-body);
+    pointer-events: none;
+}

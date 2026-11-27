@@ -41,3 +41,65 @@
 .pendencia :global(.mantine-Text-root) { overflow-wrap:anywhere; }
 .pendencias { display:grid; gap:var(--funilador-gap-painel,8px); grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
 .pendencias:empty { display:none; }
+
+/* 06.5.3.3 — acabamento exclusivo do Minimalista. */
+.acaoIndicador, .iconeAuxiliar, .legendaMinimalista { display: none; }
+.financeTopo { display: contents; }
+:global(html[data-funilador-estilo="minimalista"]) .financeTopo { display: flex; }
+:global(html[data-funilador-estilo="minimalista"]) .grade {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.indicador, .financeCard, .grafico, .pendencia, .pendenciaDetalhe, .projeto) {
+    border-radius: 6px;
+    box-shadow: none;
+    background: var(--mantine-color-body);
+    border-color: var(--mantine-color-default-border);
+}
+:global(html[data-funilador-estilo="minimalista"]) .indicador {
+    display: flex; flex-direction: column; gap: 10px;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .indicadorTopo { min-height: 34px; align-items: flex-start; }
+:global(html[data-funilador-estilo="minimalista"]) .indicadorTopo > :first-child { font-size: var(--mantine-font-size-sm); color: var(--mantine-color-text); overflow-wrap: break-word; }
+:global(html[data-funilador-estilo="minimalista"]) .indicador > :last-child { margin-top: auto; align-items: baseline; }
+:global(html[data-funilador-estilo="minimalista"]) .indicador .numero { font-size: clamp(1.35rem, 1.1rem + .6vw, 1.7rem); line-height: 1.2; }
+:global(html[data-funilador-estilo="minimalista"]) .icone { border-radius: 4px; background: transparent; color: var(--mantine-color-dimmed); }
+:global(html[data-funilador-estilo="minimalista"]) .acaoIndicador { display: inline; font-size: 11px; }
+:global(html[data-funilador-estilo="minimalista"]) .seta { white-space: normal; text-align: end; }
+:global(html[data-funilador-estilo="minimalista"]) .iconeAuxiliar { display: inline-flex; flex: none; align-items: center; justify-content: center; color: var(--mantine-color-dimmed); }
+:global(html[data-funilador-estilo="minimalista"]) .financeTopo > :first-child { min-width: 0; overflow-wrap: break-word; }
+:global(html[data-funilador-estilo="minimalista"]) .financeCard { gap: 8px; }
+:global(html[data-funilador-estilo="minimalista"]) .financeCard > :global(.mantine-Button-root) { margin-top: auto; }
+:global(html[data-funilador-estilo="minimalista"]) .destaque { border-inline-start: 3px solid var(--mantine-primary-color-filled); }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .legendaOriginal { display: none; }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista { display: flex; flex-wrap: wrap; gap: 12px; color: var(--mantine-color-text); font-size: var(--mantine-font-size-xs); }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista > span { display: inline-flex; align-items: center; gap: 5px; }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .trilho { height: 112px; border-radius: 3px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .trilho > div { flex-shrink: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .previsto { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0,0,0,.28) 4px 6px); }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .rotuloMes { font-size: 11px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .linhaGrafico { border-bottom: 1px solid var(--mantine-color-default-border); font-variant-numeric: tabular-nums; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .detalhesGrafico summary:focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 2px; }
+:global(html[data-funilador-estilo="minimalista"]) .pendencias { grid-template-columns: repeat(auto-fit, minmax(min(100%, 218px), 1fr)); }
+:global(html[data-funilador-estilo="minimalista"]) .pendencia { gap: 8px; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo { align-items: flex-start; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo > :global(.mantine-Text-root) { flex: 1; overflow-wrap: break-word; line-height: 1.35; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo > :global(.mantine-Button-root) { flex-shrink: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaRodape { margin-top: auto; }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] { border-inline-start: 3px solid var(--mantine-color-red-6); }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] { border-inline-start: 3px solid var(--mantine-color-yellow-7); }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="violet"] { border-inline-start: 3px solid var(--mantine-color-violet-6); }
+:global(html[data-funilador-estilo="minimalista"]) .pendencia[data-selecionada="true"] { outline: 1px solid var(--mantine-primary-color-filled); outline-offset: -1px; }
+:global(html[data-funilador-estilo="minimalista"]) .projeto { gap: 9px; transition: background-color 120ms ease, border-color 120ms ease; }
+@media (hover:hover) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.indicador,.projeto):hover { background: var(--mantine-color-default-hover); border-color: var(--mantine-primary-color-5); }
+}
+@media (max-width: 25em) {
+    :global(html[data-funilador-estilo="minimalista"]) .grade { grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); }
+    :global(html[data-funilador-estilo="minimalista"]) .acaoIndicador { display: none; }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) :is(.indicador,.projeto,.pendencia) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.indicador,.projeto,.pendencia) { transition: none; }
+}

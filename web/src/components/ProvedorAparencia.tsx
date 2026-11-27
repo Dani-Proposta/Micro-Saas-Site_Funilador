@@ -8,6 +8,7 @@ import { aparenciaPadrao, normalizarAparencia, obterEscalasPaleta, escalasClaras
 import type { Aparencia } from "../lib/aparencia";
 import { ContextoAparencia } from "../lib/contextoAparencia";
 import "../styles/Aparencia.css";
+import { CentralToasts } from "./CentralToasts";
 
 export function ProvedorAparencia({children}: {children: ReactNode}) {
     const {data:sessao} = authClient.useSession();
@@ -52,5 +53,5 @@ export function ProvedorAparencia({children}: {children: ReactNode}) {
         ...(aparencia.densidade === "compacta" ? {spacing:{xs:"8px",sm:"10px",md:"12px",lg:"16px",xl:"24px"}} : aparencia.densidade === "confortavel" ? {spacing:{xs:"12px",sm:"15px",md:"20px",lg:"25px",xl:"36px"}} : {}),
     }), [aparencia.acento, aparencia.paleta, aparencia.estilo, aparencia.densidade, esquema]);
     const contexto = useMemo(() => ({aparencia, aplicar}), [aparencia, aplicar]);
-    return <ContextoAparencia.Provider value={contexto}><MantineProvider theme={tema} forceColorScheme={esquema}>{children}</MantineProvider></ContextoAparencia.Provider>;
+    return <ContextoAparencia.Provider value={contexto}><MantineProvider theme={tema} forceColorScheme={esquema}><CentralToasts sessaoId={id}/>{children}</MantineProvider></ContextoAparencia.Provider>;
 }

@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Tooltip } from "@mantine/core";
 import classes from "../styles/Estrutura.module.css";
 import { SaudeRecebiveis } from "./SaudeRecebiveis";
+import { IconePainel } from "./MenuConta";
 import { GraficoFinanceiro, HistoricoFinanceiro } from "./GraficosFinanceiros";
 import fin from "../styles/Financeiro.module.css";
 import visual from "../styles/Dashboard.module.css";
@@ -59,19 +60,20 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
             {!completo ? <div className={visual.financeiro}>
                 <div className={visual.resumo}>
                     <Card withBorder padding="sm" className={`${visual.financeCard} ${visual.destaque}`}>
-                        <Text size="xs" fw={500}>Total estimado do mês</Text>
+                        <Group justify="space-between" wrap="nowrap" gap={6} className={visual.financeTopo}><Text size="xs" fw={500}>Total estimado do mês</Text><span className={visual.iconeAuxiliar}><IconePainel nome="financeiro" tamanho={18}/></span></Group>
                         <Text fw={700} className={visual.numero}>{formatarValor(dados.totalMes)}</Text>
                         <Text size="xs" c="dimmed">Recebido + previsto no mês, sem atrasados</Text>
                     </Card>
                     {[{nome:"Recebido no mês",valor:dados.recebidoMes,cor:"green",categoria:"recebidos"},{nome:"A receber no mês",valor:dados.aReceberMes,cor:undefined,categoria:"mes"}].map(item => <Card withBorder padding="sm" className={visual.financeCard} key={item.categoria}>
-                        <Text size="xs" c="dimmed">{item.nome}</Text>
+                        <Group justify="space-between" wrap="nowrap" gap={6} className={visual.financeTopo}><Text size="xs" c="dimmed">{item.nome}</Text><span className={visual.iconeAuxiliar}><IconePainel nome="financeiro" tamanho={16}/></span></Group>
                         <Text fw={700} c={item.cor} className={visual.numero}>{formatarValor(item.valor)}</Text>
                         <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria)}>Consultar</Button>
                     </Card>)}
                 </div>
                 <Card withBorder padding="sm" className={visual.grafico}><Stack gap="xs">
                     <Group justify="space-between" wrap="wrap" gap={4}><Text fw={600} size="sm">Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
-                    <Group gap={6} wrap="wrap"><Badge color="teal" variant="light" size="sm">Recebido</Badge><Badge color="violet" variant="light" size="sm">Previsto</Badge></Group>
+                    <Group gap={6} wrap="wrap" className={visual.legendaOriginal}><Badge color="teal" variant="light" size="sm">Recebido</Badge><Badge color="violet" variant="light" size="sm">Previsto</Badge></Group>
+                    <div className={visual.legendaMinimalista}><span><i className={visual.recebido} aria-hidden="true"/>Recebido</span><span><i className={visual.previsto} aria-hidden="true"/>Previsto</span></div>
                     {dados.meses.length ? <>
                         <div className={visual.barras} aria-hidden="true">{dados.meses.map(m => <div key={m.mes} title={`${mes(m.mes)} · Recebido: ${formatarValor(m.recebido)} · Previsto: ${formatarValor(m.previsto)}`} className={`${visual.coluna} ${m.mes === dados.hoje.slice(0,7) ? visual.colunaAtual : ""}`}>
                             <div className={visual.trilho}><div className={visual.previsto} style={{height:`${Math.max(0,100 * Number(m.previsto) / maior)}%`}}/><div className={visual.recebido} style={{height:`${Math.max(0,100 * Number(m.recebido) / maior)}%`}}/></div>

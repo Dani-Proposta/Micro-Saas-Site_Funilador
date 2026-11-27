@@ -1,3 +1,4 @@
+import { toast } from "../lib/toasts";
 import { ActionIcon, Alert, Button, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
 import { useEffect, useState, useRef } from "react";
 import type { SubmitEvent } from "react";
@@ -6,6 +7,7 @@ import { normalizarAparencia } from "../lib/aparencia";
 import type { Aparencia } from "../lib/aparencia";
 import { EditorAparencia } from "./EditorAparencia";
 import classes from "../styles/Estrutura.module.css";
+import { useRelogio } from "../hooks/useRelogio";
 
 const caminhos = {
     marca: "M4 6h16M4 12h11M4 18h6 M18 12v6m-3-3h6",
@@ -96,7 +98,9 @@ function SenhaConta({voltar}: {voltar: () => void}) {
 }
 
 export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: {nome?: string | null; email?: string | null; sair: () => void; saindo?: boolean; aoAbrir?: () => void; aoAlterarNome?: (nome: string) => void}) {
-    const {aplicar} = useAparencia();
+    const {aparencia, aplicar} = useAparencia();
+    const agora = useRelogio();
+    const minimalista = aparencia.estilo === "minimalista";
     const reduzirMovimento = useMovimentoReduzido();
     const [aberta, setAberta] = useState(false);
     const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "senha">("menu");
@@ -105,7 +109,6 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     const [carregando, setCarregando] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState("");
-    const [sucesso, setSucesso] = useState("");
     const consulta = useRef<AbortController | null>(null);
 
     useEffect(() => {
@@ -138,52 +141,52 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
 
     function abrir(destino: typeof secao) {
         aoAbrir?.();
-        setSecao(destino); setSucesso(""); setAberta(true);
+        setSecao(destino); setAberta(true);
         void carregar();
     }
 
     function fechar() {
         if (salvando) return;
         consulta.current?.abort();
-        setAberta(false); setCarregando(false); setErro(""); setSucesso("");
+        setAberta(false); setCarregando(false); setErro("");
     }
 
     function mudarSecao(destino: typeof secao) {
-        setSecao(destino); setErro(""); setSucesso("");
+        setSecao(destino); setErro("");
         if (destino === "dados") setNomeEditado(conta?.nome ?? "");
     }
 
     async function salvarNome(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setSalvando(true); setErro(""); setSucesso("");
+        setSalvando(true); setErro("");
         try {
             const dados = await consultarConta("/nome", {nome: nomeEditado});
             setConta(dados); setNomeEditado(dados.nome);
             aoAlterarNome?.(dados.nome);
-            setSucesso("Nome atualizado.");
+            toast.mostrar("sucesso", {titulo:"Nome atualizado", mensagem:"Seu nome foi salvo com sucesso."});
         } catch (erroRecebido) {
             setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível salvar o nome");
         } finally {setSalvando(false);}
     }
 
     async function salvarAparencia(valor: Aparencia) {
-        setSalvando(true); setErro(""); setSucesso("");
+        setSalvando(true); setErro("");
         try {
             const dados = await consultarConta("/preferencias", valor);
             setConta(dados); aplicar(normalizarAparencia({...dados,tema:dados.tema ?? undefined}));
-            setSucesso("Preferências salvas.");
+            toast.mostrar("sucesso", {titulo:"Preferências salvas", mensagem:"Sua aparência foi atualizada."});
         } catch (erroRecebido) {
             setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível salvar as preferências");
         } finally {setSalvando(false);}
     }
 
-    const bloqueado = !!conta?.proximaAlteracaoNome && new Date(conta.proximaAlteracaoNome).getTime() > Date.now();
+    const bloqueado = !!conta?.proximaAlteracaoNome && new Date(conta.proximaAlteracaoNome).getTime() > agora;
     const titulos = {menu:"Conta e preferências", dados:"Minha conta", preferencias:"Preferências", senha:"Alterar senha"};
 
     return <>
-        <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:"pop-top-right", duration:reduzirMovimento ? 0 : 180}}>
+        <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:minimalista ? "fade" : "pop-top-right", duration:reduzirMovimento ? 0 : minimalista ? 120 : 180}}>
             <Menu.Target><ActionIcon visibleFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" title="Conta e preferências"><IconePainel nome="conta"/></ActionIcon></Menu.Target>
-            <Menu.Dropdown>
+            <Menu.Dropdown className={classes.accountDropdown}>
                 <Menu.Label>{conta?.nome || nome || "Minha conta"}</Menu.Label>
                 <Menu.Item leftSection={<IconePainel nome="conta"/>} onClick={() => abrir("dados")}>Minha conta</Menu.Item>
                 <Menu.Divider/>
@@ -202,7 +205,6 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
             </Stack> : secao === "senha" ? <SenhaConta voltar={() => mudarSecao("dados")}/> : <Stack gap="sm">
                 {carregando && <Text size="sm" c="dimmed">Carregando conta...</Text>}
                 {erro && <Alert color="red">{erro}</Alert>}
-                {sucesso && <Alert color="green">{sucesso}</Alert>}
                 {!carregando && conta && secao === "dados" && <>
                     <form onSubmit={salvarNome}>
                         <Stack gap="xs">

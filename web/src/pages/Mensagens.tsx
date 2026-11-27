@@ -1,4 +1,5 @@
 import chat from "../styles/Chat.module.css";
+import { FiltroConversas, IconeChat } from "../components/ElementosChat";
 import { ControleChat, type OpcoesChat } from "../components/ControleChat";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
@@ -6,7 +7,7 @@ import classes from "../styles/Usabilidade.module.css";
 import { useCallback, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { destinoRetorno, estadoRetorno } from "../lib/navegacaoContextual";
-import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, SegmentedControl, } from "@mantine/core";
+import { ActionIcon, Button, Modal, Radio, Select, Alert, Badge, Box, Card, Center, Divider, Group, NavLink, ScrollArea, Stack, Text, TextInput, Title, Menu, } from "@mantine/core";
 import { ReaberturaConversa } from "../components/ReaberturaConversa";
 import type { PedidoReabertura } from "../components/ReaberturaConversa";
 import { HistoricoMensagens } from "../components/HistoricoMensagens";
@@ -258,19 +259,10 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                 <div className={`${classes.chatColuna} ${chat.lista}`}>
                     <Card withBorder padding="sm" className={classes.chatCard}>
                         <Stack gap="sm" className={classes.chatPilha}>
-                            <SegmentedControl
-                                fullWidth
-                                size="sm"
-                                value={arquivadas ? "arquivadas" : "ativas"}
-                                onChange={alternarVisualizacao}
-                                data={[
-                                    { label: naoLidasAtivas ? `Ativas (${naoLidasAtivas})` : "Ativas", value: "ativas" },
-                                    { label: naoLidasArquivadas ? `Arquivadas (${naoLidasArquivadas})` : "Arquivadas", value: "arquivadas" },
-                                ]}
-                            />
+                            <FiltroConversas value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} opcoes={[{label: "Ativas", value: "ativas", quantidade: naoLidasAtivas}, {label: "Arquivadas", value: "arquivadas", quantidade: naoLidasArquivadas}]}/>
 
                             <TextInput
-                                placeholder="Buscar cliente ou conversa..." aria-label="Buscar cliente ou conversa" size="sm"
+                                leftSection={<IconeChat nome="busca"/>} placeholder="Buscar cliente ou conversa..." aria-label="Buscar cliente ou conversa" size="sm"
                                 value={busca}
                                 onChange={(evento) => setBusca(evento.currentTarget.value)}
                             />
@@ -301,16 +293,18 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                             <Box flex={1} miw={0}>
                                                 <NavLink
                                                     label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
+                                                    leftSection={<IconeChat nome="cliente"/>}
                                                     description={`${cliente.conversas.length} conversa(s)${cliente.conversas.some(c => c.reabertura?.status === "pendente") ? ` · ${cliente.conversas.filter(c => c.reabertura?.status === "pendente").length} pedido(s)` : ""}`}
                                                     opened={!!busca.trim() || expandidos.includes(cliente.clienteId) || (escolha === undefined && !!conversaAlvo && cliente.clienteId === clienteAtalho?.clienteId)}
                                                     onChange={() => alternarCliente(cliente.clienteId)}
-                                                    childrenOffset={16}
+                                                    childrenOffset={12}
                                                 >
                                                     {cliente.conversas.map((conversa) => (
                                                         <NavLink
                                                             key={conversa.id}
                                                             label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
-                                                            description={conversa.reabertura?.status === "pendente" ? "Reabertura solicitada" : undefined}
+                                                            leftSection={<IconeChat nome={conversa.tipo}/>}
+                                                            description={conversa.reabertura?.status === "pendente" ? `${tipoConversa[conversa.tipo].label} · Reabertura solicitada` : tipoConversa[conversa.tipo].label}
                                                             active={conversaId === conversa.id}
                                                             onClick={() => {setConversaId(conversa.id); setExpandidos(anteriores => anteriores.includes(cliente.clienteId) ? anteriores : [...anteriores, cliente.clienteId]);}}
                                                         />
@@ -326,7 +320,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                                     aria-label={`Criar conversa para ${cliente.clienteNome}`}
                                                     onClick={() => {setProjetoCriacao(null); setClienteCriacao(clientes.find(c => c.clienteId === cliente.clienteId) ?? cliente);}}
                                                 >
-                                                    +
+                                                    <IconeChat nome="adicionar"/>
                                                 </ActionIcon>
                                             )}
                                         </Group>
@@ -351,7 +345,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                         <Stack gap={0} miw={0}><Title order={4} className={chat.titulo}>{clienteSelecionado.clienteNome}</Title><Text size="xs" c="dimmed" className={chat.subtitulo}>{conversaSelecionada.titulo}</Text></Stack>
                                     </Group>}
                                     estadoConversa={<><Badge size="sm" color={tipoConversa[conversaSelecionada.tipo].color}>{tipoConversa[conversaSelecionada.tipo].label}</Badge>{conversaSelecionada.arquivadaEm && <Badge size="sm" color="gray">Arquivada</Badge>}</>}
-                                    acoesConversa={conversaSelecionada.tipo !== "geral" ? <><Menu.Label>Organização</Menu.Label>{arquivadas ? <Menu.Item color="green" onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "restaurar"})}>Restaurar conversa</Menu.Item> : <><Menu.Item onClick={() => setConversaEdicao(conversaSelecionada)}>Renomear conversa</Menu.Item><Menu.Item onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "arquivar"})}>Arquivar conversa</Menu.Item></>}</> : null}
+                                    acoesConversa={conversaSelecionada.tipo !== "geral" ? <><Menu.Label>Organização</Menu.Label>{arquivadas ? <Menu.Item leftSection={<IconeChat nome="restaurar"/>} color="green" onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "restaurar"})}>Restaurar conversa</Menu.Item> : <><Menu.Item leftSection={<IconeChat nome="editar"/>} onClick={() => setConversaEdicao(conversaSelecionada)}>Renomear conversa</Menu.Item><Menu.Item leftSection={<IconeChat nome="arquivo"/>} onClick={() => setConversaArquivo({conversa: conversaSelecionada, acao: "arquivar"})}>Arquivar conversa</Menu.Item></>}</> : null}
                                     acoesArquivada={conversaSelecionada.arquivadaEm && <ReaberturaConversa key={conversaSelecionada.id} conversaId={conversaSelecionada.id} pedido={conversaSelecionada.reabertura} lado="admin" onAlterado={(pedido, restaurada) => atualizarPedido(conversaSelecionada.id, pedido, restaurada)} onAtualizar={atualizarConversas}/>}
                             />
                         ) : (

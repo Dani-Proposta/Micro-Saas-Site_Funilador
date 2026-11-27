@@ -1,4 +1,5 @@
 import chat from "../styles/Chat.module.css";
+import { IconeChat } from "./ElementosChat";
 import { Carregamento } from "./Carregamento";
 import classes from "../styles/Usabilidade.module.css";
 import { CartaoProposta, FormularioProposta, ResumoProjetoChat } from "./NegociacaoProjeto";
@@ -465,13 +466,13 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                 {identidade}
                 <Group gap={4} wrap="nowrap" className={chat.ferramentas}>
                     {estadoConversa}
-                    <Menu withinPortal position="bottom-end" shadow="md" width={220}>
-                        <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" aria-label="Gerenciar conversa" title="Gerenciar conversa">⋮</ActionIcon></Menu.Target>
+                    <Menu withinPortal position="bottom-end" shadow="md" width={260} classNames={{dropdown: chat.menuConversa}}>
+                        <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" aria-label="Gerenciar conversa" title="Gerenciar conversa"><IconeChat nome="menu" tamanho={20}/></ActionIcon></Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Label>Gerenciar conversa</Menu.Label>
-                            <Menu.Item disabled={!totalNaoLidas} onClick={irParaNaoLida}>Ir à não lida ({totalNaoLidas})</Menu.Item>
-                            <Menu.Item disabled={carregando || !!erro || marcandoTodas} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Menu.Item>
-                            {projetoId && <><Menu.Divider/><Menu.Label>Projeto</Menu.Label><Menu.Item onClick={() => setDadosProjeto(true)}>Dados do projeto</Menu.Item>{!somenteLeitura && <Menu.Item disabled={carregando || !!erro} onClick={() => setNovaProposta(true)}>Nova proposta</Menu.Item>}</>}
+                            <Menu.Item leftSection={<IconeChat nome="naoLida"/>} disabled={!totalNaoLidas} onClick={irParaNaoLida}>Ir à não lida ({totalNaoLidas})</Menu.Item>
+                            <Menu.Item leftSection={<IconeChat nome="lida"/>} disabled={carregando || !!erro || marcandoTodas} onClick={() => void marcarTodasComoLidas()}>Marcar conversa como lida</Menu.Item>
+                            {projetoId && <><Menu.Divider/><Menu.Label>Projeto</Menu.Label><Menu.Item leftSection={<IconeChat nome="projeto"/>} onClick={() => setDadosProjeto(true)}>Dados do projeto</Menu.Item>{!somenteLeitura && <Menu.Item leftSection={<IconeChat nome="proposta"/>} disabled={carregando || !!erro} onClick={() => setNovaProposta(true)}>Nova proposta</Menu.Item>}</>}
                             {acoesConversa && <><Menu.Divider/>{acoesConversa}</>}
                         </Menu.Dropdown>
                     </Menu>

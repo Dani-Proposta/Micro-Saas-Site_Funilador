@@ -1,5 +1,10 @@
+import { toast } from "../lib/toasts";
+import { CampoData } from "../components/CampoData";
 import classes from "../styles/Trabalho.module.css";
-import { correspondeBusca, FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { correspondeBusca } from "../lib/buscaRegistros";
+import { EstadoLista } from "../components/EstadoLista";
+import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { formatarValor, formatarPrazo } from "../lib/comercial";
@@ -38,8 +43,14 @@ export function Solicitacoes(){
     const alvoNotificacao = params.get("solicitacao");
     const eventoNotificacao = params.get("notificacao");
     const [busca, setBusca] = useState("");
+    const [ordem, setOrdem] = useState<OrdemRegistros>("padrao");
     const [clienteFiltro, setClienteFiltro] = useState("todos");
-    const solicitacoesVisiveis = solicitacoes.filter(s => alvoNotificacao ? s.id === alvoNotificacao : (status === "todos" || s.status === status) && (clienteFiltro === "todos" || s.clienteId === clienteFiltro) && correspondeBusca(busca, s.titulo, s.descricao, s.clienteNome));
+    const solicitacoesVisiveis = ordenarRegistros(solicitacoes.filter(s => alvoNotificacao ? s.id === alvoNotificacao : (status === "todos" || s.status === status) && (clienteFiltro === "todos" || s.clienteId === clienteFiltro) && correspondeBusca(busca, s.titulo, s.descricao, s.clienteNome)), ordem);
+    const filtrosAtivos = !!busca.trim() || status !== "todos" || clienteFiltro !== "todos" || ordem !== "padrao";
+    function limparFiltros() {
+        setBusca(""); setOrdem("padrao"); setClienteFiltro("todos");
+        setParams(comStatus(params, "todos"));
+    }
     function limparAtalho() {
         const proximo = new URLSearchParams(params);
         proximo.delete("solicitacao");
@@ -169,7 +180,8 @@ export function Solicitacoes(){
         setTitulo("");
         setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
         setModalAberto(false);
-        setBusca(""); setClienteFiltro("todos");
+        toast.mostrar("sucesso", {titulo:"Solicitação criada", mensagem:"A solicitação foi adicionada à lista."});
+        setBusca(""); setOrdem("padrao"); setClienteFiltro("todos");
             const proximo = comStatus(params, "todos");
             proximo.delete("solicitacao");
             proximo.delete("notificacao");
@@ -198,6 +210,7 @@ export function Solicitacoes(){
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível alterar a decisão");
             setSolicitacoes(anteriores => anteriores.map(s => s.id === id ? {...s, ...dados} : s));
+            toast.mostrar("sucesso", {titulo:novoStatus === "aprovada" ? "Solicitação aprovada" : novoStatus === "recusada" ? "Solicitação recusada" : "Solicitação reconsiderada", mensagem:"A decisão foi registrada."});
         } catch (erro) {
             setErroDecisao(erro instanceof Error ? erro.message : "Não foi possível alterar a decisão");
         } finally {
@@ -222,7 +235,7 @@ export function Solicitacoes(){
                 <Title order={1} className={estrutura.heading}>Solicitações</Title>
                 <Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button>
             </Group>
-            <FiltrosTrabalho busca={busca} onBusca={setBusca} total={solicitacoes.length} visiveis={solicitacoesVisiveis.length} carregando={carregando || !!erro} foco={!!alvoNotificacao}>
+            <FiltrosTrabalho ordem={ordem} onOrdem={setOrdem} onLimpar={limparFiltros} filtrosAtivos={filtrosAtivos} busca={busca} onBusca={setBusca} total={solicitacoes.length} visiveis={solicitacoesVisiveis.length} carregando={carregando || !!erro} foco={!!alvoNotificacao}>
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
                 <Select label="Cliente" searchable value={clienteFiltro} allowDeselect={false} data={[{value:"todos",label:"Todos os clientes"},...clientes.map(c=>({value:c.id,label:c.nome}))]} onChange={v=>setClienteFiltro(v??"todos")}/>
             </FiltrosTrabalho>
@@ -234,7 +247,7 @@ export function Solicitacoes(){
             )}
 
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && (
-                <Text c="dimmed">Nenhuma solicitação encontrada neste filtro.</Text>
+                <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhuma solicitação encontrada"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há solicitações nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>
             )}
             {erroDecisao && <Alert color="red">{erroDecisao}</Alert>}
             {detalhes && <DetalhesSolicitacao key={detalhes.id} solicitacao={detalhes} onClose={() => setDetalhesId(null)} ocupado={atualizandoId !== null} acoes={<>{erroDecisao && <Text size="xs" c="red">{erroDecisao}</Text>}{acoesSolicitacao(detalhes)}</>}/>}
@@ -249,21 +262,21 @@ export function Solicitacoes(){
                 <Stack gap={"sm"}>
                     <SeletorCliente clientes={clientes} value={clienteId} onChange={setClienteId} disabled={enviando} onBloqueio={setCadastroClienteAberto} onCriado={cliente => setClientes(anteriores => [...anteriores.filter(c => c.id !== cliente.id), cliente])}/>
 
-                    <TextInput label="Titulo"
-                    placeholder = "Nome da solicitação(Ex: Desenvolvimento de X, Edição de video)"
+                    <TextInput label="Título"
+                    placeholder = "Ex.: Desenvolvimento de site"
                     required
                     value={titulo}
                     onChange={(event) => setTitulo(event.currentTarget.value)}></TextInput>
                     
                     <Textarea label="Descrição"
-                    placeholder="Escreve mais sobre a solicitação..."
+                    placeholder="Descreva a solicitação..."
                     required
                     value={descricao}
                     onChange={(event) => setDescricao(event.currentTarget.value)}></Textarea>
 
-                    <div className={classes.campos}>
-                    <TextInput label="Orçamento esperado (R$)" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
-                    <TextInput label="Prazo esperado" type="date" value={prazoEsperado} onChange={evento => setPrazoEsperado(evento.currentTarget.value)} disabled={enviando}/>
+                    <div className="funilador-campos-alinhados">
+                    <TextInput label="Orçamento esperado" aria-label="Orçamento esperado (R$)" leftSection={<span className="funilador-moeda" aria-hidden="true">R$</span>} leftSectionWidth={36} leftSectionPointerEvents="none" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
+                    <CampoData label="Prazo esperado" value={prazoEsperado} onChange={valor => setPrazoEsperado(valor)} disabled={enviando}/>
                     </div>
 
                     {erroEnvio && ( <Alert color="red" title="Erro">{erroEnvio}</Alert>)}
@@ -275,7 +288,7 @@ export function Solicitacoes(){
 
 
 
-            {!carregando && !erro && <div className={classes.grade}>
+            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
                 {solicitacoesVisiveis.map(solicitacao=><Card key={solicitacao.id} withBorder padding="sm" className={classes.card}>
                     <div className={classes.cardTopo}>
                         <Stack gap={4} className={classes.minimo}>

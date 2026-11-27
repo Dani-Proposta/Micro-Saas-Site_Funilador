@@ -1,5 +1,8 @@
 import classes from "../styles/Trabalho.module.css";
-import { correspondeBusca, FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { correspondeBusca } from "../lib/buscaRegistros";
+import { EstadoLista } from "../components/EstadoLista";
+import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
@@ -54,7 +57,13 @@ export function MeusProjetos() {
         setParams(proximo);
     }
     const [busca, setBusca] = useState("");
-    const projetosVisiveis = projetos.filter(p => alvoNotificacao ? p.id === alvoNotificacao : (status === "todos" || p.status === status) && correspondeBusca(busca,p.titulo,p.descricao));
+    const [ordem, setOrdem] = useState<OrdemRegistros>("padrao");
+    const projetosVisiveis = ordenarRegistros(projetos.filter(p => alvoNotificacao ? p.id === alvoNotificacao : (status === "todos" || p.status === status) && correspondeBusca(busca,p.titulo,p.descricao)), ordem);
+    const filtrosAtivos = !!busca.trim() || status !== "todos" || ordem !== "padrao";
+    function limparFiltros() {
+        setBusca(""); setOrdem("padrao");
+        setParams(comStatus(params, "todos"));
+    }
     function abrirProjeto(id: string) {
         const proximo = new URLSearchParams(params);
         proximo.set("projeto", id);
@@ -107,13 +116,13 @@ export function MeusProjetos() {
                     <Button size="xs" variant="light" onClick={() => abrirValidacao(p.id)}>Validar entregas</Button>
                 </Group>)}
             </Stack></Card>}
-            {!alvoNotificacao && <FiltrosTrabalho busca={busca} onBusca={setBusca} total={projetos.length} visiveis={projetosVisiveis.length} carregando={carregando || !!erro}><Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco"); setParams(proximo);}}/></FiltrosTrabalho>}
+            {!alvoNotificacao && <FiltrosTrabalho ordem={ordem} onOrdem={setOrdem} onLimpar={limparFiltros} filtrosAtivos={filtrosAtivos} busca={busca} onBusca={setBusca} total={projetos.length} visiveis={projetosVisiveis.length} carregando={carregando || !!erro}><Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("projeto"); proximo.delete("notificacao"); proximo.delete("validar"); proximo.delete("pagar"); proximo.delete("marco"); setParams(proximo);}}/></FiltrosTrabalho>}
             {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">{focoValidacao ? "Entregas para validar" : focoPagamento ? "Pagamentos pendentes" : "Exibindo projeto selecionado."}</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Voltar à lista</Button></Group>}
             {carregando && <Carregamento/>}
             {erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && projetosVisiveis.length === 0 && <Text c="dimmed">Nenhum projeto encontrado neste filtro.</Text>}
+            {!carregando && !erro && projetosVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
 
-            {!carregando && !erro && !alvoNotificacao && <div className={classes.grade}>
+            {!carregando && !erro && !alvoNotificacao && projetosVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
                 {projetosVisiveis.map(projeto=><Card key={projeto.id} withBorder padding="sm" className={classes.card}>
                     <div className={classes.cardTopo}><Text fw={650} className={classes.quebra}>{projeto.titulo}</Text><Badge variant="light" color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge></div>
                     <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{projeto.descricao}</Text>

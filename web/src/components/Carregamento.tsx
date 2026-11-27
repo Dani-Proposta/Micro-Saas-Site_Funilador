@@ -8,7 +8,7 @@ export function Carregamento({tipo = "lista", texto = "Carregando...", quantidad
     if (tipo === "compacto" || tipo === "sessao") return <div className={tipo === "sessao" ? classes.sessionLoading : classes.inlineLoading} role="status">
         <span className={classes.loadingDots} aria-hidden="true"><i/><i/><i/></span><Text size="sm" c="dimmed">{texto}</Text>
     </div>;
-    return <div role="status" className={classes.loadingRegion}>
+    return <div role="status" className={`${classes.loadingRegion}${tipo === "lista" ? " funilador-carregamento-lista" : ""}`}>
         <span className={classes.srOnly}>{texto}</span>
         <SimpleGrid cols={tipo === "indicadores" ? {base:1, xs:2, lg:3} : 1} spacing="xs" aria-hidden="true">
             {blocos.map(i => <Card key={i} withBorder padding="sm" className={classes.skeletonCard}>
