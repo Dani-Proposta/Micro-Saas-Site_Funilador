@@ -101,6 +101,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     const {aparencia, aplicar} = useAparencia();
     const agora = useRelogio();
     const minimalista = aparencia.estilo === "minimalista";
+    const moderno = aparencia.estilo === "moderno";
     const reduzirMovimento = useMovimentoReduzido();
     const [aberta, setAberta] = useState(false);
     const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "senha">("menu");
@@ -184,7 +185,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     const titulos = {menu:"Conta e preferências", dados:"Minha conta", preferencias:"Preferências", senha:"Alterar senha"};
 
     return <>
-        <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:minimalista ? "fade" : "pop-top-right", duration:reduzirMovimento ? 0 : minimalista ? 120 : 180}}>
+        <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:minimalista ? "fade" : "pop-top-right", duration:reduzirMovimento ? 0 : minimalista ? 120 : moderno ? 240 : 180}}>
             <Menu.Target><ActionIcon visibleFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" title="Conta e preferências"><IconePainel nome="conta"/></ActionIcon></Menu.Target>
             <Menu.Dropdown className={classes.accountDropdown}>
                 <Menu.Label>{conta?.nome || nome || "Minha conta"}</Menu.Label>

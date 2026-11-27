@@ -177,3 +177,50 @@
     box-shadow: 0 0 0 2px var(--mantine-color-body);
     pointer-events: none;
 }
+
+/* 06.5.4.1 — estrutura Moderna; o restante mantém suas regras existentes. */
+:global(html[data-funilador-estilo="moderno"]) .header {
+    box-shadow: 0 2px 14px color-mix(in srgb, var(--mantine-color-black) 9%, transparent);
+}
+:global(html[data-funilador-estilo="moderno"]) .brandMark {
+    border-radius: 11px;
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--mantine-primary-color-filled) 25%, transparent);
+}
+:global(html[data-funilador-estilo="moderno"]) .navbar {
+    padding: 16px 12px;
+    background: color-mix(in srgb, var(--mantine-color-default) 45%, var(--mantine-color-body));
+    transition: transform 280ms cubic-bezier(.22,1,.36,1);
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.account, .bell) {
+    border-radius: 11px;
+    min-width: 40px;
+    min-height: 40px;
+    transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.account, .bell):hover {
+    border-color: var(--mantine-primary-color-5);
+    box-shadow: var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown {
+    padding: 6px;
+    border-radius: 14px;
+    box-shadow: var(--mantine-shadow-md);
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown :global(.mantine-Menu-item) {
+    border-radius: 9px;
+    min-height: 40px;
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown :global(.mantine-Menu-label) {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 47.99em) {
+    /* O drawer próprio substitui somente o navbar mobile do Moderno. */
+    :global(html[data-funilador-estilo="moderno"]) .navbar { display: none; }
+    :global(html[data-funilador-estilo="moderno"]) .headerIdentity > :global(.mantine-Burger-root) {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: var(--mantine-color-default-hover);
+    }
+    :global(html[data-funilador-estilo="moderno"]) :is(.account, .bell) {
+        width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    }
+}

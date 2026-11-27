@@ -65,3 +65,10 @@
 .pill-nav[data-reduced-motion] .pill-nav__item,
 .pill-nav[data-reduced-motion] .pill-nav__row,
 .pill-nav[data-reduced-motion] .pill-nav__dot { transition: none !important; animation: none !important; }
+
+/* Toque: maior área útil, sem depender de hover ou de uma aba escondida. */
+@media (max-width: 47.99em) {
+    .funilador-abas-pill[role="tablist"] { padding-block: 4px 6px; overscroll-behavior-inline: contain; }
+    .funilador-abas-pill .pill-nav { --pn-inner: 44px !important; }
+    .funilador-abas-pill .pill-nav__slot > button[role="tab"] { min-height: 44px; }
+}

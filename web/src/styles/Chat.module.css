@@ -108,3 +108,166 @@
 :global(html[data-funilador-estilo="minimalista"]) .menuConversa { border-radius: 6px; box-shadow: var(--mantine-shadow-xs); }
 :global(html[data-funilador-estilo="minimalista"]) .menuConversa :global(.mantine-Menu-item) { border-radius: 4px; }
 :global(html[data-funilador-estilo="minimalista"]) .secaoProposta { border-radius: 4px; }
+
+/* 06.5.4.2 — Moderno desktop: painéis da biblioteca react-resizable-panels.
+   O histórico continua montado ao redimensionar/recolher a lista. */
+.enviarIcone { display: none; }
+
+@media (min-width: 48em) {
+    :global(html[data-funilador-estilo="moderno"]) .pagina.pagina {
+        gap: 10px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .pagina .topo :global(h1) {
+        font-size: clamp(1.12rem, 1.5vw, 1.4rem);
+        letter-spacing: -.025em;
+    }
+    .gradeRedimensionavel {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+    }
+    .painelRedimensionavel, .conteudoRedimensionavel {
+        min-height: 0;
+        min-width: 0;
+        height: 100%;
+        width: 100%;
+    }
+    .divisorRedimensionavel {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 12px;
+        color: var(--mantine-color-dimmed);
+        outline: none;
+        cursor: col-resize;
+        touch-action: none;
+    }
+    .divisorRedimensionavel::before {
+        content: "";
+        position: absolute;
+        inset: 12px 5px;
+        border-radius: 8px;
+        background: var(--mantine-color-default-border);
+        transition: background-color 180ms ease, opacity 180ms ease;
+        opacity: .65;
+    }
+    .divisorRedimensionavel > span {
+        position: relative;
+        display: block;
+        width: 5px;
+        height: 30px;
+        border-radius: 999px;
+        background: var(--mantine-color-dimmed);
+        box-shadow: 0 0 0 3px var(--mantine-color-body);
+        pointer-events: none;
+        transition: background-color 180ms ease;
+    }
+    .divisorRedimensionavel:is(:hover, :focus-visible, :active)::before,
+    .divisorRedimensionavel:is(:hover, :focus-visible, :active) > span {
+        background: var(--mantine-primary-color-filled);
+        opacity: 1;
+    }
+    .divisorRedimensionavel:focus-visible {
+        outline: 2px solid var(--mantine-primary-color-filled);
+        outline-offset: -2px;
+        border-radius: 6px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root),
+    :global(html[data-funilador-estilo="moderno"]) .pagina .painel {
+        border: 1px solid var(--mantine-color-default-border);
+        border-radius: 14px;
+        background: var(--mantine-color-default);
+        padding: 12px;
+        box-shadow: var(--mantine-shadow-xs);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root) {
+        border-radius: 10px;
+        min-height: 45px;
+        padding-inline: 8px;
+        transition: background-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root)[data-active] {
+        background: var(--mantine-primary-color-light);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 38%, transparent);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="left"] {
+        padding: 6px;
+        border-radius: 9px;
+        background: var(--mantine-color-default-hover);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root)[data-active] :global(.mantine-NavLink-section)[data-position="left"] {
+        background: var(--mantine-primary-color-light);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root):focus-visible {
+        outline: 2px solid var(--mantine-primary-color-filled);
+        outline-offset: -2px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .cabecalho {
+        min-height: 50px;
+        padding: 4px 4px 10px;
+        margin-bottom: 4px;
+        gap: 8px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .titulo {
+        font-size: clamp(.9rem, 1.1vw, 1.05rem);
+        font-weight: 650;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .historico {
+        border: 1px solid var(--mantine-color-default-border);
+        border-radius: 12px;
+        background: var(--mantine-color-body);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .historico :global(.mantine-ScrollArea-viewport) {
+        padding: 12px 14px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .balao:not([data-proposta="true"]) {
+        max-width: min(78%, 650px);
+        padding: 9px 12px 6px !important;
+        background: var(--mantine-color-default);
+        border: 1px solid var(--mantine-color-default-border);
+        border-radius: 14px 14px 14px 5px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .balao[data-propria="true"]:not([data-proposta="true"]) {
+        background: color-mix(in srgb, var(--mantine-primary-color-filled) 16%, var(--mantine-color-body));
+        border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 24%, var(--mantine-color-default-border));
+        border-radius: 14px 14px 5px 14px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .horaMensagem {
+        font-variant-numeric: tabular-nums;
+        margin-top: 3px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .proposta {
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: var(--mantine-shadow-xs);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .compositor {
+        padding: 8px 2px 2px;
+        border-top: 0;
+        gap: 8px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .compositor :global(.mantine-Textarea-input) {
+        border-radius: 11px;
+        min-height: 42px;
+        padding-block: 10px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .compositor > :global(.mantine-Button-root) {
+        min-height: 42px;
+        border-radius: 11px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .enviarRotulo {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .enviarIcone { display: block; flex-shrink: 0; }
+    :global(html[data-funilador-estilo="moderno"]) .menuConversa {
+        border-radius: 12px;
+        box-shadow: var(--mantine-shadow-md);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .menuConversa :global(.mantine-Menu-item) {
+        min-height: 36px;
+        border-radius: 7px;
+    }
+}

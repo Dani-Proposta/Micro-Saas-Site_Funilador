@@ -501,7 +501,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                                 <Group data-mensagem-id={mensagem.id} data-nao-lida={mensagem.remetenteTipo !== lado && !mensagem.lida ? mensagem.id : undefined} justify={mensagem.remetenteTipo === lado ? "flex-end" : "flex-start"}>
                                     <Box className={chat.balao} data-propria={mensagem.remetenteTipo === lado} data-proposta={!!mensagem.proposta} data-balao-nao-lido={mensagem.remetenteTipo !== lado && !mensagem.lida} p={mensagem.proposta ? 0 : 6}>
                                         {mensagem.proposta ? <CartaoProposta proposta={mensagem.proposta} endpoint={endpointPropostas} lado={lado} somenteLeitura={somenteLeitura} onAlterado={atualizarNegociacao}/> : <TextoExpansivel texto={mensagem.conteudo} linhas={7}/>} 
-                                        <Text size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
+                                        <Text className={chat.horaMensagem} size="xs" opacity={0.7} ta="right">{new Date(mensagem.enviadaEm).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})}</Text>
                                     </Box>
                                 </Group>
                             </Box>
@@ -524,7 +524,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                 }}>
                     <Group align="flex-end" wrap="nowrap" gap={4} className={chat.compositor}>
                         <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}/>
-                        <Button type="submit" loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}>Enviar</Button>
+                        <Button type="submit" loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}><span className={chat.enviarRotulo}>Enviar<svg className={chat.enviarIcone} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></svg></span></Button>
                     </Group>
                 </form>
             )}

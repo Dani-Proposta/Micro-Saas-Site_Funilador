@@ -1,6 +1,7 @@
 import chat from "../styles/Chat.module.css";
 import { FiltroConversas, IconeChat } from "../components/ElementosChat";
 import { ControleChat, type OpcoesChat } from "../components/ControleChat";
+import { GradeChat } from "../components/GradeChat";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
@@ -255,8 +256,10 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                 />
             )}
 
-            <div className={`${classes.chatGrid} ${chat.grid}`}>
-                <div className={`${classes.chatColuna} ${chat.lista}`}>
+            <GradeChat selecionada={!!conversaSelecionada}
+                recolhida={!!conversaSelecionada && listaRecolhida}
+                onRecolhidaChange={setListaRecolhida}
+                lista={<div className={`${classes.chatColuna} ${chat.lista}`}>
                     <Card withBorder padding="sm" className={classes.chatCard}>
                         <Stack gap="sm" className={classes.chatPilha}>
                             <FiltroConversas value={arquivadas ? "arquivadas" : "ativas"} onChange={alternarVisualizacao} opcoes={[{label: "Ativas", value: "ativas", quantidade: naoLidasAtivas}, {label: "Arquivadas", value: "arquivadas", quantidade: naoLidasArquivadas}]}/>
@@ -329,9 +332,8 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                             </ScrollArea>
                         </Stack>
                     </Card>
-                </div>
-
-                <div className={`${classes.chatColuna} ${chat.conversa}`}>
+                </div>}
+                conversa={<div className={`${classes.chatColuna} ${chat.conversa}`}>
                     <Card withBorder padding="sm" className={`${classes.chatCard} ${chat.painel}`}>
                         {clienteSelecionado && conversaSelecionada ? (
                             <HistoricoMensagens
@@ -354,8 +356,8 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                             </Center>
                         )}
                     </Card>
-                </div>
-            </div>
+                </div>}
+            />
         </Stack>
     );
 }

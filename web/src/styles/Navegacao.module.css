@@ -154,3 +154,89 @@
 @media (prefers-reduced-motion: reduce) {
     :global(html[data-funilador-estilo="minimalista"]) .abas > button { transition: none !important; }
 }
+
+/* 06.5.4.1 — desktop: Line Sidebar com espaço para o movimento. */
+:global(html[data-funilador-estilo="moderno"]) .lineOriginal :global(.line-sidebar__marker) {
+    height: 2px; border-radius: 2px;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineOriginal :global(.line-sidebar__list) {
+    padding-block: 6px;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink {
+    min-height: 42px;
+    border-radius: 10px;
+    padding-inline-end: 12px;
+    transition: background-color 220ms ease, box-shadow 220ms ease;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink[aria-current="page"] {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 24%, transparent);
+    background: var(--mantine-primary-color-light);
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__label) {
+    padding-inline-end: 24px;
+}
+:global(html[data-funilador-estilo="moderno"][data-funilador-densidade="compacta"]) .lineLink { min-height: 34px; }
+:global(html[data-funilador-estilo="moderno"][data-funilador-densidade="confortavel"]) .lineLink { min-height: 48px; }
+
+/* Mobile: superfície de navegação independente, sem efeito de proximidade. */
+.mobileSheet {
+    border-radius: 24px 24px 0 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-bottom: 0;
+    max-height: 85dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.mobileSheetHeader { border-radius: 24px 24px 0 0; }
+.mobileSheetHeader :global(.mantine-Drawer-title) { font-weight: 700; }
+.mobileSheetBody { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+.mobileGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.mobileTile {
+    position: relative; display: flex; flex-direction: column; gap: 8px;
+    align-items: flex-start; justify-content: center;
+    min-width: 0; min-height: 88px; padding: 12px;
+    border: 1px solid var(--mantine-color-default-border); border-radius: 15px;
+    background: var(--mantine-color-default); color: var(--mantine-color-text);
+    text-decoration: none; overflow-wrap: anywhere;
+    animation: modernoEntradaMobile 260ms cubic-bezier(.22,1,.36,1) backwards;
+    animation-delay: calc(var(--ordem-nav, 0) * 32ms);
+    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.mobileTileIcon {
+    display: grid; place-items: center; width: 36px; height: 36px;
+    border-radius: 11px; color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+}
+.mobileTileLabel { font-size: var(--mantine-font-size-sm); font-weight: 600; line-height: 1.3; }
+.mobileTile[aria-current="page"] {
+    background: var(--mantine-primary-color-light);
+    border-color: var(--mantine-primary-color-filled);
+}
+.mobileTile[aria-current="page"] .mobileTileIcon {
+    background: var(--mantine-primary-color-filled); color: white;
+}
+.mobileTileMark { display: none; }
+.mobileTile[aria-current="page"] .mobileTileMark {
+    display: block; position: absolute; top: 12px; right: 12px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--mantine-primary-color-filled);
+}
+.mobileBadge { position: absolute; top: 12px; right: 12px; }
+.mobileTile:has(.mobileBadge) .mobileTileMark { display: none; }
+.mobileTile:focus-visible { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: 2px; }
+.mobileTile:active { transform: scale(.975); }
+@media (hover:hover) { .mobileTile:hover { border-color: var(--mantine-primary-color-filled); } }
+@media (max-width: 22em) {
+    .mobileGrid { gap: 7px; }
+    .mobileTile { padding: 9px; min-height: 82px; }
+}
+@keyframes modernoEntradaMobile {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+:global(html[data-funilador-movimento="reduzido"]) .mobileTile {
+    animation: none !important; transition: none !important; transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .mobileTile { animation: none !important; transition: none !important; transform: none !important; }
+}

@@ -10,8 +10,9 @@ import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, Pr
 import { RedefinirSenha } from "./pages/RedefinirSenha";
 import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
+import { useAparencia } from "./lib/contextoAparencia";
 import { MarcaPainel, MenuConta } from "./components/MenuConta";
-import { NavegacaoPainel } from "./components/NavegacaoPainel";
+import { NavegacaoMobile, NavegacaoPainel } from "./components/NavegacaoPainel";
 import classes from "./styles/Estrutura.module.css";
 import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
@@ -20,6 +21,8 @@ function PainelAdmin() {
   //constantes importantes lmao
 
   const [opened, { toggle, close }] = useDisclosure(false);
+  const {aparencia} = useAparencia();
+  const moderno = aparencia.estilo === "moderno";
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
   const [estadoFoco, setEstadoFoco] = useState({chave: local.key, ativo: false});
@@ -82,15 +85,15 @@ function PainelAdmin() {
 
       //barra da navegação
       navbar={{
-        width: 236,
+        width: moderno ? 264 : 236,
         breakpoint: "sm",
-        collapsed: { mobile: !opened, desktop: foco },
+        collapsed: { mobile: moderno || !opened, desktop: foco },
       }}>
 
       <AppShell.Header className={classes.header}>
         <div className={classes.headerInner}>
           <Group gap="xs" wrap="nowrap" className={classes.headerIdentity}>
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened}/>
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened} aria-haspopup={moderno ? "dialog" : undefined}/>
             <MarcaPainel lado="admin"/>
           </Group>
           <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
@@ -102,6 +105,7 @@ function PainelAdmin() {
       <AppShell.Navbar className={classes.navbar}>
         <NavegacaoPainel lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
       </AppShell.Navbar>
+      <NavegacaoMobile lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
 
       <AppShell.Main className={classes.main}>
         <Routes>

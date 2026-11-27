@@ -1,6 +1,7 @@
 import chat from "../styles/Chat.module.css";
 import { FiltroConversas, IconeChat } from "../components/ElementosChat";
 import { ControleChat, type OpcoesChat } from "../components/ControleChat";
+import { GradeChat } from "../components/GradeChat";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import classes from "../styles/Usabilidade.module.css";
@@ -157,8 +158,10 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
             {erro && <Alert color="red">{erro}</Alert>}
             {erroAcao && <Alert color="red">{erroAcao}</Alert>}
 
-            <div className={`${classes.chatGrid} ${chat.grid}`}>
-                <div className={`${classes.chatColuna} ${chat.lista}`}>
+            <GradeChat selecionada={!!conversaSelecionada}
+                recolhida={!!conversaSelecionada && listaRecolhida}
+                onRecolhidaChange={setListaRecolhida}
+                lista={<div className={`${classes.chatColuna} ${chat.lista}`}>
                     <Card withBorder padding="sm" className={classes.chatCard}>
                         <Stack gap="sm" className={classes.chatPilha}>
                             <Text fw={600} size="sm">
@@ -194,8 +197,8 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
                             </ScrollArea>
                         </Stack>
                     </Card>
-                </div>
-                <div className={`${classes.chatColuna} ${chat.conversa}`}>
+                </div>}
+                conversa={<div className={`${classes.chatColuna} ${chat.conversa}`}>
                     <Card withBorder padding="sm" className={`${classes.chatCard} ${chat.painel}`}>
                         {conversaSelecionada ? (
                             <HistoricoMensagens
@@ -216,8 +219,8 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
                             </Center>
                         )}
                     </Card>
-                </div>
-            </div>
+                </div>}
+            />
         </Stack>
     );
 }
