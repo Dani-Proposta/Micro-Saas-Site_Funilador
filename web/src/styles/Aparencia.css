@@ -14,7 +14,7 @@ html[data-funilador-densidade="confortavel"] .mantine-AppShell-navbar .mantine-N
 html[data-funilador-movimento="reduzido"] *,html[data-funilador-movimento="reduzido"] *::before,html[data-funilador-movimento="reduzido"] *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 @media(prefers-reduced-motion:reduce) { html *,html *::before,html *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 /* controles e prévia */
-.funilador-amostra-cor { width:34px; height:34px; border-radius:50%; color:white; font-weight:700; text-align:center; border:2px solid var(--mantine-color-default-border); }
+button.funilador-amostra-cor { display:grid; place-items:center; padding:0; flex:none; width:34px; height:34px; border-radius:50%; color:white; font-weight:700; text-align:center; border:2px solid var(--mantine-color-default-border); }
 .funilador-amostra-cor[aria-pressed="true"] { outline:2px solid var(--mantine-color-text); outline-offset:2px; }
 .funilador-amostra-cor:focus-visible { outline:3px solid var(--mantine-primary-color-filled); outline-offset:3px; }
 .funilador-amostra-cor:disabled { opacity:.65; cursor:not-allowed; }
@@ -29,3 +29,15 @@ html[data-funilador-movimento="reduzido"] *,html[data-funilador-movimento="reduz
 .funilador-previa[data-densidade="compacta"] .funilador-previa-card { padding:6px; }
 .funilador-previa[data-densidade="confortavel"] { padding:16px; gap:14px; }
 .funilador-previa[data-densidade="confortavel"] .funilador-previa-card { padding:14px; }
+
+.funilador-amostra-cor svg { display:block; pointer-events:none; }
+.funilador-paletas { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,84px),1fr)); gap:8px; margin-top:8px; }
+button.funilador-paleta { display:grid; justify-items:center; align-content:start; gap:5px; min-width:0; padding:5px; border:1px solid var(--mantine-color-default-border); border-radius:8px; text-align:center; }
+.funilador-paleta[aria-pressed="true"] { border-color:var(--mantine-primary-color-filled); box-shadow:0 0 0 1px var(--mantine-primary-color-filled); }
+.funilador-paleta:focus-visible { outline:2px solid var(--mantine-primary-color-filled); outline-offset:3px; }
+.funilador-paleta-amostra { display:grid; grid-template-columns:1fr 1fr; align-items:end; gap:4px; position:relative; border:1px solid; padding:6px; border-radius:5px; width:100%; height:42px; }
+.funilador-paleta-amostra > span { height:15px; border-radius:3px; }
+.funilador-paleta-amostra > svg { position:absolute; top:2px; left:50%; transform:translateX(-50%); width:16px; height:16px; }
+.funilador-paleta:disabled { opacity:.65; cursor:not-allowed; }
+/* fundos claros levemente tingidos; cards mantêm suas próprias superfícies */
+html[data-mantine-color-scheme="light"][data-funilador-paleta]:not([data-funilador-paleta="neutra"]) { --mantine-color-body:var(--mantine-color-gray-0); }

@@ -701,6 +701,7 @@ async function carregarConta(db: PoolClient | typeof pool, usuarioId: string, ad
         SELECT COALESCE(c.nome, u.name) AS nome, u.email, $2::boolean AS admin,
             cfg.tema, COALESCE(cfg.estilo, 'moderno') AS estilo, COALESCE(cfg.acento, 'grape') AS acento,
             COALESCE(cfg.densidade, 'normal') AS densidade, COALESCE(cfg.movimento, 'sistema') AS movimento,
+            COALESCE(cfg.paleta, 'neutra') AS paleta,
             CASE WHEN NOT $2::boolean AND cfg.nome_alterado_em + interval '6 hours' > NOW()
                 THEN cfg.nome_alterado_em + interval '6 hours' END AS "proximaAlteracaoNome"
         FROM "user" u
@@ -2689,6 +2690,7 @@ const opcoesAparencia = {
     acento: ["grape", "violet", "blue", "cyan", "teal", "orange", "pink"],
     densidade: ["compacta", "normal", "confortavel"],
     movimento: ["sistema", "reduzido"],
+    paleta: ["neutra", "obsidiana", "meia-noite", "ametista", "floresta"],
 } as const;
 
 function validarAparencia(corpo: unknown) {
@@ -2699,7 +2701,7 @@ function validarAparencia(corpo: unknown) {
     for (const chave of Object.keys(opcoesAparencia) as (keyof typeof opcoesAparencia)[]) {
         if (Object.hasOwn(dados, chave) && !(opcoesAparencia[chave] as readonly unknown[]).includes(dados[chave])) throw new ErroConversa(400, `Preferência inválida: ${chave}`);
     }
-    return [dados.tema ?? null, dados.estilo ?? null, dados.acento ?? null, dados.densidade ?? null, dados.movimento ?? null];
+    return [dados.tema ?? null, dados.estilo ?? null, dados.acento ?? null, dados.densidade ?? null, dados.movimento ?? null, dados.paleta ?? null];
 }
 
 app.patch("/api/conta/preferencias", async (req, res) => {
@@ -2711,14 +2713,15 @@ app.patch("/api/conta/preferencias", async (req, res) => {
         const dados = await transacaoConversa(async db => {
             await carregarConta(db, usuarioId, admin);
             await db.query(`
-                INSERT INTO usuarios_configuracoes (usuario_id, tema, estilo, acento, densidade, movimento)
-                VALUES ($1,$2,COALESCE($3::text,'moderno'),COALESCE($4::text,'grape'),COALESCE($5::text,'normal'),COALESCE($6::text,'sistema'))
+                INSERT INTO usuarios_configuracoes (usuario_id, tema, estilo, acento, densidade, movimento, paleta)
+                VALUES ($1,$2,COALESCE($3::text,'moderno'),COALESCE($4::text,'grape'),COALESCE($5::text,'normal'),COALESCE($6::text,'sistema'),COALESCE($7::text,'neutra'))
                 ON CONFLICT (usuario_id) DO UPDATE SET
                     tema = COALESCE($2::text, usuarios_configuracoes.tema),
                     estilo = COALESCE($3::text, usuarios_configuracoes.estilo),
                     acento = COALESCE($4::text, usuarios_configuracoes.acento),
                     densidade = COALESCE($5::text, usuarios_configuracoes.densidade),
-                    movimento = COALESCE($6::text, usuarios_configuracoes.movimento)
+                    movimento = COALESCE($6::text, usuarios_configuracoes.movimento),
+                    paleta = COALESCE($7::text, usuarios_configuracoes.paleta)
             `, [usuarioId, ...preferencias]);
             return carregarConta(db, usuarioId, admin);
         });
