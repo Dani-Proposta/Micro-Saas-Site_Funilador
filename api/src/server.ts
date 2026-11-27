@@ -699,7 +699,9 @@ function rotaDecidirProposta(lado: "admin" | "cliente") {
 async function carregarConta(db: PoolClient | typeof pool, usuarioId: string, admin: boolean) {
     const resultado = await db.query(`
         SELECT COALESCE(c.nome, u.name) AS nome, u.email, $2::boolean AS admin,
-            cfg.tema, CASE WHEN NOT $2::boolean AND cfg.nome_alterado_em + interval '6 hours' > NOW()
+            cfg.tema, COALESCE(cfg.estilo, 'moderno') AS estilo, COALESCE(cfg.acento, 'grape') AS acento,
+            COALESCE(cfg.densidade, 'normal') AS densidade, COALESCE(cfg.movimento, 'sistema') AS movimento,
+            CASE WHEN NOT $2::boolean AND cfg.nome_alterado_em + interval '6 hours' > NOW()
                 THEN cfg.nome_alterado_em + interval '6 hours' END AS "proximaAlteracaoNome"
         FROM "user" u
         LEFT JOIN clientes c ON c.usuario_id = u.id AND NOT $2::boolean
@@ -2680,23 +2682,47 @@ app.patch("/api/conta/nome", async (req, res) => {
     } catch (erro) {responderErroConversa(res, erro);}
 });
 
-//conta: salvar preferência de tema
+//conta: salvar preferências visuais
+const opcoesAparencia = {
+    tema: ["light", "dark", "auto"],
+    estilo: ["minimalista", "moderno", "expressivo"],
+    acento: ["grape", "violet", "blue", "cyan", "teal", "orange", "pink"],
+    densidade: ["compacta", "normal", "confortavel"],
+    movimento: ["sistema", "reduzido"],
+} as const;
+
+function validarAparencia(corpo: unknown) {
+    if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) throw new ErroConversa(400, "Preferências inválidas");
+    const dados = corpo as Record<string, unknown>;
+    const chaves = Object.keys(dados);
+    if (!chaves.length || chaves.some(c => !Object.hasOwn(opcoesAparencia, c))) throw new ErroConversa(400, "Preferências inválidas");
+    for (const chave of Object.keys(opcoesAparencia) as (keyof typeof opcoesAparencia)[]) {
+        if (Object.hasOwn(dados, chave) && !(opcoesAparencia[chave] as readonly unknown[]).includes(dados[chave])) throw new ErroConversa(400, `Preferência inválida: ${chave}`);
+    }
+    return [dados.tema ?? null, dados.estilo ?? null, dados.acento ?? null, dados.densidade ?? null, dados.movimento ?? null];
+}
+
 app.patch("/api/conta/preferencias", async (req, res) => {
     try {
         if (!req.is("application/json")) throw new ErroConversa(415, "Envie dados em JSON");
-        const tema = req.body?.tema;
-        if (tema !== "light" && tema !== "dark" && tema !== "auto") throw new ErroConversa(400, "Tema inválido");
+        const preferencias = validarAparencia(req.body);
         const usuarioId = res.locals.usuarioId;
         const admin = res.locals.contaAdmin;
         const dados = await transacaoConversa(async db => {
             await carregarConta(db, usuarioId, admin);
             await db.query(`
-                INSERT INTO usuarios_configuracoes (usuario_id, tema) VALUES ($1,$2)
-                ON CONFLICT (usuario_id) DO UPDATE SET tema = EXCLUDED.tema
-            `, [usuarioId, tema]);
+                INSERT INTO usuarios_configuracoes (usuario_id, tema, estilo, acento, densidade, movimento)
+                VALUES ($1,$2,COALESCE($3::text,'moderno'),COALESCE($4::text,'grape'),COALESCE($5::text,'normal'),COALESCE($6::text,'sistema'))
+                ON CONFLICT (usuario_id) DO UPDATE SET
+                    tema = COALESCE($2::text, usuarios_configuracoes.tema),
+                    estilo = COALESCE($3::text, usuarios_configuracoes.estilo),
+                    acento = COALESCE($4::text, usuarios_configuracoes.acento),
+                    densidade = COALESCE($5::text, usuarios_configuracoes.densidade),
+                    movimento = COALESCE($6::text, usuarios_configuracoes.movimento)
+            `, [usuarioId, ...preferencias]);
             return carregarConta(db, usuarioId, admin);
         });
-        res.json(dados);
+        res.set("Cache-Control", "no-store").json(dados);
     } catch (erro) {responderErroConversa(res, erro);}
 });
 

@@ -1,0 +1,31 @@
+/* tokens de aparência compartilhados, inclusive em portais */
+html { --funilador-radius-painel: 12px; --funilador-gap-painel: 8px; }
+html[data-funilador-estilo="minimalista"] { --funilador-radius-painel: 5px; }
+html[data-funilador-estilo="expressivo"] { --funilador-radius-painel: 18px; }
+html[data-funilador-densidade="compacta"] { --funilador-gap-painel: 5px; }
+html[data-funilador-densidade="confortavel"] { --funilador-gap-painel: 12px; }
+html[data-funilador-estilo="minimalista"] :is(.mantine-Card-root,.mantine-Paper-root) { border-radius:var(--funilador-radius-painel); box-shadow:none; }
+html[data-funilador-estilo="expressivo"] :is(.mantine-Card-root,.mantine-Paper-root) { border-radius:var(--funilador-radius-painel); }
+html[data-funilador-estilo="expressivo"] .mantine-Card-root { background-image:linear-gradient(145deg,color-mix(in srgb,var(--mantine-primary-color-filled) 7%,transparent),transparent 65%); }
+html[data-funilador-estilo="expressivo"] .mantine-Card-root[data-with-border] { border-color:color-mix(in srgb,var(--mantine-primary-color-filled) 24%,var(--mantine-color-default-border)); }
+html[data-funilador-densidade="compacta"] .mantine-AppShell-navbar .mantine-NavLink-root { min-height:32px; padding-block:5px; }
+html[data-funilador-densidade="confortavel"] .mantine-AppShell-navbar .mantine-NavLink-root { min-height:44px; padding-block:10px; }
+/* reduzir efeitos sem remover elementos nem mudar a navegação */
+html[data-funilador-movimento="reduzido"] *,html[data-funilador-movimento="reduzido"] *::before,html[data-funilador-movimento="reduzido"] *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+@media(prefers-reduced-motion:reduce) { html *,html *::before,html *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+/* controles e prévia */
+.funilador-amostra-cor { width:34px; height:34px; border-radius:50%; color:white; font-weight:700; text-align:center; border:2px solid var(--mantine-color-default-border); }
+.funilador-amostra-cor[aria-pressed="true"] { outline:2px solid var(--mantine-color-text); outline-offset:2px; }
+.funilador-amostra-cor:focus-visible { outline:3px solid var(--mantine-primary-color-filled); outline-offset:3px; }
+.funilador-amostra-cor:disabled { opacity:.65; cursor:not-allowed; }
+.funilador-previa { border:1px solid; border-radius:12px; display:grid; gap:10px; padding:12px; min-width:0; }
+.funilador-previa-grade { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.funilador-previa-card { padding:10px; border-radius:12px; border:1px solid color-mix(in srgb,currentColor 18%,transparent); min-width:0; overflow-wrap:anywhere; }
+.funilador-previa-botao { background:var(--previa-acento); border-radius:10px; padding:8px; text-align:center; font-size:12px; font-weight:600; color:white; }
+.funilador-previa[data-estilo="minimalista"] :is(.funilador-previa-card,.funilador-previa-botao) { border-radius:4px; }
+.funilador-previa[data-estilo="expressivo"] .funilador-previa-card { border-radius:18px; border-color:var(--previa-acento); background-image:linear-gradient(145deg,color-mix(in srgb,var(--previa-acento) 12%,transparent),transparent 65%); }
+.funilador-previa[data-estilo="expressivo"] .funilador-previa-botao { border-radius:40px; }
+.funilador-previa[data-densidade="compacta"] { padding:8px; gap:6px; }
+.funilador-previa[data-densidade="compacta"] .funilador-previa-card { padding:6px; }
+.funilador-previa[data-densidade="confortavel"] { padding:16px; gap:14px; }
+.funilador-previa[data-densidade="confortavel"] .funilador-previa-card { padding:14px; }

@@ -1,6 +1,6 @@
 .interativo { cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
-.interativo:hover { background-color: var(--mantine-color-default-hover); border-color: var(--mantine-color-violet-5); }
-.interativo:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+.interativo:hover { background-color: var(--mantine-color-default-hover); border-color: var(--mantine-primary-color-5); }
+.interativo:focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 2px; }
 .atividade { padding: 8px; border-radius: var(--mantine-radius-sm); }
 .chatPagina { height: calc(100dvh - 96px); min-height: 390px; }
 .chatGrid { display: grid; grid-template-columns: minmax(218px, 30%) minmax(0, 1fr); gap: var(--mantine-spacing-md); flex: 1; min-height: 0; }

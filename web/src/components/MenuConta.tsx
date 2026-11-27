@@ -1,7 +1,10 @@
-import { ActionIcon, Alert, Button, Group, Menu, Modal, PasswordInput, Radio, Stack, Text, TextInput, useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Alert, Button, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
 import { useEffect, useState, useRef } from "react";
 import type { SubmitEvent } from "react";
-import { useReducedMotion } from "@mantine/hooks";
+import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { normalizarAparencia } from "../lib/aparencia";
+import type { Aparencia } from "../lib/aparencia";
+import { EditorAparencia } from "./EditorAparencia";
 import classes from "../styles/Estrutura.module.css";
 
 const caminhos = {
@@ -29,13 +32,11 @@ export function MarcaPainel({lado}: {lado: "admin" | "cliente"}) {
     </Group>;
 }
 
-type TemaConta = "light" | "dark" | "auto";
-
-type DadosConta = {
+type DadosConta = Omit<Aparencia,"tema"> & {
     nome: string;
     email: string;
     admin: boolean;
-    tema: TemaConta | null;
+    tema: Aparencia["tema"] | null;
     proximaAlteracaoNome: string | null;
 };
 
@@ -95,8 +96,8 @@ function SenhaConta({voltar}: {voltar: () => void}) {
 }
 
 export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: {nome?: string | null; email?: string | null; sair: () => void; saindo?: boolean; aoAbrir?: () => void; aoAlterarNome?: (nome: string) => void}) {
-    const {colorScheme, setColorScheme} = useMantineColorScheme();
-    const reduzirMovimento = useReducedMotion();
+    const {aplicar} = useAparencia();
+    const reduzirMovimento = useMovimentoReduzido();
     const [aberta, setAberta] = useState(false);
     const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "senha">("menu");
     const [conta, setConta] = useState<DadosConta | null>(null);
@@ -113,11 +114,10 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
         void consultarConta("", undefined, controller.signal).then(dados => {
             if (!controller.signal.aborted) {
                 setConta(dados);
-                if (dados.tema) setColorScheme(dados.tema);
             }
         }).catch(() => {});
         return () => controller.abort();
-    }, [setColorScheme]);
+    }, []);
 
     async function carregar() {
         consulta.current?.abort();
@@ -131,7 +131,6 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
             if (controller.signal.aborted) return;
             setConta(dados);
             setNomeEditado(dados.nome);
-            if (dados.tema) setColorScheme(dados.tema);
         } catch (erroRecebido) {
             if (!controller.signal.aborted) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível carregar a conta");
         } finally {if (!controller.signal.aborted) setCarregando(false);}
@@ -167,15 +166,14 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
         } finally {setSalvando(false);}
     }
 
-    async function salvarTema(tema: string) {
-        if (tema !== "light" && tema !== "dark" && tema !== "auto") return;
+    async function salvarAparencia(valor: Aparencia) {
         setSalvando(true); setErro(""); setSucesso("");
         try {
-            const dados = await consultarConta("/preferencias", {tema});
-            setConta(dados); setColorScheme(tema);
-            setSucesso("Preferência salva.");
+            const dados = await consultarConta("/preferencias", valor);
+            setConta(dados); aplicar(normalizarAparencia({...dados,tema:dados.tema ?? undefined}));
+            setSucesso("Preferências salvas.");
         } catch (erroRecebido) {
-            setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível salvar a preferência");
+            setErro(erroRecebido instanceof Error ? erroRecebido.message : "Não foi possível salvar as preferências");
         } finally {setSalvando(false);}
     }
 
@@ -195,7 +193,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
             </Menu.Dropdown>
         </Menu>
         <ActionIcon hiddenFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" aria-haspopup="dialog" aria-expanded={aberta} onClick={() => abrir("menu")}><IconePainel nome="conta"/></ActionIcon>
-        <Modal opened={aberta} onClose={fechar} title={titulos[secao]} centered size="sm" classNames={{content:classes.accountDialog, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
+        <Modal opened={aberta} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:classes.accountDialog, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
             {secao === "menu" ? <Stack gap="xs">
                 <Text size="sm" fw={600} style={{overflowWrap:"anywhere"}}>{conta?.nome || nome || "Minha conta"}</Text>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="conta"/>} onClick={() => mudarSecao("dados")}>Minha conta</Button>
@@ -216,14 +214,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
                     <Button variant="default" disabled={salvando} onClick={() => mudarSecao("senha")}>Alterar senha</Button>
                 </>}
                 {!carregando && conta && secao === "preferencias" && <>
-                    <Radio.Group label="Aparência" description={conta.tema ? "Sua escolha será salva na conta." : `Tema atual: ${colorScheme === "dark" ? "escuro" : colorScheme === "light" ? "claro" : "automático"}. Selecione para salvar na conta.`} value={conta.tema ?? ""} onChange={v => void salvarTema(v)}>
-                        <Stack gap="xs" mt="xs">
-                            <Radio value="light" label="Claro" disabled={salvando}/>
-                            <Radio value="dark" label="Escuro" disabled={salvando}/>
-                            <Radio value="auto" label="Automático (sistema)" disabled={salvando}/>
-                        </Stack>
-                    </Radio.Group>
-                    <Text size="xs" c="dimmed">Outras opções de personalização serão adicionadas nas próximas etapas.</Text>
+                    <EditorAparencia inicial={normalizarAparencia({...conta,tema:conta.tema ?? undefined})} salvando={salvando} salvar={v=>void salvarAparencia(v)}/>
                 </>}
                 {!carregando && !conta && <Button variant="default" onClick={() => void carregar()}>Tentar novamente</Button>}
                 <Button variant="subtle" disabled={salvando} onClick={() => mudarSecao("menu")}>Voltar</Button>

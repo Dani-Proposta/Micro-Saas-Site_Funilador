@@ -1,20 +1,20 @@
 /* composição compacta e responsiva */
 .pagina { gap: clamp(16px, 2vw, 24px); }
-.grade { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 142px),1fr)); gap:8px; min-width:0; }
+.grade { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 142px),1fr)); gap:var(--funilador-gap-painel,8px); min-width:0; }
 .grade > * { min-width:0; max-width:100%; }
-.indicador { text-align:left; cursor:pointer; min-width:0; gap:8px; border-radius:12px; transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+.indicador { text-align:left; cursor:pointer; min-width:0; gap:var(--funilador-gap-painel,8px); border-radius:12px; transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
 .indicadorTopo { align-items:flex-start; min-height:30px; }
 .indicadorTopo > *:first-child { min-width:0; overflow-wrap:anywhere; line-height:1.3; }
-.icone { display:grid; place-items:center; width:27px; height:27px; flex:none; border-radius:8px; background:var(--mantine-color-violet-light); color:var(--mantine-color-violet-light-color); }
+.icone { display:grid; place-items:center; width:27px; height:27px; flex:none; border-radius:8px; background:var(--mantine-primary-color-light); color:var(--mantine-primary-color-light-color); }
 .numero { font-variant-numeric:tabular-nums; letter-spacing:-.025em; overflow-wrap:anywhere; min-width:0; }
 .seta { color:var(--mantine-color-dimmed); font-size:14px; line-height:1.3; flex:none; }
-.indicador:focus-visible { outline:2px solid var(--mantine-color-violet-5); outline-offset:2px; }
-@media (hover:hover) { .indicador:hover { border-color:var(--mantine-color-violet-5); background:var(--mantine-color-default-hover); } }
-.financeiro { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; }
+.indicador:focus-visible { outline:2px solid var(--mantine-primary-color-5); outline-offset:2px; }
+@media (hover:hover) { .indicador:hover { border-color:var(--mantine-primary-color-5); background:var(--mantine-color-default-hover); } }
+.financeiro { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--funilador-gap-painel,8px); min-width:0; }
 .financeiro > * { min-width:0; }
-.resumo { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.resumo { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--funilador-gap-painel,8px); }
 .resumo > * { min-width:0; }
-.destaque { grid-column:1/-1; background:var(--mantine-color-violet-light); border-color:var(--mantine-color-violet-light-hover); }
+.destaque { grid-column:1/-1; background:var(--mantine-primary-color-light); border-color:var(--mantine-primary-color-light-hover); }
 .financeCard { border-radius:12px; gap:6px; min-width:0; }
 .financeCard .numero { font-size:clamp(1.05rem, .9rem + .8vw, 1.45rem); line-height:1.3; }
 .destaque .numero { font-size:clamp(1.35rem,1.1rem + 1vw,1.9rem); }
@@ -24,20 +24,20 @@
 .trilho { height:86px; display:flex; flex-direction:column; justify-content:flex-end; background:var(--mantine-color-default-hover); border-radius:6px; overflow:hidden; }
 .recebido { background:var(--mantine-color-teal-6); }
 .previsto { background:var(--mantine-color-violet-5); }
-.colunaAtual .trilho { outline:1px solid var(--mantine-color-violet-5); outline-offset:1px; }
+.colunaAtual .trilho { outline:1px solid var(--mantine-primary-color-5); outline-offset:1px; }
 .rotuloMes { display:block; font-size:10px; margin-top:6px; font-variant-numeric:tabular-nums; }
 .detalhesGrafico { font-size:var(--mantine-font-size-xs); color:var(--mantine-color-dimmed); }
 .detalhesGrafico summary { cursor:pointer; }
 .linhaGrafico { display:grid; grid-template-columns: minmax(40px,.55fr) minmax(0,1fr) minmax(0,1fr); gap:6px; padding-block:4px; overflow-wrap:anywhere; }
-.projetos { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); gap:8px; }
+.projetos { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); gap:var(--funilador-gap-painel,8px); }
 .projeto { min-width:0; text-align:left; cursor:pointer; gap:7px; }
-.projeto:focus-visible { outline:2px solid var(--mantine-color-violet-5); outline-offset:2px; }
-@media (hover:hover) { .projeto:hover { border-color:var(--mantine-color-violet-5); } }
+.projeto:focus-visible { outline:2px solid var(--mantine-primary-color-5); outline-offset:2px; }
+@media (hover:hover) { .projeto:hover { border-color:var(--mantine-primary-color-5); } }
 .srOnly { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 @media(min-width:75em) { .financeiro { grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); } }
 @media(max-width:25em) { .resumo { grid-template-columns:minmax(0,1fr); } .grade { grid-template-columns:repeat(auto-fit,minmax(min(100%,128px),1fr)); } }
 @media(prefers-reduced-motion:reduce) { .indicador { transition:none; } }
 .pendencia { gap:5px; min-width:0; }
 .pendencia :global(.mantine-Text-root) { overflow-wrap:anywhere; }
-.pendencias { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+.pendencias { display:grid; gap:var(--funilador-gap-painel,8px); grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
 .pendencias:empty { display:none; }

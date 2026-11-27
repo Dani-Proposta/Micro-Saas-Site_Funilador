@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "@mantine/hooks";
+import { useMovimentoReduzido } from "../lib/contextoAparencia";
 import { Card, Group, Text } from "@mantine/core";
 import { IconePainel } from "./MenuConta";
 import type { ComponentProps } from "react";
@@ -7,7 +7,7 @@ import classes from "../styles/Dashboard.module.css";
 
 //animar apenas contagens, sem interpolar valores financeiros
 export function ContadorDashboard({valor}: {valor: number | null}) {
-    const reduzir = useReducedMotion();
+    const reduzir = useMovimentoReduzido();
     const [visivel, setVisivel] = useState(0);
     const anterior = useRef(0);
     useEffect(() => {
