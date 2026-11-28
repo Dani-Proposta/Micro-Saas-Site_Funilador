@@ -1,3 +1,5 @@
+import { detectarNovidades, detectarUrgencias, type ReferenciaAvisos } from "../lib/avisosRecebidos";
+import { toast } from "../lib/toasts";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { TransicaoConteudo } from "./InteracaoModerna";
@@ -99,20 +101,36 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const [erroPendencias, setErroPendencias] = useState(false);
     const [consultandoPendencias,setConsultandoPendencias] = useState(false);
     const [consultandoEventos,setConsultandoEventos] = useState(false);
+    const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
+    const referenciaEventos = useRef<ReferenciaAvisos|null>(null);
+    const referenciaUrgencias = useRef<ReadonlySet<string>|null>(null);
+    const abrirAvisos = useCallback((secao: "eventos"|"pendencias")=>{
+        ultimoPedido.current=-1;
+        setPagina(0);
+        setSecaoRapida(secao);
+        setConfirmarLimpeza(false);
+        setAberta(true);
+    },[]);
+
     const carregarPendencias = useCallback(async (signal: AbortSignal) => {
         setConsultandoPendencias(true);
         try {
             const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal,cache:"no-store"});
             if (!resposta.ok) {
-                if (!signal.aborted && [401,403].includes(resposta.status)) setPendencias([]);
+                if (!signal.aborted && [401,403].includes(resposta.status)) {setPendencias([]); referenciaUrgencias.current=null;}
                 throw new Error("Falha ao carregar pendências");
             }
-            const dados = await resposta.json();
-            if (!signal.aborted) {setPendencias(dados); setErroPendencias(false);}
+            const dados: Pendencia[] = await resposta.json();
+            if (!Array.isArray(dados)) throw new Error("Resposta de pendências inválida");
+            if (!signal.aborted) {
+                const {referencia,novos}=detectarUrgencias(referenciaUrgencias.current,dados);
+                referenciaUrgencias.current=referencia;
+                setPendencias(dados); setErroPendencias(false);
+                if(novos.length) toast.mostrar("aviso",{cor:"red",titulo:"Atenção imediata",duracao:12000,mensagem:<Stack gap={4}><Text size="sm">{novos.length===1 ? `${novos[0].titulo} · ${novos[0].categoria==="pagamento_atrasado" ? "Pagamento atrasado" : "Entrega atrasada"}` : `${novos.length} pendências urgentes identificadas.`}</Text><Button color="red" variant="light" size="compact-sm" onClick={()=>abrirAvisos("pendencias")}>Ver pendências</Button></Stack>});
+            }
         } catch {if (!signal.aborted) setErroPendencias(true);} finally {if (!signal.aborted) setConsultandoPendencias(false);}
-    },[lado]);
+    },[lado,abrirAvisos]);
     const atualizarPendencias = useAtualizacaoPeriodica(carregarPendencias,30000);
-    const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
     const revisao = useRef(0);
     const bloqueio = useRef(false);
 
@@ -124,7 +142,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                 const resposta = await fetch(`${prefixo}?pagina=${p}`, {signal, cache: "no-store"});
                 const dados = await resposta.json();
                 if (!resposta.ok) {
-                    if (!signal.aborted && versao === revisao.current && [401,403].includes(resposta.status)) setResumo(null);
+                    if (!signal.aborted && versao === revisao.current && [401,403].includes(resposta.status)) {setResumo(null); referenciaEventos.current=null;}
                     throw new Error(dados.erro ?? "Não foi possível consultar notificações.");
                 }
                 if (!Array.isArray(dados.itens)) throw new Error("Resposta de notificações inválida.");
@@ -132,6 +150,16 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
             }
             const dados = await buscar(infinito ? 0 : pagina);
             if (signal.aborted || versao !== revisao.current) return;
+            // Mesmo consultando uma página antiga, observe as notificações mais recentes.
+            const recentes = infinito || pagina===0 ? dados : await buscar(0);
+            if (signal.aborted || versao !== revisao.current) return;
+            const {referencia,novos}=detectarNovidades(referenciaEventos.current,recentes.itens);
+            referenciaEventos.current=referencia;
+            if(novos.length) {
+                const importante=novos.some(n=>n.prioridade==="importante");
+                const titulo=novos.length===1 ? (novos[0].tipo==="mensagem"?"Nova mensagem":"Nova notificação") : "Novas notificações";
+                toast.mostrar(importante?"aviso":"info",{titulo,duracao:importante?10000:7000,mensagem:<Stack gap={4}><Text size="sm">{novos.length===1?novos[0].titulo:`${novos.length} grupos com novidades.`}</Text><Button size="compact-sm" variant="light" onClick={()=>abrirAvisos("eventos")}>Ver notificações</Button></Stack>});
+            }
             if (infinito) {
                 // A API ordena por prioridade e data; releia as páginas já abertas para
                 // não misturar offsets antigos com uma nova ordenação após uma leitura.
@@ -148,7 +176,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         } catch (e) {
             if (!signal.aborted && versao === revisao.current) setErro(e instanceof Error ? e.message : "Falha ao consultar notificações.");
         } finally {if (!signal.aborted) setConsultandoEventos(false);}
-    }, [prefixo, pagina, infinito]);
+    }, [prefixo, pagina, infinito, abrirAvisos]);
     const atualizar = useAtualizacaoPeriodica(carregar, 15000);
     useEffect(() => {
         window.addEventListener(EVENTO_LEITURA, atualizar);

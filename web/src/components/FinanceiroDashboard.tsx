@@ -4,6 +4,7 @@ import { CartaoValor, ComparativoMensal } from "./InteracaoModerna";
 import { IconeModerno } from "./AcabamentoModerno";
 import { Carregamento } from "./Carregamento";
 import { BentoDashboard } from "./BentoDashboard";
+import { BentoFinanceiro } from "./expressivo/BentoFinanceiro";
 import { useAparencia } from "../lib/contextoAparencia";
 import { IconArrowUpRight } from "@tabler/icons-react";
 import { useCallback, useRef, useState } from "react";
@@ -84,7 +85,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
         {dados && <>
             {consulta?.revisao !== revisao && <Text size="xs" c="dimmed">Atualizando valores...</Text>}
             {!completo ? <BentoDashboard className={visual.financeiro}>
-                <div className={visual.resumo}>
+                {expressivo ? <BentoFinanceiro total={dados.totalMes} recebido={dados.recebidoMes} previsto={dados.aReceberMes} anterior={anterior} repeticao={repeticao} abrirFinanceiro={()=>navigate("/financeiro")} abrirRecebidos={()=>selecionar("recebidos")} abrirPrevistos={()=>selecionar("mes")}/> : <div className={visual.resumo}>
                     {moderno ? <CartaoValor className={`${visual.financeCard} ${visual.destaque}`} titulo="Total estimado do mês" valor={dados.totalMes} repeticao={repeticao} icone={<IconeModerno nome="estimado" tamanho={23}/>} descricao="Recebido + previsto no mês, sem atrasados" rotulo="Abrir Financeiro" acao={()=>navigate("/financeiro")}/> : <Card withBorder padding="sm" className={`${visual.financeCard} ${visual.destaque}`}>
                         <Group justify="space-between" wrap="nowrap" gap={6} className={visual.financeTopo}><Text size="xs" fw={500}>Total estimado do mês</Text><span className={visual.iconeAuxiliar}><IconePainel nome="financeiro" tamanho={18}/></span></Group>
                         <Text fw={700} className={visual.numero}>{formatarValor(dados.totalMes)}</Text>
@@ -95,7 +96,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
                         <Text fw={700} c={item.cor} className={visual.numero}>{formatarValor(item.valor)}</Text>
                         <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria)}>Consultar</Button>
                     </Card>)}
-                </div>
+                </div>}
                 {moderno ? <GraficoFinanceiro className={visual.grafico} titulo="Previsão de recebimentos" subtitulo="Este mês + 5 meses" meses={dados.meses} previsao mesAtual={dados.hoje.slice(0,7)} onMes={m=>selecionarMes(m,true)} onRecebido={m=>selecionarMes(m,false)} controle={expressivo ? undefined : <Button size="compact-xs" variant="subtle" rightSection={<IconArrowUpRight size={15}/>} onClick={()=>navigate("/financeiro?categoria=recebidos")}>Recebimentos</Button>}/> : <Card withBorder padding="sm" className={visual.grafico}><Stack gap="xs">
                     <Group justify="space-between" wrap="wrap" gap={4}><Text fw={600} size="sm">Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
                     <Group gap={6} wrap="wrap" className={visual.legendaOriginal}><Badge color="teal" variant="light" size="sm">Recebido</Badge><Badge color="violet" variant="light" size="sm">Previsto</Badge></Group>

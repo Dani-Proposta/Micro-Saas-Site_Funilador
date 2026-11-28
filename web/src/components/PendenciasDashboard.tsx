@@ -1,8 +1,9 @@
 import { NumeroModerno, ValorUrgencia } from "./InteracaoModerna";
 import { useModerno } from "../hooks/useInteracaoModerna";
+import { useMovimentoReduzido } from "../lib/contextoAparencia";
 import { IconeModerno } from "./AcabamentoModerno";
 import { Carregamento } from "./Carregamento";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, MouseEvent } from "react";
 import classes from "../styles/Estrutura.module.css";
 import visual from "../styles/Dashboard.module.css";
@@ -48,6 +49,7 @@ const categoriasCliente: Categoria[] = ["pagamento_atrasado", "pagamento_pendent
 export function PendenciasDashboard({lado, children, destaque, mostrarZerados: externo, onMostrarZerados, outrosZerados = false, compacto = false}: {lado: "admin" | "cliente"; children?: ReactNode; destaque?: (dados: Pendencia[] | null, erro: string | null, atualizar: () => void) => ReactNode; mostrarZerados?: boolean; onMostrarZerados?: (valor: boolean) => void; outrosZerados?: boolean; compacto?: boolean}) {
     const navigate = useNavigate();
     const moderno = useModerno();
+    const reduzir = useMovimentoReduzido();
     const [dados, setDados] = useState<Pendencia[] | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [filtro, setFiltro] = useState<Categoria | "todos">("todos");
@@ -57,6 +59,19 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
     const mostrarZerados = externo ?? interno;
     const setMostrarZerados = onMostrarZerados ?? setInterno;
     const detalhesRef = useRef<HTMLDivElement>(null);
+    const [pedidoRolagem,setPedidoRolagem] = useState(0);
+    const rolagemAtendida = useRef(0);
+    useEffect(() => {
+        if (pedidoRolagem === rolagemAtendida.current) return;
+        const quadro = requestAnimationFrame(() => {
+            const destino = detalhesRef.current;
+            if (!destino) return;
+            rolagemAtendida.current = pedidoRolagem;
+            destino.focus({preventScroll:true});
+            destino.scrollIntoView({block:"start", behavior:reduzir ? "instant" : "smooth"});
+        });
+        return () => cancelAnimationFrame(quadro);
+    }, [pedidoRolagem, reduzir]);
     const [atualizando,setAtualizando] = useState(false);
     const [repeticao,setRepeticao] = useState(0);
     const repetir = useRef(false);
@@ -78,11 +93,8 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
     const visiveis = selecionarPendencias(selecionados.flatMap(c => (dados ?? []).filter(p => p.categoria === c.id)), filtro);
     const selecionar = (id: Categoria | "todos") => {
         setFiltro(id); setLimite(6);
-        if (compacto) {setDetalhesAbertos(true);return;}
-        if (id !== "todos") {
-            detalhesRef.current?.focus({preventScroll:true});
-            detalhesRef.current?.scrollIntoView({block:"start", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
-        }
+        if (compacto) setDetalhesAbertos(true);
+        setPedidoRolagem(n=>n+1);
     };
 
     function abrir(item: Pendencia) {
@@ -90,9 +102,9 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
         if (caminho) navigate(caminho, {state: {voltarPara: lado === "admin" ? "/" : "/portal"}});
     }
 
-    const urgentes = lado === "cliente" && moderno ? (dados ?? []).filter(p=>p.categoria === "pagamento_atrasado" && !!caminhoPendencia(lado,p)) : [];
+    const urgentes = lado === "cliente" && (moderno || compacto) ? (dados ?? []).filter(p=>p.categoria === "pagamento_atrasado" && !!caminhoPendencia(lado,p)) : [];
     return <Stack gap="sm">
-        {compacto && urgentes.length>0 && <Card withBorder className="funilador-urgencias ex-urgencia-resumo"><Group justify="space-between" align="center" wrap="wrap"><Group gap="sm" wrap="nowrap"><IconeModerno nome="alerta" tamanho={26}/><Stack gap={2}><Title order={3}>Atenção imediata</Title><Text size="sm">{urgentes[0].total} {urgentes[0].total===1?"pagamento atrasado":"pagamentos atrasados"}{urgentes[0].totalValor != null && <> · <ValorUrgencia valor={urgentes[0].totalValor} repeticao={repeticao}/></>}</Text></Stack></Group><Button color="red" variant="light" onClick={()=>{selecionar("pagamento_atrasado");detalhesRef.current?.scrollIntoView({block:"start",behavior:"auto"});}}>Ver urgências ↗</Button></Group></Card>}
+        {compacto && urgentes.length>0 && <Card withBorder className={moderno ? "funilador-urgencias ex-urgencia-resumo" : visual.pendencia} data-prioridade="red"><Group justify="space-between" align="center" wrap="wrap"><Group gap="sm" wrap="nowrap" style={{minWidth:0,maxWidth:"100%"}}><IconeModerno nome="alerta" tamanho={26}/><Stack gap={2} style={{minWidth:0,overflowWrap:"anywhere"}}><Title order={3}>Atenção imediata</Title><Text size="sm">{urgentes[0].total} {urgentes[0].total===1?"pagamento atrasado":"pagamentos atrasados"}{urgentes[0].totalValor != null && <> · <ValorUrgencia valor={urgentes[0].totalValor} repeticao={repeticao}/></>}</Text></Stack></Group><Button color="red" variant="light" onClick={()=>selecionar("pagamento_atrasado")}>Ver urgências ↗</Button></Group></Card>}
         {!compacto && urgentes.length>0 && <Card withBorder className="funilador-urgencias"><Stack gap="sm"><Group gap={8}><IconeModerno nome="alerta" tamanho={24}/><Title order={3}>Atenção imediata</Title><Badge color="red">{urgentes[0].total} urgente(s)</Badge></Group>{urgentes.slice(0,3).map((item,i)=><button type="button" key={`${item.projetoId}-${item.marcoId}-${i}`} className="funilador-urgencia-item" onClick={()=>abrir(item)}><span><strong>{item.titulo}</strong><small>{item.subtitulo} · {item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</small></span><span className="funilador-urgencia-valor"><span>{item.valor != null && <ValorUrgencia valor={item.valor} repeticao={repeticao}/>}</span><IconeModerno nome="abrir"/></span></button>)}{urgentes[0].total>3 && <Button color="red" variant="light" onClick={()=>selecionar("pagamento_atrasado")}>Ver todas as urgências</Button>}</Stack></Card>}
         {destaque?.(dados, erro, atualizar)}
         <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={classes.sectionHeader}>
@@ -101,7 +113,7 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
         </Group>
         {erro && <Alert color="red">{erro}{dados && " Exibindo a última consulta."}</Alert>}
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando pendências..."/>}
-        {compacto && dados && <Card withBorder className="ex-pendencias-resumo" ref={detalhesRef} tabIndex={-1}><Stack gap="sm">
+        {compacto && dados && <Card withBorder className="ex-pendencias-resumo"><Stack gap="sm">
             <Group justify="space-between" align="center" wrap="wrap"><Stack gap={3}><Text fw={700}>Ações e pendências</Text><Text size="xs" c="dimmed">{disponiveis.every(c=>quantidade(c.id)===0)?"Tudo em dia por aqui.":"Escolha uma categoria para consultar os registros."}</Text></Stack><Button size="xs" variant="light" aria-expanded={detalhesAbertos} onClick={()=>{if(detalhesAbertos)setDetalhesAbertos(false);else selecionar("todos");}}>{detalhesAbertos?"Recolher detalhes":"Ver todas"}</Button></Group>
             <Group gap="xs" wrap="wrap">{disponiveis.filter(c=>quantidade(c.id)>0||mostrarZerados).map(c=><Button key={c.id} size="xs" variant={detalhesAbertos&&filtro===c.id?"filled":"light"} color={c.cor} aria-pressed={detalhesAbertos&&filtro===c.id} onClick={()=>selecionar(c.id)}>{c.nome} · {quantidade(c.id)}</Button>)}</Group>
             {disponiveis.some(c=>quantidade(c.id)===0)&&<Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={()=>setMostrarZerados(!mostrarZerados)}>{mostrarZerados?"Ocultar categorias zeradas":"Mostrar categorias zeradas"}</Button>}
@@ -117,7 +129,7 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
             {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
         </>}
         {children}
-        {dados && (!compacto || detalhesAbertos) && (compacto || visiveis.length > 0 || filtro !== "todos" || mostrarZerados) && <Stack gap="sm" mt="sm" ref={compacto ? undefined : detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
+        {dados && (!compacto || detalhesAbertos) && (compacto || visiveis.length > 0 || filtro !== "todos" || mostrarZerados) && <Stack gap="sm" mt="sm" ref={detalhesRef} tabIndex={-1} className={classes.section} aria-label="Pendências detalhadas">
             <Group justify="space-between"><Title order={4}>{filtro === "todos" ? "Pendências detalhadas" : disponiveis.find(c => c.id === filtro)?.nome}</Title>{filtro !== "todos" && <Button size="compact-xs" variant="subtle" onClick={() => selecionar("todos")}>Mostrar todas</Button>}</Group>
             {visiveis.length === 0 && filtro !== "todos" && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
             {visiveis.length === 0 && filtro === "todos" && (mostrarZerados || compacto) && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}

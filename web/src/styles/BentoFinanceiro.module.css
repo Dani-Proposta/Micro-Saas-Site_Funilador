@@ -1,0 +1,46 @@
+/* Expressivo — resumo financeiro exclusivo do Dashboard; sem estilos globais. */
+.estrutura {container-type:inline-size;min-width:0;width:100%;}
+.grade {display:grid;grid-template-columns:minmax(0,1.2fr) repeat(2,minmax(0,1fr));gap:12px;align-items:stretch;}
+.card {--tom:var(--mantine-primary-color-5);--tinta:var(--mantine-primary-color-light-color);--base:var(--mantine-color-body);position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:stretch;gap:12px;min-width:0;width:100%;padding:18px;border:1px solid color-mix(in srgb,var(--tom) 58%,var(--mantine-color-default-border));border-radius:23px;overflow:hidden;text-align:start;cursor:pointer;font:inherit;color:var(--mantine-color-text);background:linear-gradient(145deg,color-mix(in srgb,var(--tom) 15%,var(--base)),color-mix(in srgb,var(--tom) 7%,var(--mantine-color-default)));box-shadow:0 10px 27px -19px var(--tom),inset 0 1px 0 color-mix(in srgb,var(--tom) 30%,transparent);transition:border-color .25s,box-shadow .3s;touch-action:manipulation;}
+.card::before,.card::after {content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;}
+.estimado::before {background:repeating-radial-gradient(circle at 92% 4%,transparent 0 20px,color-mix(in srgb,var(--tom) 20%,transparent) 21px 22px,transparent 23px 35px);mask-image:linear-gradient(115deg,transparent 25%,#000);}
+.estimado::after {background:linear-gradient(112deg,transparent 18%,color-mix(in srgb,var(--tom) 20%,transparent) 38%,color-mix(in srgb,var(--mantine-color-text) 10%,transparent) 48%,transparent 62%);background-size:240% 100%;animation:reflexo 8s ease-in-out infinite alternate;}
+.estimado[data-conquista="true"] {box-shadow:0 9px 33px -17px var(--mantine-color-teal-5),inset 0 0 22px color-mix(in srgb,var(--mantine-color-teal-5) 12%,transparent);}
+.recebido[data-positivo="true"] {--tom:var(--mantine-color-teal-5);--tinta:var(--mantine-color-teal-light-color);}
+.recebido::before {background:radial-gradient(circle,var(--tom) 1px,transparent 2px) 0 0/15px 15px;opacity:.27;mask-image:radial-gradient(ellipse at 95% 10%,#000,transparent 76%);animation:particulas 7s ease-in-out infinite alternate;}
+.recebido::after {background:radial-gradient(ellipse at 95% 0%,color-mix(in srgb,var(--tom) 30%,transparent),transparent 72%);}
+.previsto {--tom:var(--mantine-color-gray-6);--tinta:var(--mantine-color-text);}
+.previsto[data-pendente="true"] {--tom:var(--mantine-color-orange-5);--tinta:var(--mantine-color-orange-light-color);}
+.previsto::before {background:repeating-linear-gradient(125deg,transparent 0 25px,color-mix(in srgb,var(--tom) 13%,transparent) 26px 27px,transparent 28px 50px);mask-image:linear-gradient(125deg,transparent 30%,#000);}
+.previsto::after {background:radial-gradient(ellipse at 88% 15%,color-mix(in srgb,var(--tom) 30%,transparent),transparent 70%);opacity:.55;animation:halo 6s ease-in-out infinite alternate;}
+.topo {display:flex;align-items:center;gap:10px;min-width:0;font-size:14px;font-weight:650;line-height:1.3;min-height:42px;}
+.topo > :last-child {min-width:0;overflow-wrap:anywhere;}
+.icone {display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:14px;color:var(--tinta);background:color-mix(in srgb,var(--tom) 18%,var(--mantine-color-body));border:1px solid color-mix(in srgb,var(--tom) 48%,transparent);transition:transform .3s cubic-bezier(.2,1.5,.4,1);}
+.valor {display:block;min-width:0;font-size:clamp(20px,3cqi,34px);font-weight:780;line-height:1.25;letter-spacing:-.035em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;color:var(--mantine-color-text);}
+.recebido[data-positivo="true"] .valor {color:var(--tinta);}
+.descricao {font-size:12px;line-height:1.45;color:var(--mantine-color-dimmed);min-width:0;overflow-wrap:anywhere;}
+.composicao {display:flex;flex-direction:column;gap:7px;margin-top:auto;min-width:0;}
+.proporcao,.legenda {display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 8px;font-size:11px;line-height:1.3;}
+.proporcao > span:first-child {font-weight:700;display:inline-flex;align-items:center;gap:4px;}
+.proporcao > span:last-child {color:var(--mantine-color-dimmed);}
+.trilho {display:block;position:relative;overflow:hidden;width:100%;height:11px;border-radius:99px;background:color-mix(in srgb,var(--mantine-color-orange-5) 65%,var(--mantine-color-body));}
+.trilho[data-disponivel="false"] {background:var(--mantine-color-default-border);}
+.preenchimento {display:block;height:100%;max-width:100%;background:linear-gradient(90deg,var(--mantine-color-teal-7),var(--mantine-color-teal-4));border-radius:99px 0 0 99px;}
+.estimado[data-conquista="true"] .preenchimento {border-radius:99px;background-size:180% 100%;animation:reflexo 3s ease-in-out infinite alternate;}
+.legenda > span {display:inline-flex;align-items:center;gap:5px;color:var(--mantine-color-dimmed);}
+.legenda i {width:8px;height:8px;border-radius:50%;background:var(--mantine-color-teal-5);}
+.legenda > span:last-child i {background:var(--mantine-color-orange-5);}
+.sinal {display:flex;align-items:center;gap:7px;min-height:31px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--tom) 35%,transparent);border-radius:12px;background:color-mix(in srgb,var(--tom) 10%,var(--mantine-color-body));font-size:12px;font-weight:650;color:var(--tinta);margin-top:auto;overflow-wrap:anywhere;}
+.sinal svg {flex:none;}
+.acao {display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--tom) 40%,var(--mantine-color-default-border));color:var(--mantine-color-text);font-size:12px;font-weight:750;}
+.acao svg {flex:none;transition:transform .25s;}
+.card:focus-visible {outline:2px solid var(--tom);outline-offset:-4px;}
+@media(hover:hover) and (pointer:fine) {.card:hover {border-color:var(--tom);box-shadow:0 8px 30px -10px var(--tom),inset 0 0 20px color-mix(in srgb,var(--tom) 13%,transparent);}.card:hover .icone {transform:rotate(-9deg) scale(1.12);}.card:hover .acao svg {transform:translate(2px,-2px);}.card:hover::after {opacity:1;animation-duration:2s;}}
+.card:active .icone {transform:scale(.92);}
+@keyframes reflexo {from{background-position:0% 0;}to{background-position:100% 0;}}
+@keyframes particulas {from{opacity:.19; background-position:0 0;}to{opacity:.48;background-position:15px -15px;}}
+@keyframes halo {from{opacity:.25;}to{opacity:.8;}}
+@container (max-width:700px) {.grade {grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}.estimado {grid-column:1/-1;}.card {padding:13px;gap:9px;border-radius:19px;}.valor {font-size:clamp(17px,5.6cqi,27px);}.estimado .valor {font-size:clamp(24px,7.7cqi,34px);}.topo {font-size:12px;gap:7px;}.icone {width:35px;height:35px;border-radius:11px;}.sinal {padding:7px;font-size:11px;}.acao {min-height:34px;}}
+@container (max-width:335px) {.grade {grid-template-columns:minmax(0,1fr);}.estimado {grid-column:auto;}.valor {font-size:24px;}.card {gap:8px;}}
+.estrutura[data-reduzido="true"] :is(.card,.icone,.acao svg,.preenchimento),.estrutura[data-reduzido="true"] .card::before,.estrutura[data-reduzido="true"] .card::after {animation:none!important;transition:none!important;transform:none!important;}
+@media(prefers-reduced-motion:reduce) {.estrutura :is(.card,.icone,.acao svg,.preenchimento),.estrutura .card::before,.estrutura .card::after {animation:none!important;transition:none!important;transform:none!important;}}

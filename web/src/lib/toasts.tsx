@@ -2,7 +2,7 @@ import { notifications } from "@mantine/notifications";
 import type { ReactNode } from "react";
 
 export type TipoToast = "sucesso" | "info" | "aviso" | "erro" | "carregando";
-type ToastDados = {titulo: string; mensagem: ReactNode; duracao?: number | false};
+type ToastDados = {titulo: string; mensagem: ReactNode; duracao?: number | false; cor?: string};
 const cores = {sucesso:"teal", info:"blue", aviso:"orange", erro:"red", carregando:"blue"} as const;
 const duracoes = {sucesso:4000, info:5000, aviso:7000, erro:10000, carregando:false} as const;
 const caminhos = {
@@ -23,7 +23,7 @@ function opcoes(tipo: TipoToast, dados: ToastDados) {
     return {
         title: dados.titulo,
         message: dados.mensagem,
-        color: cores[tipo],
+        color: dados.cor ?? cores[tipo],
         loading: tipo === "carregando",
         icon: tipo === "carregando" ? undefined : icone(tipo),
         autoClose: dados.duracao ?? duracoes[tipo],

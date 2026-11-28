@@ -53,3 +53,17 @@ html[data-funilador-movimento="reduzido"] .funilador-toast * { transition: none 
 html[data-funilador-estilo="minimalista"] .funilador-toasts[data-layout="default"] :is(.funilador-toast-item, .funilador-toast) + :is(.funilador-toast-item, .funilador-toast) {
     margin-top: 8px;
 }
+
+/* 06.5.7.8 — ações dos toasts estáveis no Expressivo (desktop e mobile). */
+html[data-funilador-estilo="expressivo"] .funilador-toasts {
+    pointer-events: none;
+}
+html[data-funilador-estilo="expressivo"] .funilador-toasts :is(.funilador-toast-item, .funilador-toast) {
+    pointer-events: auto;
+}
+html[data-funilador-estilo="expressivo"] .funilador-toasts button {
+    touch-action: manipulation;
+    pointer-events: auto;
+    transform: none !important;
+    transition-property: background-color, color, border-color, box-shadow, background-position !important;
+}

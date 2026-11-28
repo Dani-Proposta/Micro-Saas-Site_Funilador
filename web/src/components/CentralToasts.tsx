@@ -46,7 +46,8 @@ export function CentralToasts({sessaoId}: {sessaoId: string | null}) {
             zIndex={1100}
             transitionDuration={reduzir ? 0 : aparencia.estilo === "minimalista" ? 120 : 250}
             pauseResetOnHover="notification"
-            allowDragDismiss={(aparencia.estilo === "moderno" && !mobile) || expressivo}
+            // No Expressivo, preservar os cliques nas ações dos avisos em vez de capturar o ponteiro para arraste.
+            allowDragDismiss={aparencia.estilo === "moderno" && !mobile && !expressivo}
             allowScrollDismiss={false}
             notificationMaxHeight={360}
         />
