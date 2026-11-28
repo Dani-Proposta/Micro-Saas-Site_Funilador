@@ -29,6 +29,8 @@ function hoje() { return new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao
 export function CampoData({label, value, onChange, description, disabled, required = false, minDate, maxDate}: Props) {
     const {aparencia} = useAparencia();
     const reduzir = useMovimentoReduzido();
+
+    const moderno = aparencia.estilo === "moderno";
     const [diaBase, setDiaBase] = useState(hoje);
     const atualizarHoje = () => setDiaBase(hoje());
     const permitida = (data: string) => (!minDate || data >= minDate) && (!maxDate || data <= maxDate);
@@ -66,7 +68,7 @@ export function CampoData({label, value, onChange, description, disabled, requir
             classNames:{dropdown:`funilador-calendario funilador-calendario--${aparencia.estilo}`},
             radius: aparencia.estilo === "minimalista" ? 6 : undefined,
             shadow: aparencia.estilo === "minimalista" ? "xs" : "md",
-            transitionProps:{transition:"fade", duration:reduzir ? 0 : 120},
+            transitionProps:{transition:moderno ? "pop-top-left" : "fade", duration:reduzir ? 0 : moderno ? 280 : 120},
             middlewares:{flip:true, shift:true},
         }}
     />;
@@ -76,6 +78,8 @@ export function CampoData({label, value, onChange, description, disabled, requir
 export function CampoMes({label, value, onChange, maxDate, disabled}: {label: string; value: string; onChange: (valor: string) => void; maxDate?: string; disabled?: boolean}) {
     const {aparencia} = useAparencia();
     const reduzir = useMovimentoReduzido();
+
+    const moderno = aparencia.estilo === "moderno";
     const mesValido = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(value);
     return <MonthPickerInput
         label={label}
@@ -95,7 +99,7 @@ export function CampoMes({label, value, onChange, maxDate, disabled}: {label: st
             classNames:{dropdown:`funilador-calendario funilador-calendario--${aparencia.estilo}`},
             radius: aparencia.estilo === "minimalista" ? 6 : undefined,
             shadow: aparencia.estilo === "minimalista" ? "xs" : "md",
-            transitionProps:{transition:"fade", duration:reduzir ? 0 : 120},
+            transitionProps:{transition:moderno ? "pop-top-left" : "fade", duration:reduzir ? 0 : moderno ? 280 : 120},
             middlewares:{flip:true, shift:true},
         }}
     />;

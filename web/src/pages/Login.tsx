@@ -1,3 +1,4 @@
+import { MolduraAcesso } from "../components/MolduraAcesso";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Alert, Button, Paper, PasswordInput, Stack, TextInput, Title, } from "@mantine/core";
@@ -43,13 +44,13 @@ export function Login(){
     //visual
 
     return(
-        <Paper withBorder p="xl" radius="md" maw={420} mx="auto">
+        <MolduraAcesso etapa="login"><Paper withBorder p="xl" radius="md" maw={420} mx="auto">
             <form onSubmit={fazerLogin}>
                 <Stack gap="md">
                     <Title order={2}>Entrar no painel</Title>
 
-                    <TextInput label="Email" type="email" required value={email} onChange={(event) => setEmail(event.currentTarget.value)}/>
-                    <PasswordInput label="Senha" required value={senha} onChange={(event) => setSenha(event.currentTarget.value)}/>
+                    <TextInput label="Email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.currentTarget.value)}/>
+                    <PasswordInput label="Senha" autoComplete="current-password" required value={senha} onChange={(event) => setSenha(event.currentTarget.value)}/>
                     {erro && <Alert color="red">{erro}</Alert>}
                     <Button type="submit" loading={entrando}>Entrar</Button>
                     <Button type="button" variant="subtle" size="sm" onClick={()=>setAjuda(v=>!v)}>Esqueci minha senha</Button>
@@ -57,7 +58,7 @@ export function Login(){
                     {ajuda && <Button type="button" variant="default" size="sm" onClick={()=>navigate("/redefinir")}>Já tenho um código</Button>}
                 </Stack>
             </form>
-        </Paper>
+        </Paper></MolduraAcesso>
     );
 
 }

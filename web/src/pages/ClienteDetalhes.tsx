@@ -102,7 +102,7 @@ export function ClienteDetalhes() {
             <Group gap="xs" className={classes.fichaAcoes}><Button size="xs" leftSection={<IconePainel nome="mensagens" tamanho={15}/>} onClick={()=>navigate(caminhoMensagens(cliente.id),{state:origem()})}>Mensagem</Button><Button size="xs" variant="light" onClick={abrirEdicao}>Editar cadastro</Button></Group>
         </div></Card>
         <Tabs value={aba} onChange={selecionarAba} keepMounted={false} className={classes.abas}>
-            <AbasNavegacao className={classes.abasLista}>
+            <AbasNavegacao mobileGrade className={classes.abasLista}>
                 <Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="projetos">Projetos ({cliente.projetos.length})</Tabs.Tab><Tabs.Tab value="solicitacoes">Solicitações ({cliente.solicitacoes.length})</Tabs.Tab><Tabs.Tab value="acesso">Acesso e segurança</Tabs.Tab>
             </AbasNavegacao>
             <Tabs.Panel value="geral" pt="md"><Stack gap="sm">

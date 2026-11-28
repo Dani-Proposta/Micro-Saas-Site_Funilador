@@ -1,14 +1,18 @@
+import { NumeroModerno, ValorUrgencia } from "./InteracaoModerna";
+import { useModerno } from "../hooks/useInteracaoModerna";
+import { IconeModerno } from "./AcabamentoModerno";
 import { Carregamento } from "./Carregamento";
 import { useCallback, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, MouseEvent } from "react";
 import classes from "../styles/Estrutura.module.css";
 import visual from "../styles/Dashboard.module.css";
 import { ContadorDashboard } from "./IndicadorDashboard";
+import { BentoDashboard } from "./BentoDashboard";
 import { IconePainel } from "./MenuConta";
 import { Alert, Badge, Button, Card, Group, Stack, Text, Title, Tooltip } from "@mantine/core";
 import { useNavigate } from "react-router";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
-import { formatarPrazo, formatarValor } from "../lib/comercial";
+import { formatarPrazo } from "../lib/comercial";
 import { selecionarPendencias, caminhoPendencia } from "../lib/selecionarPendencias";
 
 const categorias = [
@@ -33,11 +37,17 @@ const iconesPendencia = {
     reabertura_pendente: "mensagens", sem_atualizacao: "projetos",
     conversa_inativa: "mensagens",
 } as const satisfies Record<Categoria, Parameters<typeof IconePainel>[0]["nome"]>;
-type Pendencia = {categoria: Categoria; titulo: string; subtitulo: string; projetoId: string | null; marcoId: string | null; conversaId: string | null; data: string | null; valor: string | null; detalhe: string; total: number; totalValor: string | null};
+export type Pendencia = {categoria: Categoria; titulo: string; subtitulo: string; projetoId: string | null; marcoId: string | null; conversaId: string | null; data: string | null; valor: string | null; detalhe: string; total: number; totalValor: string | null};
+function cliqueSuperficie(evento:MouseEvent<HTMLDivElement>,acao:()=>void) {
+    const alvo = evento.target;
+    if (!(alvo instanceof Element) || !evento.currentTarget.contains(alvo) || evento.button !== 0 || alvo.closest('button,a,input,select,textarea,label,[role="button"]') || window.getSelection()?.toString()) return;
+    acao();
+}
 const categoriasCliente: Categoria[] = ["pagamento_atrasado", "pagamento_pendente", "validacao_pendente", "proposta_pendente"];
 
-export function PendenciasDashboard({lado, children, mostrarZerados: externo, onMostrarZerados, outrosZerados = false}: {lado: "admin" | "cliente"; children?: ReactNode; mostrarZerados?: boolean; onMostrarZerados?: (valor: boolean) => void; outrosZerados?: boolean}) {
+export function PendenciasDashboard({lado, children, destaque, mostrarZerados: externo, onMostrarZerados, outrosZerados = false}: {lado: "admin" | "cliente"; children?: ReactNode; destaque?: (dados: Pendencia[] | null, erro: string | null, atualizar: () => void) => ReactNode; mostrarZerados?: boolean; onMostrarZerados?: (valor: boolean) => void; outrosZerados?: boolean}) {
     const navigate = useNavigate();
+    const moderno = useModerno();
     const [dados, setDados] = useState<Pendencia[] | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [filtro, setFiltro] = useState<Categoria | "todos">("todos");
@@ -46,15 +56,19 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
     const mostrarZerados = externo ?? interno;
     const setMostrarZerados = onMostrarZerados ?? setInterno;
     const detalhesRef = useRef<HTMLDivElement>(null);
+    const [atualizando,setAtualizando] = useState(false);
+    const [repeticao,setRepeticao] = useState(0);
+    const repetir = useRef(false);
     const carregar = useCallback(async (signal: AbortSignal) => {
+        setAtualizando(true);
         try {
             const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal, cache: "no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar as pendências");
             const itens: Pendencia[] = await resposta.json();
-            if (!signal.aborted) {setDados(itens); setErro(null);}
+            if (!signal.aborted) {setDados(itens); setErro(null); if (repetir.current) {repetir.current=false;setRepeticao(v=>v+1);}}
         } catch {
-            if (!signal.aborted) setErro("Não foi possível atualizar as pendências.");
-        }
+            if (!signal.aborted) {setErro("Não foi possível atualizar as pendências.");repetir.current=false;}
+        } finally {if (!signal.aborted) setAtualizando(false);}
     }, [lado]);
     const atualizar = useAtualizacaoPeriodica(carregar, 30000);
     const disponiveis = categorias.filter(c => lado === "admin" || categoriasCliente.includes(c.id));
@@ -74,20 +88,23 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
         if (caminho) navigate(caminho, {state: {voltarPara: lado === "admin" ? "/" : "/portal"}});
     }
 
+    const urgentes = lado === "cliente" && moderno ? (dados ?? []).filter(p=>p.categoria === "pagamento_atrasado" && !!caminhoPendencia(lado,p)) : [];
     return <Stack gap="sm">
+        {urgentes.length>0 && <Card withBorder className="funilador-urgencias"><Stack gap="sm"><Group gap={8}><IconeModerno nome="alerta" tamanho={24}/><Title order={3}>Atenção imediata</Title><Badge color="red">{urgentes[0].total} urgente(s)</Badge></Group>{urgentes.slice(0,3).map((item,i)=><button type="button" key={`${item.projetoId}-${item.marcoId}-${i}`} className="funilador-urgencia-item" onClick={()=>abrir(item)}><span><strong>{item.titulo}</strong><small>{item.subtitulo} · {item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</small></span><span className="funilador-urgencia-valor"><span>{item.valor != null && <ValorUrgencia valor={item.valor} repeticao={repeticao}/>}</span><IconeModerno nome="abrir"/></span></button>)}{urgentes[0].total>3 && <Button color="red" variant="light" onClick={()=>selecionar("pagamento_atrasado")}>Ver todas as urgências</Button>}</Stack></Card>}
+        {destaque?.(dados, erro, atualizar)}
         <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={classes.sectionHeader}>
             <Stack gap={2} className={classes.sectionHeading}><Title order={3}>Precisam de atenção</Title><Text c="dimmed" size="sm">{lado === "admin" ? "Organize o que precisa fazer primeiro." : "Ações pendentes dos seus projetos."}</Text></Stack>
-            <Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button>
+            <Button size="xs" variant="subtle" className="funilador-atualizar" loading={atualizando} leftSection={<IconeModerno nome="atualizar"/>} onClick={()=>{repetir.current=true;atualizar();}}>Atualizar</Button>
         </Group>
         {erro && <Alert color="red">{erro}{dados && " Exibindo a última consulta."}</Alert>}
         {!dados && !erro && <Carregamento tipo="indicadores" texto="Carregando pendências..."/>}
         {dados && <>
-            <div className={`${classes.safeGrid} ${visual.pendencias}`}>
-                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={`${classes.metric} ${visual.pendencia}`} data-prioridade={quantidade(c.id) ? c.cor : "neutra"} data-selecionada={filtro === c.id}>
-                    <Group justify="space-between" gap="xs" wrap="nowrap" className={visual.pendenciaTopo}><span className={visual.iconeAuxiliar}><IconePainel nome={iconesPendencia[c.id]} tamanho={16}/></span><Text size="sm" fw={500} style={{minWidth:0, overflowWrap:"anywhere"}}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" aria-label={c.ajuda}>?</Button></Tooltip></Group>
-                    <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={visual.pendenciaRodape}><Stack gap={0} style={{minWidth:0}}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}><ContadorDashboard valor={quantidade(c.id)}/></Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{formatarValor(dados.find(p => p.categoria === c.id)?.totalValor)}</Text>}</Stack><Button size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
+            <BentoDashboard className={`${classes.safeGrid} ${visual.pendencias}`}>
+                {disponiveis.filter(c => quantidade(c.id) > 0 || filtro === c.id || mostrarZerados).map(c => <Card key={c.id} withBorder padding="sm" className={`${classes.metric} ${visual.pendencia}${moderno ? " funilador-pendencia-clicavel" : ""}`} data-prioridade={quantidade(c.id) ? c.cor : "neutra"} data-selecionada={filtro === c.id} onClick={moderno ? e=>cliqueSuperficie(e,()=>selecionar(c.id)) : undefined}>
+                    <Group justify="space-between" gap="xs" wrap="nowrap" className={visual.pendenciaTopo}><span className={visual.iconeAuxiliar}><IconePainel nome={iconesPendencia[c.id]} tamanho={16}/></span><Text size="sm" fw={500} style={{minWidth:0, overflowWrap:"anywhere"}}>{c.nome}</Text><Tooltip label={c.ajuda} multiline w={240} events={{hover: true, focus: true, touch: true}}><Button size="compact-xs" variant="subtle" color="gray" className="funilador-pendencia-ajuda" aria-label={c.ajuda}>?</Button></Tooltip></Group>
+                    <Group justify="space-between" align="center" gap="xs" wrap="wrap" className={visual.pendenciaRodape}><Stack gap={0} style={{minWidth:0}}><Text className={classes.metricValue} size="xl" fw={700} c={quantidade(c.id) ? c.cor : "dimmed"}><ContadorDashboard valor={quantidade(c.id)} repeticao={repeticao}/></Text>{dados.find(p => p.categoria === c.id)?.totalValor != null && <Text size="sm" fw={600}>{<NumeroModerno valor={dados.find(p => p.categoria === c.id)?.totalValor} moeda repeticao={repeticao}/>}</Text>}</Stack><Button className="funilador-pendencia-acao" size="compact-xs" variant={filtro === c.id ? "filled" : "light"} aria-pressed={filtro === c.id} onClick={() => selecionar(c.id)}>Consultar</Button></Group>
                 </Card>)}
-            </div>
+            </BentoDashboard>
             {!mostrarZerados && filtro === "todos" && disponiveis.every(c => quantidade(c.id) === 0) && <Text size="sm" c="dimmed">Nenhuma ação pendente no momento.</Text>}
             {(outrosZerados || disponiveis.some(c => quantidade(c.id) === 0)) && <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => setMostrarZerados(!mostrarZerados)}>{mostrarZerados ? "Ocultar indicadores zerados" : "Mostrar indicadores zerados"}</Button>}
         </>}
@@ -98,9 +115,9 @@ export function PendenciasDashboard({lado, children, mostrarZerados: externo, on
             {visiveis.length === 0 && filtro === "todos" && mostrarZerados && <Text c="dimmed" size="sm">Nenhuma pendência neste filtro.</Text>}
             {visiveis.slice(0, limite).map((item, i) => {
                 const cat = disponiveis.find(c => c.id === item.categoria);
-                return <Card key={`${item.categoria}-${item.projetoId}-${item.marcoId}-${item.conversaId}-${i}`} withBorder padding="sm" className={visual.pendenciaDetalhe} data-prioridade={cat?.cor}><Group justify="space-between" align="center" wrap="wrap">
-                    <Stack gap={3} style={{flex: 1, minWidth: 0}}><Text fw={600} style={{overflowWrap: "anywhere"}}>{item.titulo}</Text><Text size="xs" c="dimmed" style={{overflowWrap: "anywhere"}}>{item.subtitulo}</Text><Group gap={5} wrap="wrap"><Badge size="sm" variant="light" color={cat?.cor}>{cat?.nome}</Badge><Text size="xs" c="dimmed">{item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</Text></Group>{item.valor !== null && <Text fw={600}>{formatarValor(item.valor)}</Text>}</Stack>
-                    <Button size="xs" variant="light" disabled={!caminhoPendencia(lado,item)} onClick={() => abrir(item)}>{lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : lado === "cliente" && item.categoria.startsWith("pagamento_") ? "Ver pagamento" : item.conversaId ? "Abrir conversa" : "Abrir projeto"}</Button>
+                return <Card key={`${item.categoria}-${item.projetoId}-${item.marcoId}-${item.conversaId}-${i}`} withBorder padding="sm" className={`${visual.pendenciaDetalhe}${moderno && caminhoPendencia(lado,item) ? " funilador-pendencia-clicavel" : ""}`} data-prioridade={cat?.cor} onClick={moderno && caminhoPendencia(lado,item) ? e=>cliqueSuperficie(e,()=>abrir(item)) : undefined}><Group justify="space-between" align="center" wrap="wrap">
+                    <Stack gap={3} style={{flex: 1, minWidth: 0}}><Text fw={600} style={{overflowWrap: "anywhere"}}>{item.titulo}</Text><Text size="xs" c="dimmed" style={{overflowWrap: "anywhere"}}>{item.subtitulo}</Text><Group gap={5} wrap="wrap"><Badge size="sm" variant="light" color={cat?.cor}>{cat?.nome}</Badge><Text size="xs" c="dimmed">{item.detalhe}{item.data ? ` · ${formatarPrazo(item.data)}` : ""}</Text></Group>{item.valor !== null && <Text fw={600}>{<NumeroModerno valor={item.valor} moeda repeticao={repeticao}/>}</Text>}</Stack>
+                    <Button className="funilador-pendencia-acao" size="xs" variant="light" disabled={!caminhoPendencia(lado,item)} onClick={() => abrir(item)}>{lado === "cliente" && item.categoria === "validacao_pendente" ? "Validar entregas" : lado === "cliente" && item.categoria.startsWith("pagamento_") ? "Ver pagamento" : item.conversaId ? "Abrir conversa" : "Abrir projeto"}</Button>
                 </Group></Card>;
             })}
             {visiveis.length > limite && <Button size="xs" variant="subtle" onClick={() => setLimite(n => n + 10)}>Mostrar mais ({visiveis.length - limite})</Button>}

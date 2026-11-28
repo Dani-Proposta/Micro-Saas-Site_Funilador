@@ -1,3 +1,5 @@
+import { NumeroModerno, TransicaoConteudo } from "../components/InteracaoModerna";
+import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
@@ -27,6 +29,7 @@ export function Clientes() {
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [versao, setVersao] = useState(0);
+    const [repeticao,setRepeticao] = useState(0);
     const [modalAberto, setModalAberto] = useState(false);
     const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
     const [nome, setNome] = useState("");
@@ -42,7 +45,7 @@ export function Clientes() {
                 const resposta = await fetch("/api/clientes", {signal: controller.signal, cache:"no-store"});
                 if (!resposta.ok) throw new Error("Não foi possível carregar os clientes");
                 const dados: Cliente[] = await resposta.json();
-                if (!controller.signal.aborted) setClientes(dados);
+                if (!controller.signal.aborted) {setClientes(dados);setRepeticao(v=>v+1);}
             } catch (e) {if (!controller.signal.aborted) setErro(e instanceof Error ? e.message : "Falha ao carregar clientes");}
             finally {if (!controller.signal.aborted) setCarregando(false);}
         }
@@ -88,10 +91,7 @@ export function Clientes() {
     const indicadores = [{label:"Total de clientes",valor:clientes.length,id:"todos"},{label:"Com acesso",valor:vinculados,id:"vinculado"},{label:"Sem conta",valor:clientes.length-vinculados,id:"sem_conta"}];
 
     return <Stack gap="md" className={`${classes.pagina} funilador-lista-clientes`}>
-        <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Stack gap={3}><Title order={1} className={estrutura.heading}>Clientes</Title><Text size="sm" c="dimmed">Gerencie cadastros e contas de acesso.</Text></Stack>
-            <Button size="sm" onClick={()=>abrir()}>+ Novo cliente</Button>
-        </Group>
+        <CabecalhoModerno titulo="Clientes" descricao="Gerencie cadastros e contas de acesso." secao="Área de trabalho" icone="clientes" classeTitulo={estrutura.heading} acoes={<Button size="sm" onClick={()=>abrir()}>+ Novo cliente</Button>} original={<Group justify="space-between" align="flex-start" wrap="wrap"><Stack gap={3}><Title order={1} className={estrutura.heading}>Clientes</Title><Text size="sm" c="dimmed">Gerencie cadastros e contas de acesso.</Text></Stack><Button size="sm" onClick={()=>abrir()}>+ Novo cliente</Button></Group>}/>
         <Modal opened={modalAberto} onClose={fechar} title={clienteEditando ? "Editar cliente" : "Novo cliente"} centered closeOnEscape={!enviando} closeOnClickOutside={!enviando} withCloseButton={!enviando}>
             <form onSubmit={salvar}><Stack gap="sm">
                 <TextInput label="Nome" required maxLength={150} value={nome} onChange={e=>setNome(e.currentTarget.value)}/>
@@ -100,15 +100,15 @@ export function Clientes() {
                 <Group justify="flex-end"><Button variant="default" disabled={enviando} onClick={fechar}>Cancelar</Button><Button type="submit" loading={enviando}>{clienteEditando ? "Salvar alterações" : "Cadastrar cliente"}</Button></Group>
             </Stack></form>
         </Modal>
-        {carregando ? <Carregamento tipo="lista" quantidade={3}/> : erro ? <Alert color="red">{erro}<Button size="xs" variant="subtle" onClick={()=>setVersao(v=>v+1)}>Tentar novamente</Button></Alert> : <>
-            <div className={classes.indicadores}>{indicadores.map(i=><button key={i.id} type="button" className={classes.indicador} data-ativo={filtro===i.id} aria-pressed={filtro===i.id} onClick={()=>filtroUrl("acesso",i.id)}><Text size="xs" c="dimmed">{i.label}</Text><Text fw={700} size="xl" className={classes.numero}>{i.valor}</Text></button>)}</div>
+        {carregando && clientes.length===0 ? <Carregamento tipo="lista" quantidade={3}/> : erro ? <Alert color="red">{erro}<Button size="xs" variant="subtle" onClick={()=>setVersao(v=>v+1)}>Tentar novamente</Button></Alert> : <>
+            <div className={classes.indicadores}>{indicadores.map(i=><button key={i.id} type="button" className={classes.indicador} data-ativo={filtro===i.id} aria-pressed={filtro===i.id} onClick={()=>filtroUrl("acesso",i.id)}><Group gap={6} wrap="nowrap"><IconeModerno nome="clientes" tamanho={20}/><Text size="xs" c="dimmed">{i.label}</Text></Group><Text fw={700} size="xl" className={classes.numero}>{<NumeroModerno valor={i.valor} repeticao={repeticao}/>}</Text></button>)}</div>
             <div className={`${classes.filtros} funilador-clientes-filtros`}>
                 <CampoBusca placeholder="Nome ou e-mail" value={busca} onChange={v=>{setBusca(v);if(params.has("pagina"))filtroUrl("pagina","1");}}/>
                 <Select label="Acesso" allowDeselect={false} value={filtro} onChange={v=>filtroUrl("acesso",v??"todos")} data={[{value:"todos",label:"Todos"},{value:"vinculado",label:"Com acesso"},{value:"sem_conta",label:"Sem conta"}]}/>
                 <Select label="Ordenar" allowDeselect={false} value={ordem} onChange={v=>filtroUrl("ordem",v??"nome")} data={[{value:"nome",label:"Nome (A–Z)"},{value:"ativos",label:"Mais projetos ativos"}]}/>
             </div>
-            <Card withBorder padding={0} className={`${classes.tabelaCard} funilador-tabela-clientes`}>
-                <Group justify="space-between" p="sm" className={classes.cabecalhoTabela}><Text size="sm" fw={600}>{filtrados.length} de {clientes.length} clientes</Text><Group gap="xs">{(busca.trim() || filtro !== "todos" || ordem !== "nome") && <Button size="compact-xs" variant="subtle" onClick={()=>{setBusca("");setParams({}, {replace:true});}}>Limpar filtros</Button>}<Button size="compact-xs" variant="subtle" onClick={()=>setVersao(v=>v+1)}>Atualizar</Button></Group></Group>
+            <TransicaoConteudo identidade={`${filtro}-${ordem}-${pagina}`}><Card withBorder padding={0} className={`${classes.tabelaCard} funilador-tabela-clientes`}>
+                <Group justify="space-between" p="sm" className={classes.cabecalhoTabela}><Text size="sm" fw={600}>{filtrados.length} de {clientes.length} clientes</Text><Group gap="xs">{(busca.trim() || filtro !== "todos" || ordem !== "nome") && <Button size="compact-xs" variant="subtle" onClick={()=>{setBusca("");setParams({}, {replace:true});}}>Limpar filtros</Button>}<Button size="compact-xs" variant="subtle" className="funilador-atualizar" leftSection={<IconeModerno nome="atualizar"/>} loading={carregando} onClick={()=>setVersao(v=>v+1)}>Atualizar</Button></Group></Group>
                 {filtrados.length===0 ? <Stack align="center" p="xl" gap="xs"><IconePainel nome="clientes" tamanho={26}/><Text size="sm" c="dimmed">{clientes.length ? "Nenhum cliente corresponde aos filtros." : "Nenhum cliente cadastrado."}</Text><Button variant="light" size="xs" onClick={()=>clientes.length ? (setBusca(""), setParams({}, {replace:true})) : abrir()}>{clientes.length ? "Limpar filtros" : "Cadastrar cliente"}</Button></Stack> : <Table className={classes.tabela} verticalSpacing="xs" horizontalSpacing="sm">
                     <Table.Thead><Table.Tr><Table.Th>Cliente</Table.Th><Table.Th>Acesso</Table.Th><Table.Th>Projetos ativos</Table.Th><Table.Th><span className={classes.srOnly}>Ações</span></Table.Th></Table.Tr></Table.Thead>
                     <Table.Tbody>{filtrados.slice((pagina-1)*porPagina,pagina*porPagina).map(c=><Table.Tr key={c.id}>
@@ -121,7 +121,7 @@ export function Clientes() {
                     </Table.Tr>)}</Table.Tbody>
                 </Table>}
                 {paginas>1 && <Group justify="center" p="sm"><Pagination size="sm" total={paginas} value={pagina} onChange={v=>filtroUrl("pagina",String(v))} siblings={0}/></Group>}
-            </Card>
+            </Card></TransicaoConteudo>
             <Text size="xs" c="dimmed">Projetos ativos: planejados ou em andamento, sem arquivamento.</Text>
         </>}
     </Stack>;

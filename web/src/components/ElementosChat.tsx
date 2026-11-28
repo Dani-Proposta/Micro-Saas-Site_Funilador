@@ -1,4 +1,6 @@
 import { SegmentedControl } from "@mantine/core";
+import { useAparencia } from "../lib/contextoAparencia";
+import { IconMessageCircle, IconFolder, IconUser, IconSearch, IconArrowDown, IconChecks, IconFilePlus, IconEyeOff, IconEye, IconArchive, IconRestore, IconEdit, IconDotsVertical, IconPlus } from "@tabler/icons-react";
 import { useElementSize } from "@mantine/hooks";
 import chat from "../styles/Chat.module.css";
 
@@ -20,7 +22,14 @@ const caminhos = {
     adicionar: "M12 5v14 M5 12h14",
 } as const;
 
+const iconesModernos = {geral:IconMessageCircle, projeto:IconFolder, avulsa:IconMessageCircle, cliente:IconUser, busca:IconSearch, naoLida:IconArrowDown, lida:IconChecks, proposta:IconFilePlus, ocultar:IconEyeOff, exibir:IconEye, arquivo:IconArchive, restaurar:IconRestore, editar:IconEdit, menu:IconDotsVertical, adicionar:IconPlus};
 export function IconeChat({nome, tamanho = 16}: {nome: keyof typeof caminhos; tamanho?: number}) {
+    const {aparencia} = useAparencia();
+
+    if (aparencia.estilo === "moderno") {
+        const Icone = iconesModernos[nome];
+        return <Icone size={tamanho} stroke={1.75} aria-hidden="true" className={chat.iconeChat}/>;
+    }
     return <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={nome === "menu" ? 3.5 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={chat.iconeChat}><path d={caminhos[nome]}/></svg>;
 }
 

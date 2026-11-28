@@ -1,3 +1,6 @@
+import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
+import { TransicaoConteudo } from "../components/InteracaoModerna";
+import { useModerno } from "../hooks/useInteracaoModerna";
 import { toast } from "../lib/toasts";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Card, Group, Loader, Modal, SegmentedControl, Select, Stack, Text, Title } from "@mantine/core";
@@ -32,6 +35,9 @@ const coresEstado = {
 
 export function Convites() {
 
+    const moderno = useModerno();
+    const [filtro,setFiltro] = useState("todos");
+    const [ordem,setOrdem] = useState("recentes");
     const [convites, setConvites] = useState<Convite[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
 
@@ -223,12 +229,10 @@ export function Convites() {
     }
 
 
+    const visiveis = moderno ? convites.filter(c=>filtro === "todos" || (filtro === "nao_utilizado" ? c.estado !== "utilizado" : c.estado === filtro)).sort((a,b)=>ordem === "recentes" ? b.criadoEm.localeCompare(a.criadoEm) : a.criadoEm.localeCompare(b.criadoEm)) : convites;
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Title order={2}>Convites</Title>
-                <Button size="xs" onClick={() => setModalAberto(true)}>+ Novo convite</Button>
-            </Group>
+            <CabecalhoModerno titulo="Convites" secao="Gestão de acesso" icone="convites" ordem={2} acoes={<Button size="xs" onClick={() => setModalAberto(true)}>+ Novo convite</Button>} original={<Group justify="space-between"><Title order={2}>Convites</Title><Button size="xs" onClick={() => setModalAberto(true)}>+ Novo convite</Button></Group>}/>
 
             <Text c="dimmed" size="sm">Crie convites de acesso para novos clientes ou clientes já cadastrados.</Text>
 
@@ -281,13 +285,14 @@ export function Convites() {
 
             {carregando && <Loader size="sm"/>}
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
-            {!carregando && !erro && convites.length === 0 && <Text c="dimmed">Nenhum convite encontrado</Text>}
+            {moderno && <Card withBorder padding="md" className="funilador-filtros-convites"><Group align="end" wrap="wrap"><Select label="Estado" value={filtro} allowDeselect={false} onChange={v=>setFiltro(v ?? "todos")} data={[{value:"todos",label:"Todos"},{value:"pendente",label:"Pendentes válidos"},{value:"utilizado",label:"Utilizados"},{value:"nao_utilizado",label:"Não utilizados"},{value:"expirado",label:"Expirados"},{value:"revogado",label:"Revogados"}]}/><Select label="Ordenação" value={ordem} allowDeselect={false} onChange={v=>setOrdem(v ?? "recentes")} data={[{value:"recentes",label:"Recém-criados primeiro"},{value:"antigos",label:"Mais antigos primeiro"}]}/><Text size="sm" c="dimmed">{visiveis.length} de {convites.length} convites</Text></Group></Card>}
+            {!carregando && !erro && visiveis.length === 0 && <Text c="dimmed">Nenhum convite encontrado</Text>}
 
-            {!carregando && !erro && convites.map((convite) => (
-                <Card key={convite.id} withBorder padding="md">
+            {!carregando && !erro && <TransicaoConteudo identidade={visiveis.map(c=>c.id).join("|")} className={moderno ? "funilador-grade-convites" : "funilador-transicao-conteudo"}>{visiveis.map((convite) => (
+                <Card key={convite.id} withBorder padding="md" className="funilador-convite-registro">
                     <Stack gap="xs">
 
-                        <Group justify="space-between" align="start">
+                        <Group justify="space-between" align="start" className="funilador-convite-topo"><IconeModerno nome="convites" tamanho={22}/>
                             <Stack gap={4} style={{minWidth: 0}}>
                                 <Text fw={600}>{convite.clienteAceitouNome ?? convite.clienteNome ?? "Convite livre — novo cliente"}</Text>
                                 {convite.usadoEm && <Text size="xs" c="dimmed">Utilizado em: {new Date(convite.usadoEm).toLocaleString("pt-BR")}</Text>}
@@ -314,7 +319,7 @@ export function Convites() {
                         
                     </Stack>
                 </Card>
-            ))}
+            ))}</TransicaoConteudo>}
         </Stack>
     );
 }

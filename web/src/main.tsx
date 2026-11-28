@@ -9,18 +9,21 @@ import './styles/FormulariosMinimalista.css';
 import './styles/CampoData.css';
 import './styles/ListasMinimalista.css';
 import './styles/Toasts.css';
+import './styles/ModernoDesktop.css';
+import './styles/ModernoPolimento.css';
+import './styles/ModernoInteracao.css';
+import './styles/ModernoDetalhes.css';
+import './styles/ModernoMobile.css';
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ProvedorAparencia>
-
-      <BrowserRouter>
+    <BrowserRouter>
+      <ProvedorAparencia>
         <App />
-      </BrowserRouter>
-
-    </ProvedorAparencia>
+      </ProvedorAparencia>
+    </BrowserRouter>
   </StrictMode>,
 )
 

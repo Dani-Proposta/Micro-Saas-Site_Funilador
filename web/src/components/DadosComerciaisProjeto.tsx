@@ -1,21 +1,22 @@
+import { ProgressoModerno, NumeroModerno } from "./InteracaoModerna";
 import { toast } from "../lib/toasts";
 import { CampoData } from "./CampoData";
 import classes from "../styles/Trabalho.module.css";
 import { useState } from "react";
-import { Alert, Badge, Button, Card, Group, Progress, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
-import { formatarValor, formatarPrazo, prioridades } from "../lib/comercial";
+import { Alert, Badge, Button, Card, Group, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { formatarPrazo, prioridades } from "../lib/comercial";
 import type { DadosProjeto, DadosProjetoAdmin } from "../lib/comercial";
 
 //dados visíveis ao cliente
 export function ResumoProjeto({projeto}: {projeto: DadosProjeto}) {
     return <Stack gap="sm">
         <SimpleGrid cols={{base: 1, xs: 2}}>
-            <Stack gap={2}><Text size="xs" c="dimmed">Valor acordado</Text><Text fw={500}>{formatarValor(projeto.valorAcordado)}</Text></Stack>
+            <Stack gap={2}><Text size="xs" c="dimmed">Valor acordado</Text><Text fw={500}>{<NumeroModerno valor={projeto.valorAcordado} moeda/>}</Text></Stack>
             <Stack gap={2}><Text size="xs" c="dimmed">Prazo acordado</Text><Text fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></Stack>
         </SimpleGrid>
         {projeto.modoProgresso === "manual" ? <>
-            <Group justify="space-between"><Text size="sm">Progresso manual</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
-            {projeto.progresso != null && <Progress value={projeto.progresso} color="violet" aria-label="Progresso do projeto"/>}
+            <Group justify="space-between"><Text size="sm">Progresso manual</Text><Text size="sm" c="dimmed">{projeto.progresso == null ? "Não definido" : <NumeroModerno valor={projeto.progresso} percentual/>}</Text></Group>
+            {projeto.progresso != null && <ProgressoModerno valor={projeto.progresso} cor="violet"/>}
         </> : <Text size="sm" c="dimmed">Progresso calculado pelos marcos</Text>}
         <Text size="sm" fw={500}>Tecnologias</Text>
         {projeto.tecnologias?.length ? <Group gap="xs">{projeto.tecnologias.map(t => <Badge key={t} variant="light" style={{maxWidth: "100%"}}>{t}</Badge>)}</Group> : <Text size="sm" c="dimmed">Não definidas</Text>}
@@ -84,7 +85,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
         }
     }
 
-    return <Card withBorder padding="sm" className={classes.pagina}>
+    return <Card withBorder padding="sm" className={`${classes.pagina} funilador-projeto-comercial`}>
         <Stack gap="sm">
             <Group justify="space-between"><Title order={4}>Dados do projeto</Title>{!editando && !projeto.arquivadaEm && <Button size="xs" variant="light" onClick={editar}>Editar dados</Button>}</Group>
             {editando && !projeto.arquivadaEm ? <>

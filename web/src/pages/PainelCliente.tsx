@@ -1,3 +1,4 @@
+import { useAnimacaoConteudo } from "../hooks/useInteracaoModerna";
 import { Carregamento } from "../components/Carregamento";
 
 import { useEffect, useState } from "react";
@@ -46,11 +47,12 @@ export function PainelCliente() {
 
 function PortalCliente() {
 
-    const [opened, { toggle, close }] = useDisclosure(false);
+    const [opened, { toggle, close, open }] = useDisclosure(false);
     const {aparencia} = useAparencia();
     const moderno = aparencia.estilo === "moderno";
     const navigate = useNavigate();
     const local = useLocation();
+    const mainRef = useAnimacaoConteudo(local.pathname);
     const [estadoFoco, setEstadoFoco] = useState({chave: local.key, ativo: false});
     if (estadoFoco.chave !== local.key) {
       setEstadoFoco({chave: local.key, ativo: false});
@@ -126,9 +128,9 @@ function PortalCliente() {
             <AppShell.Navbar className={classes.navbar}>
                 <NavegacaoPainel lado="cliente" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
             </AppShell.Navbar>
-            <NavegacaoMobile lado="cliente" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
+            <NavegacaoMobile lado="cliente" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened} abrir={open}/>
 
-            <AppShell.Main className={classes.main}>
+            <AppShell.Main ref={mainRef} className={classes.main}>
                 <Stack gap="md">
 
                     {erroSaida && <Alert color="red">{erroSaida}</Alert>}

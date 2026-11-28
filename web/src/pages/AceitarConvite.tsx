@@ -1,3 +1,4 @@
+import { MolduraAcesso } from "../components/MolduraAcesso";
 import type { FormEvent } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useEffect, useState } from "react";
@@ -94,7 +95,7 @@ export function AceitarConvite() {
     }
 
     return (
-        <Container size={460} py="xl">
+        <MolduraAcesso etapa="convite"><Container size={460} py="xl">
             <Paper withBorder radius="md" p="xl">
                 <Stack gap="md">
 
@@ -130,6 +131,6 @@ export function AceitarConvite() {
                 )}
                 </Stack>
             </Paper>
-        </Container>
+        </Container></MolduraAcesso>
     );
 }

@@ -1,6 +1,9 @@
+import { motion } from "motion/react";
+import { IconDots } from "@tabler/icons-react";
+import { SheetMobile } from "./SheetMobile";
 import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef } from "react";
 import type { ComponentPropsWithoutRef, CSSProperties, RefObject, ReactElement, ReactNode } from "react";
-import { Badge, Drawer, NavLink, Tabs, Text, useComputedColorScheme, useTabsContext } from "@mantine/core";
+import { Badge, NavLink, Tabs, Text, useComputedColorScheme, useTabsContext } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { NavLink as RouterNavLink, useLocation, matchPath } from "react-router";
 import LineSidebar from "./ui/react-bits/LineSidebar";
@@ -83,44 +86,36 @@ function NavegacaoMantine({itens, lado, naoLidas, fechar, aberto}: PropsNavegaca
     </nav>;
 }
 
-// Mobile Moderno: as mesmas rotas do desktop, em uma superfície própria para toque.
-export function NavegacaoMobile({lado, naoLidas, fechar, aberto}: PropsNavegacao) {
+// Dock inferior: atalhos persistentes, indicador compartilhado do Motion e navegação completa via Sheet.
+export function NavegacaoMobile({lado, naoLidas, fechar, aberto, abrir}: PropsNavegacao & {abrir:()=>void}) {
     const {aparencia} = useAparencia();
     const reduzir = useMovimentoReduzido();
-    const desktop = useMediaQuery("(min-width: 48em)");
+    const desktop = useMediaQuery("(min-width: 48em)", false, {getInitialValueInEffect:false});
     const moderno = aparencia.estilo === "moderno";
     const {pathname} = useLocation();
     const itens = lado === "admin" ? admin : cliente;
-    const atual = itens.find(item => matchPath({path:item.rota, end:item.exato ?? false}, pathname));
-
-    useEffect(() => {
-        if (moderno && desktop && aberto) fechar();
-    }, [moderno, desktop, aberto, fechar]);
-
-    if (!moderno) return null;
-    return <Drawer
-        opened={aberto && !desktop}
-        onClose={fechar}
-        title="Navegação"
-        position="bottom"
-        size="auto"
-        classNames={{content:classes.mobileSheet, header:classes.mobileSheetHeader, body:classes.mobileSheetBody}}
-        transitionProps={{duration:reduzir ? 0 : 320, timingFunction:"cubic-bezier(.22,1,.36,1)"}}
-        overlayProps={{backgroundOpacity:.48}}
-        closeButtonProps={{"aria-label":"Fechar navegação"}}
-    >
-        <Text size="xs" c="dimmed" mb="sm">{lado === "admin" ? "Área de trabalho" : "Portal do cliente"}{atual ? ` · ${atual.texto}` : ""}</Text>
-        <nav className={classes.mobileGrid} aria-label={lado === "admin" ? "Área de trabalho" : "Navegação do cliente"}>
-            {itens.map((item, index) => <RouterNavLink key={item.rota}
-                to={item.rota} end={item.exato} onClick={fechar}
-                className={classes.mobileTile} style={{"--ordem-nav":index} as CSSProperties}>
-                <span className={classes.mobileTileIcon}><IconePainel nome={item.icone} tamanho={22}/></span>
-                <span className={classes.mobileTileLabel}>{item.texto}</span>
-                {item.mensagens && !!naoLidas && <Badge color="red" size="sm" className={classes.mobileBadge} aria-label={`${naoLidas} mensagens não lidas`}>{naoLidas > 99 ? "99+" : naoLidas}</Badge>}
-                <span className={classes.mobileTileMark} aria-hidden="true"/>
+    const principais = lado === "admin" ? itens.filter(i=>["/","/projetos","/financeiro","/mensagens"].includes(i.rota)) : itens;
+    const ativo = itens.find(item => matchPath({path:item.rota, end:item.exato ?? false}, pathname));
+    const rotulo = (item:ItemNavegacao)=>item.icone === "painel" ? "Início" : item.icone === "projetos" ? "Projetos" : item.icone === "solicitacoes" ? "Pedidos" : item.texto;
+    const badge = (item:ItemNavegacao)=>item.mensagens && !!naoLidas ? <Badge color="red" size="xs" className="funilador-dock-badge" aria-label={`${naoLidas} mensagens não lidas`}>{naoLidas > 99 ? "99+" : naoLidas}</Badge> : null;
+    useEffect(() => {if (moderno && desktop && aberto) fechar();}, [moderno, desktop, aberto, fechar]);
+    if (!moderno || desktop) return null;
+    return <>
+        <nav className="funilador-dock-mobile" aria-label="Atalhos do painel">
+            {principais.map(item=><RouterNavLink key={item.rota} to={item.rota} end={item.exato} onClick={fechar} className="funilador-dock-item">
+                {ativo === item && <motion.span className="funilador-dock-indicador" layoutId={`dock-${lado}`} transition={reduzir ? {duration:0} : {type:"spring",stiffness:360,damping:32}} aria-hidden="true"/>}
+                <motion.span className="funilador-dock-icone" whileTap={reduzir ? undefined : {scale:.83}}><IconePainel nome={item.icone} tamanho={23}/>{badge(item)}</motion.span><span>{rotulo(item)}</span>
             </RouterNavLink>)}
+            {lado === "admin" && <button type="button" className="funilador-dock-item" data-ativo={!!ativo && !principais.includes(ativo)} aria-haspopup="dialog" aria-expanded={aberto} onClick={abrir}>{ativo && !principais.includes(ativo) && <motion.span className="funilador-dock-indicador" layoutId={`dock-${lado}`} transition={reduzir ? {duration:0} : {type:"spring",stiffness:360,damping:32}} aria-hidden="true"/>}<motion.span className="funilador-dock-icone" whileTap={reduzir?undefined:{scale:.83}}><IconDots size={23}/></motion.span><span>Mais</span></button>}
         </nav>
-    </Drawer>;
+        {lado === "admin" && <SheetMobile aberto={aberto} fechar={fechar} titulo="Navegação" descricao="Área de trabalho">
+            <nav className={classes.mobileGrid} aria-label="Todas as áreas">
+                {itens.map(item=><RouterNavLink key={item.rota} to={item.rota} end={item.exato} onClick={fechar} className={classes.mobileTile}>
+                    <span className={classes.mobileTileIcon}><IconePainel nome={item.icone} tamanho={24}/></span><span className={classes.mobileTileLabel}>{item.texto}</span>{badge(item)}<span className={classes.mobileTileMark} aria-hidden="true"/>
+                </RouterNavLink>)}
+            </nav>
+        </SheetMobile>}
+    </>;
 }
 
 export function NavegacaoPainel({lado, naoLidas, fechar, aberto}: PropsNavegacao) {
@@ -139,7 +134,7 @@ export function NavegacaoPainel({lado, naoLidas, fechar, aberto}: PropsNavegacao
             items={itens.map(item => item.texto)} activeIndex={ativo < 0 ? null : ativo}
             accentColor="var(--mantine-primary-color-light-color)" textColor="var(--mantine-color-text)" markerColor="var(--mantine-color-dimmed)"
             showIndex={false} showMarker markerLength={22} markerGap={10} tickScale={.5}
-            maxShift={24} proximityRadius={64} itemGap={altura} fontSize={.875} smoothing={115}
+            maxShift={18} proximityRadius={78} itemGap={altura} fontSize={.875} smoothing={90}
             reducedMotion={reduzir}
             renderItem={(index, _label, content) => {
                 const item = itens[index];
@@ -172,7 +167,7 @@ function textoAba(node: ReactNode): string | null {
     return null;
 }
 
-export function AbasNavegacao({className, children, ...props}: ComponentPropsWithoutRef<typeof Tabs.List>) {
+export function AbasNavegacao({className, children, mobileGrade=false, ...props}: ComponentPropsWithoutRef<typeof Tabs.List> & {mobileGrade?: boolean}) {
     const {aparencia} = useAparencia();
     const reduzir = useMovimentoReduzido();
     const tema = useComputedColorScheme("light", {getInitialValueInEffect: true});
@@ -201,6 +196,9 @@ export function AbasNavegacao({className, children, ...props}: ComponentPropsWit
         abas.push({elemento, label, href: value});
     }
 
+    if (aparencia.estilo === "moderno" && mobile && mobileGrade) {
+        return <Tabs.List {...props} className={`funilador-abas-cliente-mobile ${className ?? ""}`}>{children}</Tabs.List>;
+    }
     if (aparencia.estilo !== "moderno" || contexto.orientation === "vertical" || props.grow || !abas.length || abas.length !== elementos.length) {
         return <AbasMantine {...props} className={className}>{children}</AbasMantine>;
     }

@@ -23,3 +23,18 @@ export function caminhoPendencia(lado: "admin" | "cliente", item: {categoria: st
     if (lado === "admin") return `/projetos/${id}${item.marcoId ? `?marco=${encodeURIComponent(item.marcoId)}` : ""}`;
     return `/portal/projetos?projeto=${id}`;
 }
+
+// A mesma coleção do Dashboard alimenta o destaque, sem outra consulta ou regra de cobrança.
+export function resumirPendenciasProjeto<T extends {categoria: string; projetoId: string | null; marcoId: string | null; total: number}>(dados: T[] | null, projetoId: string) {
+    const categorias = ["pagamento_atrasado", "pagamento_pendente", "validacao_pendente", "proposta_pendente"];
+    const elegiveis = (dados ?? []).filter(p => categorias.includes(p.categoria));
+    const itens = selecionarPendencias(elegiveis.filter(p => p.projetoId === projetoId), "todos")
+        .sort((a,b) => categorias.indexOf(a.categoria) - categorias.indexOf(b.categoria));
+    // A API limita a quantidade de registros retornados por categoria. Não declare ausência de pendências se a consulta for parcial.
+    const parcial = categorias.some(c => {
+        const grupo = elegiveis.filter(p => p.categoria === c);
+        return grupo.some(p => p.total > grupo.length);
+    });
+    const prioridade = itens.some(p => p.categoria === "pagamento_atrasado") ? "red" : itens.length ? "yellow" : undefined;
+    return {itens, prioridade, parcial};
+}

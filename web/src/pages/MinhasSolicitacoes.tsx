@@ -1,3 +1,5 @@
+import { TransicaoConteudo, NumeroModerno } from "../components/InteracaoModerna";
+import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import { CampoData } from "../components/CampoData";
 import classes from "../styles/Trabalho.module.css";
@@ -7,7 +9,7 @@ import { EstadoLista } from "../components/EstadoLista";
 import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
-import { formatarValor, formatarPrazo } from "../lib/comercial";
+import { formatarPrazo } from "../lib/comercial";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
 import { statusSolicitacao } from "../lib/solicitacoes";
 import type { SolicitacaoDetalhada } from "../lib/solicitacoes";
@@ -15,7 +17,7 @@ import type { SolicitacaoDetalhada } from "../lib/solicitacoes";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Group, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 
 type Solicitacao = SolicitacaoDetalhada;
 
@@ -131,10 +133,7 @@ export function MinhasSolicitacoes() {
     return (
         <Stack gap="md" className={classes.pagina}>
 
-            <Group justify="space-between">
-                <Title order={1} className={estrutura.heading}>Minhas solicitações</Title>
-                <Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button>
-            </Group>
+            <CabecalhoModerno titulo="Minhas solicitações" descricao="Acompanhe os pedidos enviados." secao="Área de trabalho" icone="solicitacoes" classeTitulo={estrutura.heading} acoes={<Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button>} original={<Group justify="space-between"><Title order={1} className={estrutura.heading}>Minhas solicitações</Title><Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button></Group>}/>
 
             <Text size="sm" c="dimmed">Envie novas solicitações e acompanhe suas respostas.</Text>
 
@@ -163,21 +162,21 @@ export function MinhasSolicitacoes() {
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhuma solicitação encontrada"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há solicitações nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
 
-            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
-                {solicitacoesVisiveis.map(solicitacao=><Card key={solicitacao.id} withBorder padding="sm" className={classes.card}>
-                    <div className={classes.cardTopo}>
+            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <TransicaoConteudo identidade={solicitacoesVisiveis.map(s=>s.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
+                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes">
+                    <div className={classes.cardTopo}><IconeModerno nome="solicitacoes" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
-                            <Text fw={650} className={classes.quebra}>{solicitacao.titulo}</Text>
+                            <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{solicitacao.titulo}</Text>
                             
                         </Stack>
                         <Badge variant="light" color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
                     </div>
-                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{solicitacao.descricao}</Text>
-                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{formatarValor(solicitacao.orcamentoEsperado)}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
-                    <Text size="xs" c="dimmed">Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
-                    <div className={classes.cardAcoes}><Button size="xs" variant="subtle" onClick={()=>setDetalhesId(solicitacao.id)}>Ver detalhes</Button>{solicitacao.projetoId && <Button size="xs" variant="light" onClick={()=>navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto</Button>}</div>
-                </Card>)}
-            </div>}
+                    <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{solicitacao.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{<NumeroModerno valor={solicitacao.orcamentoEsperado} moeda/>}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
+                    <Text size="xs" c="dimmed"><IconeModerno nome="calendario" tamanho={14}/>Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
+                    <div className={classes.cardAcoes}><Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label={`Ver detalhes de ${solicitacao.titulo}`} size="xs" variant="subtle" onClick={()=>setDetalhesId(solicitacao.id)}><span>Ver detalhes</span> <IconeModerno nome="abrir" tamanho={15}/></Button>{solicitacao.projetoId && <Button size="xs" variant="light" onClick={()=>navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto <IconeModerno nome="abrir" tamanho={15}/></Button>}</div>
+                </CartaoRegistro>)}
+            </TransicaoConteudo>}
 
         </Stack>
     );

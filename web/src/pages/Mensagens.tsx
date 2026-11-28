@@ -222,7 +222,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
     }
 
     return (
-        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
+        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-chat-mobile="true" data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
             <Group justify="space-between" gap="xs" className={chat.topo}><Title order={1} className={estrutura.heading}>Central de mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara, {state: origemAnterior ?? (voltarPara.startsWith("/projetos/") ? {voltarPara: origemProjeto} : undefined)})}>← Voltar à origem</Button>}<ControleChat foco={foco} alternarFoco={alternarFoco}/></Group>
             {!carregando && !erro && escolha === undefined && clienteAlvo && !conversaAtalho && <Alert color="gray" title={projetoAlvo ? "Conversa do projeto" : "Conversa Geral"}>{clienteAtalho && projetoAlvo ? <Stack gap="xs"><Text size="sm">Este projeto ainda não possui uma conversa.</Text>{location.state?.projetoArquivado ? <Text size="sm">Restaure o projeto para criar uma conversa.</Text> : <Button size="xs" onClick={() => {setProjetoCriacao(projetoAlvo); setClienteCriacao(clienteAtalho);}}>Criar conversa do projeto</Button>}</Stack> : "Não foi possível localizar a conversa solicitada."}</Alert>}
             {pedidosPendentes > 0 && <Alert color="yellow"><Group justify="space-between" gap="xs"><Text size="sm">{pedidosPendentes} pedido(s) de reabertura pendente(s).</Text>{!arquivadas && <Button variant="light" color="yellow" size="compact-xs" onClick={() => alternarVisualizacao("arquivadas")}>Ver pedidos</Button>}</Group></Alert>}
@@ -295,7 +295,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                         >
                                             <Box flex={1} miw={0}>
                                                 <NavLink
-                                                    label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
+                                                    label={<Group justify="space-between" wrap="nowrap" gap={4}><Text title={cliente.clienteNome} className={classes.chatTitulo} size="sm" fw={totalNaoLidas(cliente.conversas) ? 700 : 400}>{cliente.clienteNome}</Text>{totalNaoLidas(cliente.conversas) > 0 && <Badge color="red" size="sm">{totalNaoLidas(cliente.conversas)}</Badge>}</Group>}
                                                     leftSection={<IconeChat nome="cliente"/>}
                                                     description={`${cliente.conversas.length} conversa(s)${cliente.conversas.some(c => c.reabertura?.status === "pendente") ? ` · ${cliente.conversas.filter(c => c.reabertura?.status === "pendente").length} pedido(s)` : ""}`}
                                                     opened={!!busca.trim() || expandidos.includes(cliente.clienteId) || (escolha === undefined && !!conversaAlvo && cliente.clienteId === clienteAtalho?.clienteId)}
@@ -305,7 +305,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                                     {cliente.conversas.map((conversa) => (
                                                         <NavLink
                                                             key={conversa.id}
-                                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
+                                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text title={conversa.titulo} className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                                             leftSection={<IconeChat nome={conversa.tipo}/>}
                                                             description={conversa.reabertura?.status === "pendente" ? `${tipoConversa[conversa.tipo].label} · Reabertura solicitada` : tipoConversa[conversa.tipo].label}
                                                             active={conversaId === conversa.id}

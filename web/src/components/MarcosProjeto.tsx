@@ -1,9 +1,10 @@
+import { ProgressoModerno, NumeroModerno } from "./InteracaoModerna";
 import { toast } from "../lib/toasts";
 import { CampoData } from "./CampoData";
 import classes from "../styles/Trabalho.module.css";
 import { Carregamento } from "./Carregamento";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Card, Checkbox, Divider, Group, Menu, Modal, Progress, Radio, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Checkbox, Divider, Group, Menu, Modal, Radio, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import type { DadosProjeto } from "../lib/comercial";
 import { hojePortal, pagamentoNecessario } from "../lib/pendenciasProjeto";
@@ -250,7 +251,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         <Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setEdicao(null); setErro(null);}}>Cancelar</Button><Button loading={salvando} disabled={!edicao.titulo.trim()} onClick={() => void salvarMarco()}>Salvar</Button></Group>
     </Stack></Card>;
 
-    return <Card withBorder padding="sm" className={classes.pagina}><Stack gap="sm">
+    return <Card withBorder padding="sm" className={`${classes.pagina} funilador-projeto-marcos`}><Stack gap="sm">
         <Modal opened={!!validacao} onClose={() => {if (!salvando) {setValidacao(null); setErro(null);}}} title="Validar entrega" centered closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
             <Stack gap="sm"><Text fw={600}>{validacao?.titulo}</Text><Text size="sm">Ao confirmar, esta entrega será marcada como concluída.</Text>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setValidacao(null); setErro(null);}}>Voltar</Button><Button color="green" loading={salvando} onClick={() => void validarEntrega()}>Confirmar entrega</Button></Group></Stack>
         </Modal>
@@ -279,7 +280,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
             <Stack gap="sm"><Text size="sm">Excluir {limpeza?.length ?? 0} marcos pendentes não ocultos, sem cobrança ou histórico de pagamentos?</Text><Text size="sm" c="dimmed">Esta ação não pode ser desfeita</Text>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setLimpeza(null); setErro(null);}}>Voltar</Button><Button color="red" loading={salvando} onClick={() => void limparMarcos()}>Excluir</Button></Group></Stack>
         </Modal>
         <Group justify="space-between" wrap="wrap"><Title order={4}>{apenasValidacao ? "Entregas para validar" : apenasPagamento ? "Pagamentos pendentes" : "Marcos"}</Title><Group gap="xs">{!foco && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setAberto(v => !v)}>{aberto ? "Recolher" : "Ver marcos"}</Button>}{aberto && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setRevisao(v => v + 1)}>Atualizar</Button>}{aberto && !somenteLeitura && !cancelado && <Button size="xs" disabled={!resumo || ocupado} onClick={() => {setEdicao(novaEdicao()); setErro(null);}}>+ Novo marco</Button>}</Group></Group>
-        {!foco && projeto.modoProgresso === "marcos" && <><Group justify="space-between"><Text size="sm" c="dimmed">{resumo ? `${concluidos} de ${ativos.length} concluídos` : "Progresso por marcos"}</Text><Text size="sm">{progresso == null ? "Não definido" : `${progresso}%`}</Text></Group>{progresso != null && <Progress value={progresso} color="violet" aria-label="Progresso por marcos"/>}</>}
+        {!foco && projeto.modoProgresso === "marcos" && <><Group justify="space-between"><Text size="sm" c="dimmed">{resumo ? `${concluidos} de ${ativos.length} concluídos` : "Progresso por marcos"}</Text><Text size="sm">{progresso == null ? "Não definido" : <NumeroModerno valor={progresso} percentual/>}</Text></Group>{progresso != null && <ProgressoModerno valor={progresso} cor="violet" rotulo="Progresso por marcos"/>}</>}
         {aberto && <>
             {!resumo && !erro && <Carregamento tipo="detalhes" quantidade={2} texto="Carregando marcos..."/>}
             {erro && !edicao && !pagamento && !cancelamento && !limpeza && !validacao && <Alert color="red">{erro}</Alert>}

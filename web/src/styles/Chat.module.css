@@ -271,3 +271,70 @@
         border-radius: 7px;
     }
 }
+
+/* Refinamento desktop: o painel não comprime nomes letra por letra. */
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-body) { flex: 1 1 0; min-width: 0; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-label) > :global(.mantine-Group-root) { flex-wrap: nowrap; min-width:0; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-label) :global(.mantine-Text-root) { flex:1 1 auto; min-width:0; overflow-wrap:normal; word-break:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-description) { overflow-wrap:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="left"] { margin-inline-end:8px; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="right"] { margin-inline-start:6px; }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-Badge-root) { flex-shrink:0; }
+ :global(html[data-funilador-estilo="moderno"]) .painel { background:linear-gradient(145deg,var(--mantine-color-default),color-mix(in srgb,var(--mantine-primary-color-filled) 5%,var(--mantine-color-body))) !important; }
+ :global(html[data-funilador-estilo="moderno"]) .historico { background:radial-gradient(ellipse at 80% 5%,color-mix(in srgb,var(--mantine-primary-color-filled) 7%,transparent),transparent 60%),var(--mantine-color-body); }
+ :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root):hover { background:var(--mantine-primary-color-light); }
+ :global(html[data-funilador-estilo="moderno"]) .balao:not([data-proposta="true"]) { box-shadow:0 5px 14px -11px var(--mantine-color-text); }
+ :global(html[data-funilador-estilo="moderno"]) .compositor:focus-within { background:color-mix(in srgb,var(--mantine-primary-color-filled) 5%,transparent); border-radius:12px; }
+ :global(html[data-funilador-estilo="moderno"]) .divisorRedimensionavel:hover > span { box-shadow:0 0 0 4px var(--mantine-primary-color-light),0 0 12px var(--mantine-primary-color-filled); }
+ :global(html[data-funilador-estilo="moderno"]) .cabecalho { flex-wrap:wrap; }
+ :global(html[data-funilador-estilo="moderno"]) .ferramentas { margin-inline-start:auto; }
+}
+@media (min-width:48em) and (prefers-reduced-motion:no-preference) {
+ :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root) :global(.mantine-NavLink-section)[data-position="left"] { transition:transform 220ms cubic-bezier(.2,.8,.2,1),background-color 180ms; }
+ :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root):hover :global(.mantine-NavLink-section)[data-position="left"] { transform:scale(1.08); }
+}
+
+
+@media (min-width:48em) {
+ .gradeDesktop { flex:1 1 0; display:flex; flex-direction:column; min-width:0; min-height:0; }
+ .gradeDesktop > * { flex:1 1 0; min-width:0; min-height:0; }
+ .pagina .gradeEstreita { display:grid; grid-template-columns:minmax(0,1fr); min-height:0; }
+ .pagina[data-selecionada="false"] .gradeEstreita .conversa, .pagina[data-selecionada="true"] .gradeEstreita .lista { display:none; }
+ .pagina[data-selecionada="true"] .gradeEstreita .conversa { display:block; }
+ .pagina .gradeEstreita .voltar.voltar { display:inline-flex; }
+ .pagina .gradeEstreita .alternarLista.alternarLista { display:none; }
+}
+
+
+@keyframes chatCabecalhoModerno { from {opacity:.35;transform:translateY(4px);} to {opacity:1;transform:translateY(0);} }
+@media (min-width:48em) and (prefers-reduced-motion:no-preference) {
+ :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .cabecalho { animation:chatCabecalhoModerno 240ms cubic-bezier(.22,.75,.25,1) both; }
+}
+
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .pagina .painel { background:var(--md-surface); border-color:var(--md-edge); }
+ :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root) { background:var(--md-surface); border-color:var(--md-edge); }
+ :global(html[data-funilador-estilo="moderno"]) .compositor { padding:10px; background:var(--md-inset); border:1px solid var(--md-edge); border-radius:14px; }
+ :global(html[data-funilador-estilo="moderno"]) .compositor > :global(.mantine-Button-root) { min-height:36px; }
+ :global(html[data-funilador-estilo="moderno"]) .cabecalho { padding-block:10px; }
+ :global(html[data-funilador-estilo="moderno"]) .historico { border-radius:14px; }
+}
+
+@media (max-width:47.99em) {
+ :global(html[data-funilador-estilo="moderno"]) .pagina .painel {padding:9px;background:var(--md-surface);border:1px solid var(--md-edge);border-radius:19px;}
+ :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root) {padding:12px;}
+ :global(html[data-funilador-estilo="moderno"]) .cabecalho {padding:5px 0 9px;}
+ :global(html[data-funilador-estilo="moderno"]) .historico {background:var(--md-inset);border-radius:14px;border:1px solid var(--md-edge);}
+ :global(html[data-funilador-estilo="moderno"]) .balao {padding:10px;border-radius:15px 15px 15px 5px;font-size:14px;}
+ :global(html[data-funilador-estilo="moderno"]) .balao[data-propria="true"] {border-radius:15px 15px 5px 15px;border-color:var(--mantine-primary-color-light-hover);}
+ :global(html[data-funilador-estilo="moderno"]) .balao[data-proposta="true"] {padding:0;}
+ :global(html[data-funilador-estilo="moderno"]) .compositor {padding:8px 0 0;gap:6px;}
+ :global(html[data-funilador-estilo="moderno"]) .filtros :global(.mantine-SegmentedControl-label) {min-height:38px;font-size:12px;}
+ :global(html[data-funilador-estilo="moderno"]) .ferramentas {max-width:100%;flex-wrap:wrap;}
+ :global(html[data-funilador-estilo="moderno"]) .identidade {min-width:0;}
+}
+
+/* 06.5.5.3 — melhor centralização visual dos filtros rápidos de conversa. */
+.filtros :global(.mantine-SegmentedControl-label) {display:flex; align-items:center; justify-content:center; text-align:center;}
+.filtroConteudo {width:100%;}

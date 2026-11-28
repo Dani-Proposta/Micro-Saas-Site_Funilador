@@ -152,7 +152,7 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
     }
 
     return (
-        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
+        <Stack gap={4} className={`${classes.chatPagina} ${chat.pagina}`} data-chat-mobile="true" data-selecionada={!!conversaSelecionada} data-lista-recolhida={!!conversaSelecionada && listaRecolhida}>
             <Group justify="space-between" gap="xs" className={chat.topo}><Title order={1} className={estrutura.heading}>Minhas mensagens</Title>{voltarPara && <Button variant="subtle" size="xs" onClick={() => navigate(voltarPara)}>← Voltar aos projetos</Button>}<ControleChat foco={foco} alternarFoco={alternarFoco}/></Group>
             {!carregando && !erro && !selecionou && projetoAlvo && !conversaSelecionada && <Alert color="gray" title="Conversa do projeto">Ainda não há uma conversa disponível para este projeto. <Button size="compact-xs" variant="light" onClick={() => {const geral = conversas.find(c => c.tipo === "geral"); if (geral) selecionarConversa(geral.id);}}>Abrir conversa Geral</Button></Alert>}
             {erro && <Alert color="red">{erro}</Alert>}
@@ -185,7 +185,7 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
                                     {conversasVisiveis.map((conversa) => (
                                         <NavLink
                                             key={conversa.id}
-                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
+                                            label={<Group justify="space-between" wrap="nowrap" gap={4}><Text title={conversa.titulo} className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                             leftSection={<IconeChat nome={conversa.tipo}/>}
                                             description={tipoConversa[conversa.tipo].label}
                                             active={conversaSelecionada?.id === conversa.id}

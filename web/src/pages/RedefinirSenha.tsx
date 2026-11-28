@@ -1,3 +1,4 @@
+import { MolduraAcesso } from "../components/MolduraAcesso";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
@@ -34,7 +35,7 @@ export function RedefinirSenha({provisoria = false}: {provisoria?: boolean}) {
         //recarregar para descartar a sessão antiga no cliente
         window.location.replace("/login");
     }
-    return <Paper withBorder p="lg" radius="md" maw={440} mx="auto" mt="xl" style={{maxWidth:"calc(100% - 24px)"}}>
+    const formulario = <Paper withBorder p="lg" radius="md" maw={440} mx="auto" mt="xl" style={{maxWidth:"calc(100% - 24px)"}}>
         {feito ? <Stack gap="sm"><Title order={2}>Senha redefinida</Title><Alert color="green">Entre novamente com sua nova senha.</Alert><Button onClick={()=>void voltar()}>Ir para o login</Button></Stack> : <form onSubmit={salvar}><Stack gap="sm">
             <Title order={2}>{provisoria ? "Escolha sua nova senha" : "Redefinir senha"}</Title>
             <Text size="sm" c="dimmed">{provisoria ? "Por segurança, troque a senha provisória antes de acessar seus projetos." : "Utilize o código enviado pelo administrador. O link é válido apenas uma vez."}</Text>
@@ -46,4 +47,5 @@ export function RedefinirSenha({provisoria = false}: {provisoria?: boolean}) {
             <Button variant="subtle" disabled={enviando} onClick={()=>provisoria ? void voltar() : navigate("/login", {replace:true})}>{provisoria ? "Sair" : "Voltar ao login"}</Button>
         </Stack></form>}
     </Paper>;
+    return provisoria ? formulario : <MolduraAcesso etapa="recuperacao">{formulario}</MolduraAcesso>;
 }

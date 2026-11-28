@@ -1,9 +1,11 @@
+import { TransicaoConteudo, ProgressoModerno, NumeroModerno } from "../components/InteracaoModerna";
+import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import classes from "../styles/Trabalho.module.css";
 import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
 import { correspondeBusca } from "../lib/buscaRegistros";
 import { EstadoLista } from "../components/EstadoLista";
 import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
-import { formatarPrazo, formatarValor } from "../lib/comercial";
+import { formatarPrazo } from "../lib/comercial";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
 import { MarcosProjeto } from "../components/MarcosProjeto";
@@ -15,7 +17,7 @@ import { TextoExpansivel } from "../components/TextoExpansivel";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
-import { Alert, Badge, Button, Card, Group, Progress, Select, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Select, Stack, Text, Title } from "@mantine/core";
 
 type Projeto = DadosProjeto & {
     id: string;
@@ -106,7 +108,7 @@ export function MeusProjetos() {
     return (
         <Stack gap="md" className={classes.pagina}>
 
-            <Title order={1} className={estrutura.heading}>Meus projetos</Title>
+            <CabecalhoModerno titulo="Meus projetos" descricao="Acompanhe o progresso e as entregas." icone="projetos" classeTitulo={estrutura.heading} original={<Title order={1} className={estrutura.heading}>Meus projetos</Title>}/>
             <Text c="dimmed" size="sm">Acompanhe o andamento dos seus projetos.</Text>
 
             {!carregando && !erro && !alvoNotificacao && projetosPendentes.length > 0 && <Card withBorder padding="md"><Stack gap="sm">
@@ -122,16 +124,16 @@ export function MeusProjetos() {
             {erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
 
-            {!carregando && !erro && !alvoNotificacao && projetosVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
-                {projetosVisiveis.map(projeto=><Card key={projeto.id} withBorder padding="sm" className={classes.card}>
-                    <div className={classes.cardTopo}><Text fw={650} className={classes.quebra}>{projeto.titulo}</Text><Badge variant="light" color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge></div>
-                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{projeto.descricao}</Text>
-                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={500}>{formatarValor(projeto.valorAcordado)}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></div></div>
-                    <Group justify="space-between"><Text size="xs" c="dimmed">Progresso</Text><Text size="xs">{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></Group>
-                    {projeto.progresso != null && <Progress value={projeto.progresso} aria-label="Progresso do projeto" size="sm"/>}
-                    <div className={classes.cardAcoes}>{projeto.entregasPendentes > 0 && <Button size="xs" color="yellow" variant="light" onClick={()=>abrirValidacao(projeto.id)}>Validar ({projeto.entregasPendentes})</Button>}<Button size="xs" variant="light" onClick={()=>abrirProjeto(projeto.id)}>Ver projeto</Button></div>
-                </Card>)}
-            </div>}
+            {!carregando && !erro && !alvoNotificacao && projetosVisiveis.length > 0 && <TransicaoConteudo identidade={projetosVisiveis.map(p=>p.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
+                {projetosVisiveis.map(projeto=><CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos">
+                    <div className={classes.cardTopo}><IconeModerno nome="projetos" tamanho={22}/><Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{projeto.titulo}</Text><Badge variant="light" color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge></div>
+                    <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{projeto.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={500}>{<NumeroModerno valor={projeto.valorAcordado} moeda/>}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></div></div>
+                    <Group justify="space-between"><Text size="xs" c="dimmed">Progresso</Text><Text size="xs">{projeto.progresso == null ? "Não definido" : <NumeroModerno valor={projeto.progresso} percentual/>}</Text></Group>
+                    {projeto.progresso != null && <ProgressoModerno valor={projeto.progresso}/>}
+                    <div className={classes.cardAcoes}>{projeto.entregasPendentes > 0 && <Button size="xs" color="yellow" variant="light" onClick={()=>abrirValidacao(projeto.id)}>Validar ({projeto.entregasPendentes})</Button>}<Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label={`Ver projeto ${projeto.titulo}`} size="xs" variant="light" onClick={()=>abrirProjeto(projeto.id)}><span>Ver projeto</span> <IconeModerno nome="abrir" tamanho={15}/></Button></div>
+                </CartaoRegistro>)}
+            </TransicaoConteudo>}
             {!carregando && !erro && !!alvoNotificacao && projetosVisiveis.map((projeto) => (
                 <Card key={projeto.id} withBorder padding="md">
                     <Stack gap="xs">

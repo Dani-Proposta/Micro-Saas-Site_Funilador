@@ -103,3 +103,148 @@
 @media (prefers-reduced-motion: reduce) {
     :global(html[data-funilador-estilo="minimalista"]) :is(.indicador,.projeto,.pendencia) { transition: none; }
 }
+
+/* 06.5.4.3 — Moderno desktop: composição Bento com os cards funcionais existentes. */
+@media (min-width: 48em) {
+    :global(html[data-funilador-estilo="moderno"]) .pagina {
+        container-type: inline-size;
+        gap: clamp(20px, 2vw, 30px);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .bento {
+        position: relative;
+        isolation: isolate;
+        --funilador-gap-painel: calc(var(--mantine-spacing-xs) + 2px);
+    }
+    :global(html[data-funilador-estilo="moderno"]) .bento[data-bento-luz="true"]::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 18px;
+        background-image: var(--bento-luz, none);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 2;
+        transition: opacity 220ms ease;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .bento[data-bento-luz="true"]:hover::after { opacity: .65; }
+    :global(html[data-funilador-estilo="moderno"]) :is(.indicador, .financeCard, .grafico, .pendencia, .pendenciaDetalhe, .projeto) {
+        border-radius: 16px;
+        padding: var(--mantine-spacing-md);
+        border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 12%, var(--mantine-color-default-border));
+        background: linear-gradient(145deg, color-mix(in srgb, var(--mantine-color-default-hover) 45%, var(--mantine-color-body)), var(--mantine-color-body) 80%);
+        box-shadow: 0 4px 15px -10px color-mix(in srgb, var(--mantine-color-text) 35%, transparent);
+        transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    }
+    :global(html[data-funilador-estilo="moderno"]) .grade { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+    :global(html[data-funilador-estilo="moderno"]) .indicador { min-height: 116px; display: flex; flex-direction: column; gap: 10px; }
+    :global(html[data-funilador-estilo="moderno"]) .indicadorTopo { align-items: center; min-height: 38px; }
+    :global(html[data-funilador-estilo="moderno"]) .indicadorTopo > :first-child { font-size: var(--mantine-font-size-sm); color: var(--mantine-color-text); }
+    :global(html[data-funilador-estilo="moderno"]) .indicador > :last-child { margin-top: auto; align-items: center; }
+    :global(html[data-funilador-estilo="moderno"]) .indicador .numero { font-size: clamp(1.65rem, 1.3rem + .8vw, 2.15rem); line-height: 1.15; }
+    :global(html[data-funilador-estilo="moderno"]) .icone { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--mantine-primary-color-light-hover); }
+    :global(html[data-funilador-estilo="moderno"]) .icone svg { width: 19px; height: 19px; }
+    :global(html[data-funilador-estilo="moderno"]) .seta { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mantine-color-default-hover); }
+    :global(html[data-funilador-estilo="moderno"]) .financeiro { grid-template-columns: minmax(0, 1fr); }
+    :global(html[data-funilador-estilo="moderno"]) .financeTopo { display: flex; }
+    :global(html[data-funilador-estilo="moderno"]) .financeTopo > :first-child { min-width: 0; overflow-wrap: break-word; }
+    :global(html[data-funilador-estilo="moderno"]) .iconeAuxiliar { display: inline-grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; color: var(--mantine-primary-color-light-color); background: var(--mantine-primary-color-light); }
+    :global(html[data-funilador-estilo="moderno"]) .destaque { background: linear-gradient(130deg, color-mix(in srgb, var(--mantine-primary-color-filled) 19%, var(--mantine-color-body)), var(--mantine-color-body)); border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 40%, var(--mantine-color-default-border)); }
+    :global(html[data-funilador-estilo="moderno"]) .destaque .numero { font-size: clamp(1.7rem, 1.25rem + 1vw, 2.35rem); }
+    :global(html[data-funilador-estilo="moderno"]) .financeCard > :global(.mantine-Button-root) { margin-top: auto; }
+    :global(html[data-funilador-estilo="moderno"]) .grafico > :global(.mantine-Stack-root) { height: 100%; }
+    :global(html[data-funilador-estilo="moderno"]) .grafico .trilho { height: clamp(115px, 12vw, 168px); border-radius: 9px; }
+    :global(html[data-funilador-estilo="moderno"]) .grafico .trilho > div { flex-shrink: 0; transition: height 350ms cubic-bezier(.22,.75,.25,1); }
+    :global(html[data-funilador-estilo="moderno"]) .grafico .previsto { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(0,0,0,.2) 6px 8px); }
+    :global(html[data-funilador-estilo="moderno"]) .grafico .rotuloMes { font-size: 12px; }
+    :global(html[data-funilador-estilo="moderno"]) .pendencias { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+    :global(html[data-funilador-estilo="moderno"]) .pendencia { min-height: 124px; gap: 10px; --pendencia-acento: var(--mantine-color-default-border); }
+    :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo { align-items: flex-start; }
+    :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo > :global(.mantine-Text-root) { flex: 1; line-height: 1.35; overflow-wrap: break-word !important; }
+    :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo > :global(.mantine-Button-root) { flex-shrink: 0; }
+    :global(html[data-funilador-estilo="moderno"]) .pendenciaRodape { margin-top: auto; }
+    :global(html[data-funilador-estilo="moderno"]) .pendenciaRodape > :global(.mantine-Stack-root) > :first-child { font-size: 1.65rem; line-height: 1.15; }
+    :global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] { --pendencia-acento: var(--mantine-color-red-6); }
+    :global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] { --pendencia-acento: var(--mantine-color-yellow-7); }
+    :global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="violet"] { --pendencia-acento: var(--mantine-color-violet-6); }
+    :global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe) { border-inline-start: 3px solid var(--pendencia-acento, var(--mantine-color-default-border)); }
+    :global(html[data-funilador-estilo="moderno"]) .pendencia[data-selecionada="true"] { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: -2px; }
+    :global(html[data-funilador-estilo="moderno"]) .projeto { min-height: 112px; gap: 10px; }
+    :global(html[data-funilador-estilo="moderno"]) .projeto > :last-child { margin-top: auto; }
+    @container (min-width: 820px) {
+        :global(html[data-funilador-estilo="moderno"]) .financeiro { grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); }
+    }
+    @container (min-width: 900px) {
+        :global(html[data-funilador-estilo="moderno"]) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) { grid-template-columns: repeat(6, minmax(0,1fr)); }
+        :global(html[data-funilador-estilo="moderno"]) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) > .indicador { grid-column: span 2; }
+        :global(html[data-funilador-estilo="moderno"]) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) > .indicador:nth-child(-n+2) { grid-column: span 3; }
+    }
+}
+@media (min-width: 48em) and (hover: hover) and (pointer: fine) {
+    :global(html[data-funilador-estilo="moderno"]) :is(.indicador,.projeto,.pendencia,.financeCard):hover {
+        border-color: var(--mantine-primary-color-light-color);
+        box-shadow: 0 8px 24px -14px color-mix(in srgb, var(--mantine-primary-color-filled) 60%, transparent);
+    }
+}
+@media (min-width: 48em) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) :is(.indicador,.projeto):hover { transform: translateY(-2px); }
+}
+@media (min-width: 48em) {
+    :global(html[data-funilador-estilo="moderno"][data-funilador-movimento="reduzido"]) :is(.indicador,.projeto,.pendencia,.pendenciaDetalhe,.financeCard,.grafico,.trilho > div) { transition: none; }
+}
+@media (min-width: 48em) and (prefers-reduced-motion: reduce) {
+    :global(html[data-funilador-estilo="moderno"]) :is(.indicador,.projeto,.pendencia,.pendenciaDetalhe,.financeCard,.grafico,.trilho > div) { transition: none; }
+}
+
+@media (max-width:47.99em) {
+ :global(html[data-funilador-estilo="moderno"]) .pagina {gap:20px;}
+ :global(html[data-funilador-estilo="moderno"]) .grade {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+ :global(html[data-funilador-estilo="moderno"]) .indicador {padding:14px;min-height:108px;}
+ :global(html[data-funilador-estilo="moderno"]) .indicadorTopo {min-height:36px;}
+ :global(html[data-funilador-estilo="moderno"]) .numero {font-size:clamp(18px,5vw,26px);}
+ :global(html[data-funilador-estilo="moderno"]) .resumo {gap:10px;}
+ :global(html[data-funilador-estilo="moderno"]) .destaque {grid-column:1/-1;}
+ :global(html[data-funilador-estilo="moderno"]) .projetos {grid-template-columns:1fr;}
+}
+@media (max-width:22em) { :global(html[data-funilador-estilo="moderno"]) .resumo {grid-template-columns:1fr;} }
+
+@media (max-width:47.99em) {
+ :global(html[data-funilador-estilo="moderno"]) .indicador {padding:10px;min-height:0;}
+ :global(html[data-funilador-estilo="moderno"]) .resumo {gap:8px;}
+ :global(html[data-funilador-estilo="moderno"]) .grade {gap:8px;}
+}
+
+/* 06.5.5.2 — alertas distinguíveis sem depender do acento escolhido ou do hover. */
+:global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] {
+    --pendencia-acento:var(--mantine-color-red-5);
+    --pendencia-tinta:var(--mantine-color-red-light-color);
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] {
+    --pendencia-acento:var(--mantine-color-orange-5);
+    --pendencia-tinta:var(--mantine-color-orange-light-color);
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]) {
+    border:1px solid color-mix(in srgb,var(--pendencia-acento) 70%,var(--md-edge));
+    border-inline-start:3px solid var(--pendencia-acento);
+    background:linear-gradient(145deg,color-mix(in srgb,var(--pendencia-acento) 12%,var(--md-surface)),var(--md-surface) 80%);
+    box-shadow:0 8px 24px -15px var(--pendencia-acento),inset 0 1px 0 color-mix(in srgb,var(--pendencia-acento) 28%,transparent);
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]):focus-within {
+    border-color:var(--pendencia-acento);box-shadow:0 0 20px -9px var(--pendencia-acento);
+}
+:global(html[data-funilador-estilo="moderno"]) .pendencia:is([data-prioridade="red"],[data-prioridade="yellow"]) .iconeAuxiliar {
+    color:var(--pendencia-tinta);background:color-mix(in srgb,var(--pendencia-acento) 17%,var(--md-inset));
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]) :global(.funilador-pendencia-acao) {
+    color:var(--pendencia-tinta);background:color-mix(in srgb,var(--pendencia-acento) 16%,var(--md-inset));border:1px solid color-mix(in srgb,var(--pendencia-acento) 40%,transparent);
+}
+@media (hover:hover) and (pointer:fine) {
+ :global(html[data-funilador-estilo="moderno"]) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]):hover {border-color:var(--pendencia-acento);box-shadow:0 0 25px -12px var(--pendencia-acento);}
+}
+@media (max-width:47.99em) {
+ :global(html[data-funilador-estilo="moderno"]) .pendencia {gap:10px;padding:12px;}
+ :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo {align-items:center;}
+ :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo > :global(.mantine-Text-root) {flex:1;min-width:0;line-height:1.35;}
+ :global(html[data-funilador-estilo="moderno"]) .pendenciaTopo > :global(.mantine-Button-root) {flex-shrink:0;}
+ :global(html[data-funilador-estilo="moderno"]) .pendencia .iconeAuxiliar {display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:10px;}
+ :global(html[data-funilador-estilo="moderno"]) .pendenciaRodape > :global(.mantine-Stack-root) {min-width:0;max-width:100%;}
+}

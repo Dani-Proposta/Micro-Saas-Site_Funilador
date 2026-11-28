@@ -1,3 +1,5 @@
+import { TransicaoConteudo, NumeroModerno } from "../components/InteracaoModerna";
+import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import { CampoData } from "../components/CampoData";
 import classes from "../styles/Trabalho.module.css";
@@ -7,7 +9,7 @@ import { EstadoLista } from "../components/EstadoLista";
 import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
-import { formatarValor, formatarPrazo } from "../lib/comercial";
+import { formatarPrazo } from "../lib/comercial";
 import { SeletorCliente } from "../components/SeletorCliente";
 import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
 import { statusSolicitacao } from "../lib/solicitacoes";
@@ -15,7 +17,7 @@ import type { SolicitacaoDetalhada, StatusSolicitacao } from "../lib/solicitacoe
 import { useState, useEffect, } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
-import { Card, Text, Badge, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
+import { Text, Badge, Alert, Stack, TextInput, Textarea, Button, Modal, Group, Title, Select} from "@mantine/core";
 import type { SubmitEvent, } from 'react';
 
 type Solicitacao = SolicitacaoDetalhada & {clienteNome: string; clienteId: string};
@@ -231,10 +233,7 @@ export function Solicitacoes(){
     //aparencia da pagina
     return(
         <Stack gap="md" className={classes.pagina}>
-            <Group justify="space-between">
-                <Title order={1} className={estrutura.heading}>Solicitações</Title>
-                <Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button>
-            </Group>
+            <CabecalhoModerno titulo="Solicitações" descricao="Revise pedidos e transforme solicitações em projetos." secao="Área de trabalho" icone="solicitacoes" classeTitulo={estrutura.heading} acoes={<Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button>} original={<Group justify="space-between"><Title order={1} className={estrutura.heading}>Solicitações</Title><Button size="xs" onClick={() => setModalAberto(true)}> + Nova Solicitação</Button></Group>}/>
             <FiltrosTrabalho ordem={ordem} onOrdem={setOrdem} onLimpar={limparFiltros} filtrosAtivos={filtrosAtivos} busca={busca} onBusca={setBusca} total={solicitacoes.length} visiveis={solicitacoesVisiveis.length} carregando={carregando || !!erro} foco={!!alvoNotificacao}>
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
                 <Select label="Cliente" searchable value={clienteFiltro} allowDeselect={false} data={[{value:"todos",label:"Todos os clientes"},...clientes.map(c=>({value:c.id,label:c.nome}))]} onChange={v=>setClienteFiltro(v??"todos")}/>
@@ -288,21 +287,21 @@ export function Solicitacoes(){
 
 
 
-            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
-                {solicitacoesVisiveis.map(solicitacao=><Card key={solicitacao.id} withBorder padding="sm" className={classes.card}>
-                    <div className={classes.cardTopo}>
+            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <TransicaoConteudo identidade={solicitacoesVisiveis.map(s=>s.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
+                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes">
+                    <div className={classes.cardTopo}><IconeModerno nome="solicitacoes" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
-                            <Text fw={650} className={classes.quebra}>{solicitacao.titulo}</Text>
-                            <Text size="xs" c="dimmed" className={classes.quebra}>{solicitacao.clienteNome}</Text>
+                            <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{solicitacao.titulo}</Text>
+                            <Text size="xs" c="dimmed" className={`${classes.quebra} funilador-registro-cliente`}><IconeModerno nome="pessoa" tamanho={14}/>{solicitacao.clienteNome}</Text>
                         </Stack>
                         <Badge variant="light" color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
                     </div>
-                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{solicitacao.descricao}</Text>
-                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{formatarValor(solicitacao.orcamentoEsperado)}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
-                    <Text size="xs" c="dimmed">Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
-                    <div className={classes.cardAcoes}><Button size="xs" variant="subtle" onClick={()=>{setErroDecisao(null);setDetalhesId(solicitacao.id);}}>Ver detalhes</Button>{acoesSolicitacao(solicitacao)}</div>
-                </Card>)}
-            </div>}
+                    <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{solicitacao.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{<NumeroModerno valor={solicitacao.orcamentoEsperado} moeda/>}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
+                    <Text size="xs" c="dimmed"><IconeModerno nome="calendario" tamanho={14}/>Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
+                    <div className={classes.cardAcoes}><Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label="Ver detalhes" size="xs" variant="subtle" onClick={()=>{setErroDecisao(null);setDetalhesId(solicitacao.id);}}><span>Ver detalhes</span> <IconeModerno nome="abrir" tamanho={15}/></Button>{acoesSolicitacao(solicitacao)}</div>
+                </CartaoRegistro>)}
+            </TransicaoConteudo>}
         </Stack>
     );
 }

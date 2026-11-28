@@ -1,6 +1,8 @@
+import { NumeroModerno } from "../components/InteracaoModerna";
+import { IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import { AbasNavegacao } from "../components/NavegacaoPainel";
-import { formatarPrazo, formatarValor } from "../lib/comercial";
+import { formatarPrazo } from "../lib/comercial";
 import classes from "../styles/Trabalho.module.css";
 import estrutura from "../styles/Estrutura.module.css";
 import { Carregamento } from "../components/Carregamento";
@@ -257,13 +259,13 @@ export function ProjetoDetalhes() {
                         </Group>
                 </Stack>
             </Modal>
-            <Group justify="space-between" align="start">
+            <Group justify="space-between" align="start" className="funilador-projeto-hero">
                 <Stack gap="xs" style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
-                    <Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>
+                    <Group gap="sm" wrap="nowrap" className="funilador-projeto-identidade"><IconeModerno nome="projetos" tamanho={30}/><Stack gap={3} miw={0}><Text size="xs" className="funilador-sobretitulo">Projeto · {nomesStatus[projeto.status]}</Text><Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title></Stack></Group>
                 </Stack>
 
-                <Group gap="xs" wrap="wrap">
+                <Group gap="xs" wrap="wrap" className="funilador-projeto-acoes">
                     <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {...registrarOrigem(`/projetos/${projeto.id}`, location.state), projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
                     {projeto.arquivadaEm && (<Badge color="gray">Arquivado</Badge>)}
                     {projeto.arquivadaEm ? <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge> : <Select aria-label="Status do projeto" size="xs" w={150} allowDeselect={false} value={projeto.status} disabled={alterandoStatus || processandoArquivo || confirmarArquivamento} data={Object.entries(nomesStatus).map(([value, label]) => ({value, label}))} onChange={valor => {if (valor === "planejado" || valor === "em_andamento" || valor === "concluido" || valor === "cancelado") void alterarStatus(valor);}}/>}
@@ -275,15 +277,15 @@ export function ProjetoDetalhes() {
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}
             {erroArquivo && !confirmarArquivamento && (<Alert color="red">{erroArquivo}</Alert>)}
             
-            <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={600}>{formatarValor(projeto.valorAcordado)}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={600}>{formatarPrazo(projeto.prazoAcordado)}</Text></div><div><Text size="xs" c="dimmed">Progresso</Text><Text size="sm" fw={600}>{projeto.progresso == null ? "Não definido" : `${projeto.progresso}%`}</Text></div></div>
+            <div className={`${classes.dados} funilador-projeto-metricas`}><div><IconeModerno nome="financeiro" tamanho={22}/><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={600}>{<NumeroModerno valor={projeto.valorAcordado} moeda/>}</Text></div><div><IconeModerno nome="calendario" tamanho={22}/><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={600}>{formatarPrazo(projeto.prazoAcordado)}</Text></div><div><IconeModerno nome="grafico" tamanho={22}/><Text size="xs" c="dimmed">Progresso</Text><Text size="sm" fw={600}>{projeto.progresso == null ? "Não definido" : <NumeroModerno valor={projeto.progresso} percentual/>}</Text></div></div>
             <Tabs value={aba} onChange={setAba} keepMounted className={classes.pagina}>
                 <AbasNavegacao className={classes.abas}><Tabs.Tab value="geral">Visão geral</Tabs.Tab><Tabs.Tab value="comercial">Dados comerciais</Tabs.Tab><Tabs.Tab value="marcos">Marcos e pagamentos</Tabs.Tab></AbasNavegacao>
                 <Tabs.Panel value="geral" pt="sm"><Stack gap="sm">
-            <Card withBorder padding="sm">
+            <Card withBorder padding="sm" className="funilador-projeto-info">
                 <Stack gap="sm">
                     <Title order={4}>Informações gerais</Title>
                     <Group justify="space-between">
-                        <Text c="dimmed">Cliente</Text>
+                        <Text c="dimmed"><IconeModerno nome="pessoa" tamanho={18}/>Cliente</Text>
                         <Button variant="subtle" size="sm" className={classes.clienteLongo} onClick={() => navigate(`/clientes/${projeto.clienteId}`, {state: registrarOrigem(`/projetos/${projeto.id}`, location.state)})}>{projeto.clienteNome}</Button>
                     </Group>
 
@@ -306,7 +308,7 @@ export function ProjetoDetalhes() {
 
 
 
-            <Card withBorder padding="sm">
+            <Card withBorder padding="sm" className="funilador-projeto-escopo">
                 <Stack gap="sm">
                     <Title order={4}>Descrição e escopo</Title>
 

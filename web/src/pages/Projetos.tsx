@@ -1,3 +1,5 @@
+import { TransicaoConteudo } from "../components/InteracaoModerna";
+import { CabecalhoModerno, CartaoRegistro, IconeModerno, SegmentoModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import classes from "../styles/Trabalho.module.css";
 import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
@@ -12,7 +14,7 @@ import { SeletorCliente } from "../components/SeletorCliente";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { comStatus, filtroStatus, statusProjetos } from "../lib/navegacaoContextual";
 import { useEffect, useState } from "react";
-import { Alert, Badge, Card, Group, Stack, Select, SegmentedControl, Text, Title, Button, Modal, TextInput, Textarea } from "@mantine/core";
+import { Alert, Badge, Group, Stack, Select, Text, Title, Button, Modal, TextInput, Textarea } from "@mantine/core";
 import type { SubmitEvent } from "react";
 
 type Projeto = {
@@ -216,10 +218,7 @@ export function Projetos() {
     return (
         <Stack gap="md" className={classes.pagina}>
 
-            <Group justify="space-between">
-                <Title order={1} className={estrutura.heading}>Projetos</Title>
-                <Button size="xs" onClick={() => setModalAberto(true)}>+ Novo projeto</Button>
-            </Group>
+            <CabecalhoModerno titulo="Projetos" descricao="Organize e acompanhe o trabalho em andamento." secao="Área de trabalho" icone="projetos" classeTitulo={estrutura.heading} acoes={<Button size="xs" onClick={() => setModalAberto(true)}>+ Novo projeto</Button>} original={<Group justify="space-between"><Title order={1} className={estrutura.heading}>Projetos</Title><Button size="xs" onClick={() => setModalAberto(true)}>+ Novo projeto</Button></Group>}/>
 
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}
 
@@ -227,7 +226,7 @@ export function Projetos() {
             <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusProjetos]} onChange={valor => setParams(comStatus(params, valor))}/>
             <Select label="Cliente" value={clienteFiltro} allowDeselect={false} searchable data={[{value:"todos",label:"Todos os clientes"}, ...clientes.map(c=>({value:c.id,label:c.nome}))]} onChange={v=>setClienteFiltro(v ?? "todos")}/>
             </FiltrosTrabalho>
-            <SegmentedControl value={filtro} onChange={(valor) => { if (valor === "ativos" || valor === "arquivados") setFiltro(valor);}} data={[{ value: "ativos", label: "Ativos" },{ value: "arquivados", label: "Arquivados" },]}/>
+            <SegmentoModerno value={filtro} onChange={(valor) => { if (valor === "ativos" || valor === "arquivados") setFiltro(valor);}} data={[{ value: "ativos", label: <span className="funilador-segmento-label"><IconeModerno nome="projetos" tamanho={17}/>Ativos</span> },{ value: "arquivados", label: <span className="funilador-segmento-label"><IconeModerno nome="calendario" tamanho={17}/>Arquivados</span> },]}/>
             <Modal opened={modalAberto} onClose={() => {if (cadastroClienteAberto || enviando) return; setModalAberto(false); setClienteId(null); setTitulo(""); setDescricao(""); setErroEnvio(null);}} title="Novo Projeto" centered closeOnEscape={!cadastroClienteAberto && !enviando} closeOnClickOutside={!cadastroClienteAberto && !enviando} withCloseButton={!cadastroClienteAberto && !enviando}>
                 <form onSubmit={criarProjeto}>
                     <Stack gap="sm">
@@ -243,23 +242,23 @@ export function Projetos() {
             {carregando && <Carregamento/>}
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && (<EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>)}
-            {!carregando && !erro && projetosVisiveis.length > 0 && <div className={`${classes.grade} funilador-lista-registros`}>
-                {projetosVisiveis.map(projeto => <Card key={projeto.id} withBorder padding="sm" className={classes.card}>
-                    <div className={classes.cardTopo}>
+            {!carregando && !erro && projetosVisiveis.length > 0 && <TransicaoConteudo identidade={`${filtro}-${projetosVisiveis.map(p=>p.id).join("|")}`} className={`${classes.grade} funilador-lista-registros`}>
+                {projetosVisiveis.map(projeto => <CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos">
+                    <div className={classes.cardTopo}><IconeModerno nome="projetos" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
-                            <Text fw={650} className={classes.quebra}>{projeto.titulo}</Text>
-                            <Text size="xs" c="dimmed" className={classes.quebra}>{projeto.clienteNome}</Text>
+                            <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{projeto.titulo}</Text>
+                            <Text size="xs" c="dimmed" className={`${classes.quebra} funilador-registro-cliente`}><IconeModerno nome="pessoa" tamanho={14}/>{projeto.clienteNome}</Text>
                         </Stack>
                         <Badge variant="light" color={filtro === "arquivados" ? "gray" : ({planejado:"violet",em_andamento:"blue",concluido:"green",cancelado:"red"} as const)[projeto.status]}>{filtro === "arquivados" ? "Arquivado" : statusProjetos.find(p=>p.value===projeto.status)?.label}</Badge>
                     </div>
-                    <Text size="sm" c="dimmed" lineClamp={2} className={classes.quebra}>{projeto.descricao}</Text>
-                    <Text size="xs" c="dimmed">Atualizado em {new Date(projeto.atualizadaEm).toLocaleDateString("pt-BR")}</Text>
+                    <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{projeto.descricao}</Text>
+                    <Text size="xs" c="dimmed"><IconeModerno nome="calendario" tamanho={14}/>Atualizado em {new Date(projeto.atualizadaEm).toLocaleDateString("pt-BR")}</Text>
                     <div className={classes.cardAcoes}>
                         {filtro === "ativos" && <Select aria-label={`Status de ${projeto.titulo}`} size="xs" value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={statusProjetos} onChange={v=>{if(v==="planejado"||v==="em_andamento"||v==="concluido"||v==="cancelado") void alterarStatus(projeto.id,v);}}/>}
-                        <Button size="xs" variant="light" onClick={()=>navigate(`/projetos/${projeto.id}`, {state:{voltarPara:location.pathname+location.search}})}>Ver detalhes</Button>
+                        <Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label="Ver detalhes" size="xs" variant="light" onClick={()=>navigate(`/projetos/${projeto.id}`, {state:{voltarPara:location.pathname+location.search}})}><span>Ver detalhes</span> <IconeModerno nome="abrir" tamanho={15}/></Button>
                     </div>
-                </Card>)}
-            </div>}
+                </CartaoRegistro>)}
+            </TransicaoConteudo>}
 
         </Stack>
     );

@@ -1,4 +1,7 @@
 import chat from "../styles/Chat.module.css";
+import { motion } from "motion/react";
+import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { IconSend } from "@tabler/icons-react";
 import { IconeChat } from "./ElementosChat";
 import { Carregamento } from "./Carregamento";
 import classes from "../styles/Usabilidade.module.css";
@@ -82,6 +85,11 @@ type HistoricoProps = {
 
 export function HistoricoMensagens({conversaId, projetoId, arquivada = false, lado = "admin", onAtualizarConversas, acoesArquivada, identidade, estadoConversa, acoesConversa}: HistoricoProps) {
 
+    const {aparencia} = useAparencia();
+
+    const reduzir = useMovimentoReduzido();
+    const moderno = aparencia.estilo === "moderno";
+    const animar = moderno && !reduzir;
     const [mensagens, setMensagens] = useState<Mensagem[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
@@ -524,7 +532,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                 }}>
                     <Group align="flex-end" wrap="nowrap" gap={4} className={chat.compositor}>
                         <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}/>
-                        <Button type="submit" loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}><span className={chat.enviarRotulo}>Enviar<svg className={chat.enviarIcone} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></svg></span></Button>
+                        <Button type="submit" loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}><span className={chat.enviarRotulo}>Enviar{moderno ? <motion.span className={chat.enviarIcone} whileHover={animar ? {x:3,y:-2} : undefined} transition={{type:"spring",stiffness:380,damping:20}}><IconSend size={17} stroke={1.8} aria-hidden="true"/></motion.span> : <svg className={chat.enviarIcone} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></svg>}</span></Button>
                     </Group>
                 </form>
             )}

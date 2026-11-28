@@ -7,6 +7,7 @@ import { normalizarAparencia } from "../lib/aparencia";
 import type { Aparencia } from "../lib/aparencia";
 import { EditorAparencia } from "./EditorAparencia";
 import classes from "../styles/Estrutura.module.css";
+import { IconLayoutDashboard, IconUsers, IconClipboardList, IconFolder, IconWallet, IconMail, IconMessageCircle, IconUserCircle, IconPalette, IconLogout } from "@tabler/icons-react";
 import { useRelogio } from "../hooks/useRelogio";
 
 const caminhos = {
@@ -23,7 +24,14 @@ const caminhos = {
     sair: "M10 4H4v16h6 M14 8l4 4-4 4 M8 12h12",
 } as const;
 
+const iconesModernos = {painel:IconLayoutDashboard, clientes:IconUsers, solicitacoes:IconClipboardList, projetos:IconFolder, financeiro:IconWallet, convites:IconMail, mensagens:IconMessageCircle, conta:IconUserCircle, tema:IconPalette, sair:IconLogout};
 export function IconePainel({nome, tamanho = 18}: {nome: keyof typeof caminhos; tamanho?: number}) {
+    const {aparencia} = useAparencia();
+
+    if (aparencia.estilo === "moderno" && nome !== "marca") {
+        const Icone = iconesModernos[nome];
+        return <Icone size={tamanho} stroke={1.75} aria-hidden="true" style={{flexShrink:0}}/>;
+    }
     return <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}><path d={caminhos[nome]}/></svg>;
 }
 
@@ -197,8 +205,8 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
             </Menu.Dropdown>
         </Menu>
         <ActionIcon hiddenFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" aria-haspopup="dialog" aria-expanded={aberta} onClick={() => abrir("menu")}><IconePainel nome="conta"/></ActionIcon>
-        <Modal opened={aberta} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:classes.accountDialog, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
-            {secao === "menu" ? <Stack gap="xs">
+        <Modal opened={aberta} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:`${classes.accountDialog}${moderno && secao === "menu" ? " funilador-conta-menu-mobile" : ""}`, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
+            {secao === "menu" ? <Stack gap="xs" className="funilador-conta-acoes">
                 <Text size="sm" fw={600} style={{overflowWrap:"anywhere"}}>{conta?.nome || nome || "Minha conta"}</Text>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="conta"/>} onClick={() => mudarSecao("dados")}>Minha conta</Button>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="tema"/>} onClick={() => mudarSecao("preferencias")}>Preferências</Button>

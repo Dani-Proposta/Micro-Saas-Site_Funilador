@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { useMediaQuery } from "@mantine/hooks";
+import { useElementSize, useMediaQuery } from "@mantine/hooks";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { useAparencia } from "../lib/contextoAparencia";
 import chat from "../styles/Chat.module.css";
@@ -21,12 +21,21 @@ export function GradeChat(props: Props) {
     if (aparencia.estilo !== "moderno" || !desktop) {
         return <div className={`${classes.chatGrid} ${chat.grid}`}>{props.lista}{props.conversa}</div>;
     }
-    return <GradeRedimensionavel {...props}/>;
+    return <GradeDesktop {...props}/>;
+}
+
+// Em janelas estreitas, os dois painéis não cabem com os limites mínimos.
+function GradeDesktop(props: Props) {
+    const {ref,width} = useElementSize<HTMLDivElement>();
+    const estreita = width > 0 && width < 610;
+    return <div ref={ref} className={chat.gradeDesktop}>
+        {estreita ? <div className={`${classes.chatGrid} ${chat.gradeEstreita}`}>{props.lista}{props.conversa}</div> : <GradeRedimensionavel {...props}/>}
+    </div>;
 }
 
 function GradeRedimensionavel({lista, conversa, selecionada, recolhida, onRecolhidaChange}: Props) {
     const painelLista = usePanelRef();
-    const [tamanhoInicial] = useState(() => recolhida ? "0%" : "29%");
+    const [tamanhoInicial] = useState(() => recolhida ? "0%" : "32%");
     useLayoutEffect(() => {
         const painel = painelLista.current;
         if (!painel) return;
@@ -36,7 +45,7 @@ function GradeRedimensionavel({lista, conversa, selecionada, recolhida, onRecolh
 
     return <Group orientation="horizontal" className={chat.gradeRedimensionavel}>
         <Panel panelRef={painelLista} className={chat.painelRedimensionavel}
-            defaultSize={tamanhoInicial} minSize="180px" maxSize="48%"
+            defaultSize={tamanhoInicial} minSize="280px" maxSize="68%"
             collapsible={selecionada} collapsedSize="0%"
             onResize={(tamanho, _id, anterior) => {
                 if (selecionada && anterior) {
@@ -49,7 +58,7 @@ function GradeRedimensionavel({lista, conversa, selecionada, recolhida, onRecolh
         <Separator className={chat.divisorRedimensionavel} aria-label="Ajustar largura da lista de conversas">
             <span aria-hidden="true"/>
         </Separator>
-        <Panel className={chat.painelRedimensionavel} minSize="200px">
+        <Panel className={chat.painelRedimensionavel} minSize="300px">
             {conversa}
         </Panel>
     </Group>;

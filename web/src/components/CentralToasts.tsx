@@ -38,14 +38,14 @@ export function CentralToasts({sessaoId}: {sessaoId: string | null}) {
     useEffect(() => {toast.limpar();}, [sessaoId]);
     return <>
         <Notifications
-            position={mobile ? "bottom-center" : "bottom-right"}
+            position={mobile ? (aparencia.estilo === "moderno" ? "top-center" : "bottom-center") : "bottom-right"}
             containerWidth={360}
             limit={3}
             classNames={{root:"funilador-toasts", notification:"funilador-toast-item"}}
             zIndex={1100}
             transitionDuration={reduzir ? 0 : aparencia.estilo === "minimalista" ? 120 : 250}
             pauseResetOnHover="notification"
-            allowDragDismiss={false}
+            allowDragDismiss={aparencia.estilo === "moderno" && !mobile}
             allowScrollDismiss={false}
             notificationMaxHeight={360}
         />

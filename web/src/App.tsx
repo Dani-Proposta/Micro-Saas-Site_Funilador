@@ -1,3 +1,4 @@
+import { useAnimacaoConteudo } from "./hooks/useInteracaoModerna";
 import { useState } from "react";
 import { Carregamento } from "./components/Carregamento";
 //import externos
@@ -20,11 +21,12 @@ import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
 function PainelAdmin() {
   //constantes importantes lmao
 
-  const [opened, { toggle, close }] = useDisclosure(false);
+  const [opened, { toggle, close, open }] = useDisclosure(false);
   const {aparencia} = useAparencia();
   const moderno = aparencia.estilo === "moderno";
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
+    const mainRef = useAnimacaoConteudo(local.pathname);
   const [estadoFoco, setEstadoFoco] = useState({chave: local.key, ativo: false});
   if (estadoFoco.chave !== local.key) {
     setEstadoFoco({chave: local.key, ativo: false});
@@ -105,9 +107,9 @@ function PainelAdmin() {
       <AppShell.Navbar className={classes.navbar}>
         <NavegacaoPainel lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
       </AppShell.Navbar>
-      <NavegacaoMobile lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened}/>
+      <NavegacaoMobile lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened} abrir={open}/>
 
-      <AppShell.Main className={classes.main}>
+      <AppShell.Main ref={mainRef} className={classes.main}>
         <Routes>
           <Route path="/" element={<Dashboard mensagensNaoLidas={mensagensNaoLidas}/> } />
           <Route path="/login" element={<Login />} />

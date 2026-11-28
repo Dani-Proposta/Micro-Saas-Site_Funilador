@@ -1,3 +1,7 @@
+import { useModerno } from "../hooks/useInteracaoModerna";
+import { useMovimentoReduzido } from "../lib/contextoAparencia";
+import { NumeroModerno, TransicaoConteudo } from "../components/InteracaoModerna";
+import { IconeModerno, CabecalhoModerno, CartaoRegistro } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
 import { CampoData, CampoMes } from "../components/CampoData";
 import { DistribuicaoFinanceira, type GrupoFinanceiro } from "../components/GraficosFinanceiros";
@@ -39,6 +43,8 @@ function criarCsv(itens:Item[]) {
 export function Financeiro() {
     const agora = useRelogio();
     const hoje = hojeBR(agora);
+    const modernoDesktop = useModerno();
+    const reduzir = useMovimentoReduzido();
     const navigate = useNavigate();
     const location = useLocation();
     const [params, setParams] = useSearchParams();
@@ -57,27 +63,31 @@ export function Financeiro() {
     const [erroOperacao,setErroOperacao] = useState<string|null>(null);
     const [salvando,setSalvando] = useState(false);
     const [revisao,setRevisao] = useState(0);
+    const [repeticaoRegistros,setRepeticaoRegistros] = useState(0);
+    const repetirRegistros = useRef(false);
     const [exportando,setExportando] = useState(false);
     const [erroExportacao,setErroExportacao] = useState<string|null>(null);
     const bloqueio = useRef(false);
     const detalhesRef = useRef<HTMLDivElement>(null);
     const focoInicial = useRef(params.has("categoria"));
     const dados = resultado?.consulta === consulta ? resultado.dados : null;
+    const [atualizando, setAtualizando] = useState(false);
     const carregar = useCallback(async (signal:AbortSignal) => {
-        if (periodoInvalido) return;
+        if (periodoInvalido) {setAtualizando(false); return;}
+        setAtualizando(true);
         try {
             const resposta = await fetch(`/api/dashboard/financeiro/detalhes?${consulta}`, {signal,cache:"no-store"});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível carregar os registros");
-            if (!signal.aborted) {setResultado({consulta,dados:corpo});setErro(null);}
-        } catch(e) {if (!signal.aborted) setErro(e instanceof Error ? e.message : "Não foi possível carregar os registros");}
+            if (!signal.aborted) {setResultado({consulta,dados:corpo});setErro(null);if (repetirRegistros.current) {repetirRegistros.current=false;setRepeticaoRegistros(v=>v+1);}}
+        } catch(e) {if (!signal.aborted) {setErro(e instanceof Error ? e.message : "Não foi possível carregar os registros");repetirRegistros.current=false;}} finally {if (!signal.aborted) setAtualizando(false);}
     }, [consulta,periodoInvalido]);
     const atualizar = useAtualizacaoPeriodica(carregar,30000);
     useEffect(() => {
         if (!dados || !focoInicial.current) return;
         focoInicial.current = false;
-        detalhesRef.current?.scrollIntoView({block:"start"});
-    }, [dados]);
+        detalhesRef.current?.scrollIntoView({block:"start",behavior:modernoDesktop && !reduzir ? "smooth" : "auto"});
+    }, [dados,modernoDesktop,reduzir]);
 
     function alterar(chave:string, valor:string) {
         const novos = new URLSearchParams(params);
@@ -97,7 +107,7 @@ export function Financeiro() {
         if (periodo?.fim) novos.set("fim",periodo.fim);
         setParams(novos);
         setErro(null);setErroExportacao(null);
-        detalhesRef.current?.scrollIntoView({block:"start"});
+        detalhesRef.current?.scrollIntoView({block:"start",behavior:modernoDesktop && !reduzir ? "smooth" : "auto"});
     }
     function filtrarGrupo(tipo:"cliente"|"projeto", id:string) {
         const novos = new URLSearchParams(params);
@@ -150,10 +160,10 @@ export function Financeiro() {
     const totalPaginas = Math.max(1,Math.ceil((dados?.quantidade ?? 0)/25));
     const opcoes = resultado?.dados;
     return <Stack gap="md" className={fin.pagina}>
-        <Stack gap={2}><Title order={1} className={estrutura.heading}>Financeiro</Title><Text c="dimmed">Acompanhe recebimentos, previsões e cobranças.</Text></Stack>
+        <CabecalhoModerno titulo="Financeiro" descricao="Acompanhe recebimentos, previsões e cobranças." secao="Gestão financeira" icone="financeiro" classeTitulo={estrutura.heading} original={<Stack gap={2}><Title order={1} className={estrutura.heading}>Financeiro</Title><Text c="dimmed">Acompanhe recebimentos, previsões e cobranças.</Text></Stack>}/>
         <FinanceiroDashboard completo onSelecionar={selecionar} revisao={revisao}/>
         <Card withBorder padding="sm" className="funilador-financeiro-registros"><Stack gap="sm" ref={detalhesRef} style={{scrollMarginTop:80}}>
-            <Group justify="space-between"><Title order={3}>Registros financeiros</Title><Group gap="xs"><Button size="xs" variant="light" loading={exportando} disabled={!dados || periodoInvalido} onClick={()=>void exportarCsv()}>Exportar CSV</Button><Button size="xs" variant="subtle" onClick={atualizar}>Atualizar</Button></Group></Group>
+            <Group justify="space-between"><Title order={3}>Registros financeiros</Title><Group gap="xs"><Button size="xs" variant="light" loading={exportando} disabled={!dados || periodoInvalido} onClick={()=>void exportarCsv()}>Exportar CSV</Button><Button size="xs" variant="subtle" className="funilador-atualizar" loading={atualizando} disabled={periodoInvalido} leftSection={<IconeModerno nome="atualizar"/>} onClick={()=>{repetirRegistros.current=true;atualizar();}}>Atualizar</Button></Group></Group>
             <Text size="xs" c="dimmed">Os filtros abaixo afetam os registros, a distribuição e o total da seleção. O resumo e os gráficos acima são gerais.</Text>
             <SimpleGrid cols={{base:1,xs:2,lg:4}} className="funilador-financeiro-filtros">
                 <Select label="Situação" data={filtros} value={categoria} allowDeselect={false} onChange={v=>alterar("categoria",v ?? "todos")}/>
@@ -167,24 +177,24 @@ export function Financeiro() {
             {(inicio || fim) && <Text size="xs" c="dimmed">Intervalo inclusivo. Registros sem data não entram neste filtro.{historico ? " O intervalo substitui o filtro mensal." : ""}</Text>}
             {periodoInvalido && <Alert color="red">A data inicial deve ser anterior ou igual à final.</Alert>}
             {erroExportacao && <Alert color="red" withCloseButton onClose={()=>setErroExportacao(null)}>{erroExportacao}</Alert>}
-            <Group justify="space-between"><Button size="xs" variant="subtle" onClick={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}>Limpar filtros</Button>{dados && <Stack gap={2} align="flex-end"><Text size="xs" c="dimmed">{historico ? "Total recebido (sem anulados)" : "Saldo total da seleção"} · {dados.quantidade} registros</Text><Text fw={700}>{formatarValor(dados.total)}</Text></Stack>}</Group>
+            <Group justify="space-between"><Button size="xs" variant="subtle" onClick={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}>Limpar filtros</Button>{dados && <Stack gap={2} align="flex-end"><Text size="xs" c="dimmed">{historico ? "Total recebido (sem anulados)" : "Saldo total da seleção"} · {dados.quantidade} registros</Text><Text fw={700}><NumeroModerno valor={dados.total} moeda repeticao={repeticaoRegistros}/></Text></Stack>}</Group>
             {erro && <Alert color="red">{erro}{dados && " · Última consulta disponível."}</Alert>}
             {!dados && !erro && !periodoInvalido && <Carregamento texto="Carregando registros..."/>}
             {dados && dados.itens.length===0 && <EstadoLista titulo="Nenhum registro nesta seleção" descricao="Ajuste os filtros ou o período para consultar outros lançamentos." acao="Limpar filtros" onAcao={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}/>}
             {dados && <DistribuicaoFinanceira clientes={dados.porCliente} projetos={dados.porProjeto} total={dados.total} historico={historico} onSelecionar={filtrarGrupo}/>}
             {dados && dados.itens.length > 0 && <Text fw={600} size="sm">Lançamentos</Text>}
-            <div className={`${fin.registros} funilador-lista-registros`}>{dados?.itens.map(item => {
+            <TransicaoConteudo identidade={resultado?.consulta ?? consulta} className={`${fin.registros} funilador-lista-registros`}>{dados?.itens.map(item => {
                 const pendente = !historico && Number(item.valor)>0 && !item.arquivado;
                 const podeLembrar = pendente && (item.cobrancaIniciada || item.bloqueiaProgresso || (item.data !== null && item.data <= hoje));
                 const lembreteRecente = !!item.ultimoLembrete && agora - new Date(item.ultimoLembrete).getTime() < 86400000;
-                return <Card key={item.id} withBorder padding="sm" className={fin.registro}><Stack gap={6}>
+                return <CartaoRegistro key={item.id} className={fin.registro} tipo="financeiro"><Stack gap={6}>
                     <Group justify="space-between" align="start" wrap="wrap"><Stack gap={2} className={fin.identidade}><Text fw={600}>{item.marco}</Text><Text size="xs" c="dimmed">{item.projeto} · {item.cliente}</Text><Text size="xs" c="dimmed">{historico ? "Recebido em" : "Vencimento"}: {formatarPrazo(item.data)}</Text></Stack><Text fw={700} td={item.anuladoEm ? "line-through" : undefined} c={item.anuladoEm ? "dimmed" : historico ? "green" : item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : undefined}>{formatarValor(item.valor)}</Text></Group>
                     <Group gap={5}>{historico ? <Badge color={item.anuladoEm ? "gray" : "green"} variant="light">{item.anuladoEm ? "Anulado" : "Recebido"}</Badge> : <><Badge color={item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : "gray"} variant="light">{Number(item.valor)===0 ? "Sem saldo exigível" : filtros.find(f=>f.value===item.categoria)?.label ?? item.categoria}</Badge><Badge color="gray" variant="outline">{item.cobrancaIniciada ? "Cobrança iniciada" : "Cobrança não iniciada"}</Badge>{item.saldoDispensado && <Badge color="gray">Saldo dispensado</Badge>}{item.bloqueiaProgresso && Number(item.valor)>0 && <Badge color="orange">Aguardando pagamento</Badge>}</>}{item.arquivado && <Badge color="gray">Arquivado</Badge>}{(item.status==="cancelado" || item.projetoStatus==="cancelado") && <Badge color="gray">Cancelado</Badge>}</Group>
                     {!historico && <Text size="xs" c="dimmed">Valor do marco: {formatarValor(item.valorMarco)} · Recebido: {formatarValor(item.recebido)}</Text>}
                     {!historico && item.ultimoLembrete && <Text size="xs" c="dimmed">Último lembrete: {new Date(item.ultimoLembrete).toLocaleString("pt-BR")}</Text>}
                     {item.anuladoEm && <Text size="xs" c="dimmed">Anulado em {new Date(item.anuladoEm).toLocaleString("pt-BR")}</Text>}
                     <Group gap={5} justify="space-between" wrap="wrap">
-                        <Button size="compact-xs" variant="subtle" onClick={()=>abrir(item)}>Abrir marco</Button>
+                        <Button className="funilador-abrir-cartao" size="compact-xs" variant="subtle" onClick={()=>abrir(item)}>Abrir marco</Button>
                         <Menu position="bottom-end" withinPortal shadow="md">
                             <Menu.Target><Button size="compact-xs" variant="default" aria-label={`Ações de ${item.marco}`}>Ações ⋮</Button></Menu.Target>
                             <Menu.Dropdown>
@@ -195,8 +205,8 @@ export function Financeiro() {
                             </Menu.Dropdown>
                         </Menu>
                     </Group>
-                </Stack></Card>;
-            })}</div>
+                </Stack></CartaoRegistro>;
+            })}</TransicaoConteudo>
             {dados && totalPaginas>1 && <Pagination total={totalPaginas} value={Math.min(pagina,totalPaginas)} onChange={v=>alterar("pagina",String(v))}/>}
             {dados && pagina>totalPaginas && <Button variant="light" onClick={()=>alterar("pagina",String(totalPaginas))}>Voltar à última página disponível</Button>}
         </Stack></Card>
