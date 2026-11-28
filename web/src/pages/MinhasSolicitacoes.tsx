@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { TransicaoConteudo, NumeroModerno } from "../components/InteracaoModerna";
 import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
@@ -62,7 +63,7 @@ export function MinhasSolicitacoes() {
 
         async function carregarSolicitacoes() {
             try {
-                const resposta = await fetch("/api/me/solicitacoes", {signal: controller.signal});
+                const resposta = await apiFetch("/api/me/solicitacoes", {signal: controller.signal});
                 const dados = await resposta.json();
 
                 if (!resposta.ok) throw new Error(dados.erro ?? "Erro ao carregar solicitações.");
@@ -101,7 +102,7 @@ export function MinhasSolicitacoes() {
         setErroEnvio(null);
 
         try {
-            const resposta = await fetch("/api/me/solicitacoes", {
+            const resposta = await apiFetch("/api/me/solicitacoes", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({titulo, descricao, orcamentoEsperado, prazoEsperado}),

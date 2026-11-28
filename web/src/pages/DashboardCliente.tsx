@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { caminhoPendencia, resumirPendenciasProjeto } from "../lib/selecionarPendencias";
 import { formatarValor } from "../lib/comercial";
 import type { Pendencia } from "../components/PendenciasDashboard";
@@ -38,7 +39,7 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
     const carregar = useCallback(async (signal: AbortSignal) => {
         setAtualizando(true);
         try {
-            const resposta = await fetch("/api/me/dashboard", {signal, cache:"no-store"});
+            const resposta = await apiFetch("/api/me/dashboard", {signal, cache:"no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar os indicadores");
             const dados: Resumo = await resposta.json();
             if (!signal.aborted) {setResumo(dados); setErro(null); if(repetir.current)setRepeticao(v=>v+1);}
@@ -48,7 +49,7 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
     }, []);
     const carregarProjetos = useCallback(async (signal: AbortSignal) => {
         try {
-            const resposta = await fetch("/api/me/projetos", {signal, cache:"no-store"});
+            const resposta = await apiFetch("/api/me/projetos", {signal, cache:"no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar os projetos");
             const dados: Projeto[] = await resposta.json();
             if (!signal.aborted) {setProjetos(dados); setErroProjetos(false);}
@@ -56,8 +57,8 @@ export function DashboardCliente({cliente, mensagensNaoLidas = null}: {cliente: 
             if (!signal.aborted) setErroProjetos(true);
         }
     }, []);
-    const atualizarResumo = useAtualizacaoPeriodica(carregar, 30000);
-    const atualizarProjetos = useAtualizacaoPeriodica(carregarProjetos, 30000);
+    const atualizarResumo = useAtualizacaoPeriodica(carregar, 60000);
+    const atualizarProjetos = useAtualizacaoPeriodica(carregarProjetos, 60000);
     const trajetoria = expressivo ? <Card withBorder className="ex-trajetoria"><Stack gap="md">
         <Group justify="space-between" align="center" wrap="wrap"><Group gap="sm" wrap="nowrap"><span className="ex-trajetoria-emblema"><IconTrophy size={32} stroke={1.6}/></span><Stack gap={3}><Text size="xs" fw={700} className="ex-trajetoria-sobretitulo">SUA TRAJETÓRIA</Text><Title order={2}>Tudo o que já construímos juntos</Title><Text size="sm" c="dimmed">{resumo && resumo.projetosConcluidos > 0 ? "Cada projeto concluído é uma conquista. Veja o quanto já avançamos!" : "Cada novo projeto é o começo de uma conquista."}</Text></Stack></Group><Button className="funilador-atualizar" variant="light" size="xs" loading={atualizando} onClick={()=>{repetir.current=true;atualizarResumo();atualizarProjetos();}}>Atualizar</Button></Group>
         {erro && <Alert color="red">{erro}{resumo && " Exibindo a última consulta."}</Alert>}

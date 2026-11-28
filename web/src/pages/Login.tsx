@@ -1,12 +1,16 @@
 import { MolduraAcesso } from "../components/MolduraAcesso";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Alert, Button, Paper, PasswordInput, Stack, TextInput, Title, } from "@mantine/core";
+import { Alert, Button, Paper, PasswordInput, Stack, TextInput, Title, useComputedColorScheme } from "@mantine/core";
 import type { SubmitEvent } from "react";
 import { authClient } from "../lib/auth-client";
+import { useAparencia } from "../lib/contextoAparencia";
 
 export function Login(){
     const navigate = useNavigate();
+    const {aparencia} = useAparencia();
+    const tema = useComputedColorScheme("light", {getInitialValueInEffect: true});
+    const logo = tema === "dark" ? "claro" : "escuro";
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
@@ -47,6 +51,7 @@ export function Login(){
         <MolduraAcesso etapa="login"><Paper withBorder p="xl" radius="md" maw={420} mx="auto">
             <form onSubmit={fazerLogin}>
                 <Stack gap="md">
+                    {aparencia.estilo === "minimalista" && <img src={`/brand/funilador-logo-${logo}.svg`} alt="Funilador" width={190} height={60} style={{display:"block",marginInline:"auto",maxWidth:"100%",height:"auto"}}/>}
                     <Title order={2}>Entrar no painel</Title>
 
                     <TextInput label="Email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.currentTarget.value)}/>

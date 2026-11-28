@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useRef, useState } from "react";
 import { Alert, Button, Group, Select, Stack, Text, TextInput } from "@mantine/core";
 
@@ -42,7 +43,7 @@ export function SeletorCliente({clientes, value, onChange, onCriado, disabled = 
         setEnviando(true);
         setErro(null);
         try {
-            const resposta = await fetch("/api/clientes", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({nome: nome.trim(), email: email.trim() || null})});
+            const resposta = await apiFetch("/api/clientes", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({nome: nome.trim(), email: email.trim() || null})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível cadastrar o cliente.");
             onCriado(dados);

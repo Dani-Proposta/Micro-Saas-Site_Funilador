@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { detectarNovidades, detectarUrgencias, type ReferenciaAvisos } from "../lib/avisosRecebidos";
 import { toast } from "../lib/toasts";
 import { motion } from "motion/react";
@@ -115,7 +116,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const carregarPendencias = useCallback(async (signal: AbortSignal) => {
         setConsultandoPendencias(true);
         try {
-            const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal,cache:"no-store"});
+            const resposta = await apiFetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal,cache:"no-store"});
             if (!resposta.ok) {
                 if (!signal.aborted && [401,403].includes(resposta.status)) {setPendencias([]); referenciaUrgencias.current=null;}
                 throw new Error("Falha ao carregar pendências");
@@ -139,7 +140,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         setConsultandoEventos(true);
         try {
             async function buscar(p: number): Promise<Resumo> {
-                const resposta = await fetch(`${prefixo}?pagina=${p}`, {signal, cache: "no-store"});
+                const resposta = await apiFetch(`${prefixo}?pagina=${p}`, {signal, cache: "no-store"});
                 const dados = await resposta.json();
                 if (!resposta.ok) {
                     if (!signal.aborted && versao === revisao.current && [401,403].includes(resposta.status)) {setResumo(null); referenciaEventos.current=null;}
@@ -202,7 +203,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         setErro(null);
         revisao.current++;
         try {
-            const resposta = await fetch(prefixo, {method: "DELETE"});
+            const resposta = await apiFetch(prefixo, {method: "DELETE"});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível limpar as notificações.");
             revisao.current++;
@@ -227,7 +228,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
         setErro(null);
         revisao.current++;
         try {
-            const resposta = await fetch(`${prefixo}/leituras`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(notificacao ? {id: notificacao.id} : {todas: true})});
+            const resposta = await apiFetch(`${prefixo}/leituras`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(notificacao ? {id: notificacao.id} : {todas: true})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível registrar a leitura.");
             revisao.current++;

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { EfeitosExpressivos } from "./expressivo/EfeitosExpressivos";
 import { AmbienteExpressivo } from "./expressivo/AmbienteExpressivo";
 import { usePreferenciasExpressivo } from "../lib/expressivo";
@@ -35,7 +36,7 @@ export function ProvedorAparencia({children}: {children: ReactNode}) {
         if (!id) return;
         const controller = new AbortController();
         consulta.current = controller;
-        void fetch("/api/conta", {cache:"no-store", signal:controller.signal}).then(async resposta => {
+        void apiFetch("/api/conta", {cache:"no-store", signal:controller.signal}).then(async resposta => {
             if (!resposta.ok) return;
             const dados = await resposta.json();
             if (!controller.signal.aborted && identidade.current === id) setRegistro({id, valor:normalizarAparencia(dados)});

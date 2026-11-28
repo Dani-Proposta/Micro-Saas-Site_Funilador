@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { lazy, Suspense } from "react";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { useModerno } from "../hooks/useInteracaoModerna";
@@ -81,13 +82,13 @@ export function Financeiro() {
         if (periodoInvalido) {setAtualizando(false); return;}
         setAtualizando(true);
         try {
-            const resposta = await fetch(`/api/dashboard/financeiro/detalhes?${consulta}`, {signal,cache:"no-store"});
+            const resposta = await apiFetch(`/api/dashboard/financeiro/detalhes?${consulta}`, {signal,cache:"no-store"});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível carregar os registros");
             if (!signal.aborted) {setResultado({consulta,dados:corpo});setErro(null);if (repetirRegistros.current) {repetirRegistros.current=false;setRepeticaoRegistros(v=>v+1);}}
         } catch(e) {if (!signal.aborted) {setErro(e instanceof Error ? e.message : "Não foi possível carregar os registros");repetirRegistros.current=false;}} finally {if (!signal.aborted) setAtualizando(false);}
     }, [consulta,periodoInvalido]);
-    const atualizar = useAtualizacaoPeriodica(carregar,30000);
+    const atualizar = useAtualizacaoPeriodica(carregar,60000);
     useEffect(() => {
         if (!dados || !focoInicial.current) return;
         focoInicial.current = false;
@@ -125,7 +126,7 @@ export function Financeiro() {
         if (exportando || periodoInvalido) return;
         setExportando(true);setErroExportacao(null);
         try {
-            const resposta = await fetch(`/api/dashboard/financeiro/detalhes?${consulta}&exportar=true`,{cache:"no-store"});
+            const resposta = await apiFetch(`/api/dashboard/financeiro/detalhes?${consulta}&exportar=true`,{cache:"no-store"});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível exportar");
             const dados = corpo as Detalhes;
@@ -151,7 +152,7 @@ export function Financeiro() {
         bloqueio.current = true;setSalvando(true);setErroOperacao(null);
         const {item,tipo,pagamentoId,valor,data} = operacao;
         try {
-            const resposta = await fetch(`/api/projetos/${item.projetoId}/marcos/${item.marcoId}/${tipo === "cobrar" ? "cobranca" : tipo === "lembrar" ? "lembretes" : "pagamentos"}`,{
+            const resposta = await apiFetch(`/api/projetos/${item.projetoId}/marcos/${item.marcoId}/${tipo === "cobrar" ? "cobranca" : tipo === "lembrar" ? "lembretes" : "pagamentos"}`,{
                 method:tipo === "cobrar" ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(tipo === "receber" ? {pagamentoId,valor,recebidoEm:data} : {})});
             const corpo = await resposta.json();
             if (!resposta.ok) throw new Error(corpo.erro ?? "Não foi possível concluir a operação");

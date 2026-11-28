@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
 import { Alert, Badge, Button, Card, Group, Modal, PasswordInput, Select, Stack, Text, TextInput, Title } from "@mantine/core";
@@ -27,7 +28,7 @@ export function GerenciarAcesso({clienteId}: {clienteId: string}) {
         const controller = new AbortController();
         async function carregar() {
             try {
-                const resposta = await fetch(`/api/clientes/${clienteId}/acesso`, {signal:controller.signal, cache:"no-store"});
+                const resposta = await apiFetch(`/api/clientes/${clienteId}/acesso`, {signal:controller.signal, cache:"no-store"});
                 const info = await resposta.json();
                 if (!resposta.ok) throw new Error(info.erro ?? "Não foi possível consultar o acesso");
                 if (!controller.signal.aborted) {setDados(info); setErro("");}
@@ -45,7 +46,7 @@ export function GerenciarAcesso({clienteId}: {clienteId: string}) {
         setEnviando(true); setFeedback("");
         try {
             const revogar = acao === "revogar";
-            const resposta = await fetch(`/api/clientes/${clienteId}/acesso${revogar ? `/${registro}/revogar` : ""}`, {
+            const resposta = await apiFetch(`/api/clientes/${clienteId}/acesso${revogar ? `/${registro}/revogar` : ""}`, {
                 method:revogar ? "PATCH" : "POST", headers:{"Content-Type":"application/json"},
                 body:JSON.stringify({acao,validade:Number(validade),senhaAdmin:senha}), cache:"no-store",
             });

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { CircularExpressivo, SloshExpressivo, TrilhoMarcos } from "./expressivo/ProgressoExpressivo";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { useMediaQuery } from "@mantine/hooks";
@@ -49,7 +50,7 @@ function DetalheDestaque({projeto,atencao,pendenciasCarregadas,erroPendencias,at
     const carregar = useCallback(async (signal:AbortSignal)=>{
         setAtualizando(true);
         try {
-            const [marcos,chat] = await Promise.allSettled([fetch(`/api/me/projetos/${encodeURIComponent(projeto.id)}/marcos`,{signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return await r.json() as ResumoMarcos;}),fetch("/api/me/conversas",{signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return await r.json() as Conversa[];})]);
+            const [marcos,chat] = await Promise.allSettled([apiFetch(`/api/me/projetos/${encodeURIComponent(projeto.id)}/marcos`,{signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return await r.json() as ResumoMarcos;}),apiFetch("/api/me/conversas",{signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return await r.json() as Conversa[];})]);
             if(signal.aborted)return;
             if(marcos.status === "fulfilled" && Array.isArray(marcos.value.marcos)){setResumo(marcos.value);setErro(false);if(repetir.current)setRepeticao(v=>v+1);}else setErro(true);
             if(chat.status === "fulfilled" && Array.isArray(chat.value)){setConversas(chat.value);setErroConversas(false);}else {setConversas(null);setErroConversas(true);}

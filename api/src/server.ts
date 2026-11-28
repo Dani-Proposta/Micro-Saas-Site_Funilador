@@ -20,10 +20,56 @@ import type { Solicitacao } from "./solicitacao.ts";
 import type { Cliente } from "./cliente.ts";
 
 import { auth } from "./auth.ts";
+import { criarRotasPush } from "./lib/rotas-push.ts";
+import { iniciarProcessamentoPush } from "./lib/processar-push.ts";
 
 import { error } from "node:console";
 
 const app = express();
+
+app.disable("x-powered-by");
+
+// Respostas da API podem conter dados privados e credenciais temporárias.
+app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+});
+
+// Proteção de origem para métodos que podem alterar estado, antes das rotas.
+app.use("/api", (req, res, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {next(); return;}
+    const origem = req.get("origin");
+    const origens = Array.isArray(auth.options.trustedOrigins) ? auth.options.trustedOrigins : [];
+    const permitidas = [auth.options.baseURL, ...origens, process.env.BETTER_AUTH_URL]
+        .filter((v): v is string => typeof v === "string")
+        .map(v => new URL(v).origin);
+    if (!origem || !permitidas.includes(origem) || req.get("sec-fetch-site") === "cross-site") {
+        res.status(403).json({erro: "Origem não autorizada"}); return;
+    }
+    next();
+});
+
+// Limites por IP para endpoints públicos, antes de autenticação e parsing.
+// Não confiar em X-Forwarded-For sem configurar o proxy de produção.
+app.use("/api", (req, res, next) => {
+    const caminho = req.path.replace(/\/+$/, "").toLowerCase();
+    let categoria: string;
+    let limite: number;
+    if (req.method === "POST" && caminho === "/auth/sign-in/email") {
+        categoria = "login"; limite = 60;
+    } else if (["GET", "HEAD"].includes(req.method) && /^\/convite\/[^/]+$/.test(caminho)) {
+        categoria = "consulta-convite"; limite = 120;
+    } else if (req.method === "POST" && /^\/convite\/[^/]+\/aceitar$/.test(caminho)) {
+        categoria = "aceite-convite"; limite = 15;
+    } else {next(); return;}
+    try {
+        limitarAcesso(`${categoria}:${req.ip ?? "desconhecido"}`, limite);
+        next();
+    } catch (erro) {
+        if (erro instanceof ErroConversa && erro.status === 429) res.set("Retry-After", "600");
+        responderErroConversa(res, erro);
+    }
+});
 
 const handlerAuth = toNodeHandler(auth);
 //serializar login e troca de credenciais nesta instância
@@ -161,6 +207,7 @@ async function exigirConta(req: Request, res: Response, next: NextFunction) {
 }
 
 app.use("/api/conta", exigirConta);
+app.use("/api/conta/push", criarRotasPush(limitarAcesso));
 
 //apenas cliente logado ve
 app.use("/api/me", exigirCliente);
@@ -2539,8 +2586,10 @@ app.post("/api/clientes/:id/acesso", async (req, res) => {
                 [usuario,admin,acao,acao === "link" ? hashRecuperacao(segredo) : null,validade]);
             if (acao === "provisoria") {
                 await trocarCredencial(db, usuario, segredo);
-                await db.query(`INSERT INTO usuarios_configuracoes (usuario_id,senha_provisoria_ate) VALUES ($1,$2)
-                    ON CONFLICT (usuario_id) DO UPDATE SET senha_provisoria_ate = EXCLUDED.senha_provisoria_ate`, [usuario,registro.rows[0].expiraEm]);
+                //Copiar a validade diretamente no PostgreSQL, preservando os microssegundos.
+                await db.query(`INSERT INTO usuarios_configuracoes (usuario_id,senha_provisoria_ate)
+                    SELECT usuario_id, expira_em FROM usuarios_recuperacoes WHERE id = $1 AND usuario_id = $2 AND tipo = 'provisoria'
+                    ON CONFLICT (usuario_id) DO UPDATE SET senha_provisoria_ate = EXCLUDED.senha_provisoria_ate`, [registro.rows[0].id,usuario]);
             }
             return {acao, ...registro.rows[0], segredo};
         }));
@@ -3460,7 +3509,25 @@ app.delete("/api/notificacoes", limparNotificacoes("admin"));
 //cliente: limpar notificações
 app.delete("/api/me/notificacoes", limparNotificacoes("cliente"));
 
+// Respostas de erro do parser e erros inesperados sem stack ou corpo recebido.
+app.use("/api", (erro: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {next(erro); return;}
+    const tipo = typeof erro === "object" && erro !== null && "type" in erro ? erro.type : null;
+    if (tipo === "entity.parse.failed" || tipo === "request.size.invalid" || tipo === "request.aborted") {
+        res.status(400).json({erro: "Requisição inválida"}); return;
+    }
+    if (tipo === "entity.too.large") {
+        res.status(413).json({erro: "Corpo da requisição muito grande"}); return;
+    }
+    if (tipo === "encoding.unsupported" || tipo === "charset.unsupported") {
+        res.status(415).json({erro: "Formato de requisição não suportado"}); return;
+    }
+    console.error("Erro inesperado na API");
+    res.status(500).json({erro: "Não foi possível concluir a operação"});
+});
+
 //acesso a API
 app.listen(3001, () => {
     console.log("api disponivel na porta: http://localhost:3001");
+    iniciarProcessamentoPush();
 });

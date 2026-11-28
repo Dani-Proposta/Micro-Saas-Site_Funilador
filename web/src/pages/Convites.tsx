@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { ConfirmacaoExpressiva } from "../components/expressivo/EfeitosExpressivos";
 import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
 import { TransicaoConteudo } from "../components/InteracaoModerna";
@@ -71,7 +72,7 @@ export function Convites() {
             setCarregando(true);
             setErro(null);
             try {
-                const resposta = await fetch("/api/convites", { signal: controller.signal });
+                const resposta = await apiFetch("/api/convites", { signal: controller.signal });
                 if (!resposta.ok) throw new Error("Erro ao buscar convites");
                 const dados: Convite[] = await resposta.json();
                 setConvites(dados);
@@ -93,7 +94,7 @@ export function Convites() {
 
         async function carregarClientes() {
             try {
-                const resposta = await fetch("/api/clientes", { signal: controller.signal });
+                const resposta = await apiFetch("/api/clientes", { signal: controller.signal });
                 if (!resposta.ok) throw new Error("Erro ao buscar clientes");
                 const dados: Cliente[] = await resposta.json();
                 setClientes(dados);
@@ -128,7 +129,7 @@ export function Convites() {
         setErroGeracao(null);
 
         try {
-            const resposta = await fetch("/api/convites", {
+            const resposta = await apiFetch("/api/convites", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -184,7 +185,7 @@ export function Convites() {
         setErroRevogacao(null);
 
         try {
-            const resposta = await fetch(`/api/convites/${id}/revogar`, { method: "PATCH" });
+            const resposta = await apiFetch(`/api/convites/${id}/revogar`, { method: "PATCH" });
 
             if (!resposta.ok) throw new Error("Erro ao revogar convite");
 
@@ -213,7 +214,7 @@ export function Convites() {
         setErroExclusao(null);
 
         try {
-            const resposta = await fetch(`/api/convites/${id}`, { method: "DELETE" });
+            const resposta = await apiFetch(`/api/convites/${id}`, { method: "DELETE" });
             
             if (!resposta.ok) throw new Error("Erro ao excluir convite");
 

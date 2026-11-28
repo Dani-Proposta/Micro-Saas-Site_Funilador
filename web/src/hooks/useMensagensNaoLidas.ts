@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useCallback, useEffect, useState } from "react";
 import { useAtualizacaoPeriodica } from "./useAtualizacaoPeriodica";
 
@@ -9,7 +10,7 @@ export function useMensagensNaoLidas(lado: "admin" | "cliente", habilitado: bool
         if (!habilitado || !identidade) return;
         try {
             const prefixo = lado === "admin" ? "/api/conversas" : "/api/me/conversas";
-            const resposta = await fetch(`${prefixo}/nao-lidas`, {signal, cache: "no-store"});
+            const resposta = await apiFetch(`${prefixo}/nao-lidas`, {signal, cache: "no-store"});
             if (signal.aborted) return;
             if ([401, 403].includes(resposta.status)) {setResumo(null); return;}
             if (!resposta.ok) throw new Error("Falha ao consultar mensagens não lidas.");

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { LinhaDeslizante } from "../components/expressivo/LinhaDeslizante";
 import chat from "../styles/Chat.module.css";
 import { FiltroConversas, IconeChat } from "../components/ElementosChat";
@@ -88,7 +89,7 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
     const carregarConversas = useCallback(async (signal: AbortSignal) => {
         const versao = revisao.current;
         try {
-            const resposta = await fetch("/api/me/conversas?todas=true", {signal, cache: "no-store"});
+            const resposta = await apiFetch("/api/me/conversas?todas=true", {signal, cache: "no-store"});
             const dados = await resposta.json();
 
             if (!resposta.ok) {
@@ -141,7 +142,7 @@ function CentralMensagensCliente({foco, alternarFoco}: OpcoesChat) {
         setErroAcao(null);
         const ocultada = !conversa.ocultada;
         try {
-            const resposta = await fetch(`/api/me/conversas/${conversa.id}/ocultar`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ocultada})});
+            const resposta = await apiFetch(`/api/me/conversas/${conversa.id}/ocultar`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ocultada})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível alterar a preferência.");
             revisao.current++;

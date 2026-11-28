@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { NumeroModerno, ValorUrgencia } from "./InteracaoModerna";
 import { useModerno } from "../hooks/useInteracaoModerna";
 import { useMovimentoReduzido } from "../lib/contextoAparencia";
@@ -78,7 +79,7 @@ export function PendenciasDashboard({lado, children, destaque, mostrarZerados: e
     const carregar = useCallback(async (signal: AbortSignal) => {
         setAtualizando(true);
         try {
-            const resposta = await fetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal, cache: "no-store"});
+            const resposta = await apiFetch(lado === "admin" ? "/api/dashboard/pendencias" : "/api/me/dashboard/pendencias", {signal, cache: "no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar as pendências");
             const itens: Pendencia[] = await resposta.json();
             if (!signal.aborted) {setDados(itens); setErro(null); if (repetir.current) {repetir.current=false;setRepeticao(v=>v+1);}}

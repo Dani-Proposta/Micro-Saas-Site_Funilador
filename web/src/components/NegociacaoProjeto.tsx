@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { NumeroModerno, ProgressoModerno } from "./InteracaoModerna";
 import { CampoData } from "./CampoData";
@@ -23,7 +24,7 @@ function novaEdicao(p?: Proposta): Edicao {
 }
 
 async function enviarProposta(url: string, metodo: "POST" | "PATCH", corpo: unknown) {
-    const resposta = await fetch(url, {method: metodo, headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
+    const resposta = await apiFetch(url, {method: metodo, headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível concluir a operação");
 }
@@ -105,7 +106,7 @@ export function ResumoProjetoChat({projetoId, lado, onFechar}: {projetoId: strin
         const controller = new AbortController();
         async function carregar() {
             try {
-                const resposta = await fetch(endpoint, {signal: controller.signal, cache: "no-store"});
+                const resposta = await apiFetch(endpoint, {signal: controller.signal, cache: "no-store"});
                 const resultado = await resposta.json();
                 if (!resposta.ok) throw new Error(resultado.erro ?? "Projeto indisponível");
                 if (!controller.signal.aborted) {setDados(resultado); setErro(null);}

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { lazy, Suspense } from "react";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { CartaoValor, ComparativoMensal } from "./InteracaoModerna";
@@ -44,7 +45,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
     const carregar = useCallback(async (signal: AbortSignal) => {
         setAtualizando(true);
         try {
-            const resposta = await fetch("/api/dashboard/financeiro", {signal, cache: "no-store"});
+            const resposta = await apiFetch("/api/dashboard/financeiro", {signal, cache: "no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar o financeiro");
             const resultado: Resumo = await resposta.json();
             if (!signal.aborted) {setConsulta({dados: resultado, revisao}); setErro(null); if (repetir.current) {repetir.current=false;setRepeticao(v=>v+1);}}
@@ -52,7 +53,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
             if (!signal.aborted) {setErro("Não foi possível atualizar o financeiro");repetir.current=false;}
         } finally { if (!signal.aborted) setAtualizando(false); }
     }, [revisao]);
-    const atualizar = useAtualizacaoPeriodica(carregar, 30000);
+    const atualizar = useAtualizacaoPeriodica(carregar, 60000);
     const selecionar = (categoria: string) => onSelecionar ? onSelecionar(categoria) : navigate(`/financeiro?categoria=${categoria}`);
     function selecionarMes(mes:string, previsao:boolean) {
         const categoria = previsao ? "agenda" : "recebidos";

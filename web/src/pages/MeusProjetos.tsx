@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { ProgressoCartaoExpressivo } from "../components/expressivo/ProgressoExpressivo";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { TransicaoConteudo, ProgressoModerno, NumeroModerno } from "../components/InteracaoModerna";
@@ -90,7 +91,7 @@ export function MeusProjetos() {
 
         async function carregarProjetos() {
             try {
-                const resposta = await fetch("/api/me/projetos", {signal: controller.signal});
+                const resposta = await apiFetch("/api/me/projetos", {signal: controller.signal});
                 const dados = await resposta.json();
 
                 if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível carregar os projetos.");

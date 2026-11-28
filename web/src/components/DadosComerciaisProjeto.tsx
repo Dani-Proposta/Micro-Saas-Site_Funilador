@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { ProgressoModerno, NumeroModerno } from "./InteracaoModerna";
 import { toast } from "../lib/toasts";
 import { CampoData } from "./CampoData";
@@ -60,7 +61,7 @@ export function DadosComerciaisProjeto({projeto, onSalvo}: {projeto: ProjetoAdmi
         setSalvando(true);
         setErro(null);
         try {
-            const resposta = await fetch(`/api/projetos/${projeto.id}/comercial`, {
+            const resposta = await apiFetch(`/api/projetos/${projeto.id}/comercial`, {
                 method: "PATCH",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { celebrarProjeto } from "../lib/celebrarProjeto";
 import { NumeroModerno } from "../components/InteracaoModerna";
@@ -92,7 +93,7 @@ export function ProjetoDetalhes() {
                     throw new Error("ID do projeto não informado");
                 }
 
-                const resposta = await fetch(`/api/projetos/${id}`, { signal: controller.signal, });
+                const resposta = await apiFetch(`/api/projetos/${id}`, { signal: controller.signal, });
 
                 if (!resposta.ok) {
                     throw new Error("não foi possível buscar o projeto");
@@ -139,7 +140,7 @@ export function ProjetoDetalhes() {
         setErroEdicao(null);
 
         try {
-            const resposta = await fetch(`/api/projetos/${projeto.id}`, {
+            const resposta = await apiFetch(`/api/projetos/${projeto.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", },
                 body: JSON.stringify({
@@ -179,7 +180,7 @@ export function ProjetoDetalhes() {
         setErroArquivo(null);
 
         try {
-            const resposta = await fetch(`/api/projetos/${projeto.id}/${acao}`,{ method: "PATCH" });
+            const resposta = await apiFetch(`/api/projetos/${projeto.id}/${acao}`,{ method: "PATCH" });
 
             if (!resposta.ok) {
                 throw new Error("Falha ao alterar arquivamento");
@@ -212,7 +213,7 @@ export function ProjetoDetalhes() {
         setAlterandoStatus(true);
         setErroStatus(null);
         try {
-            const resposta = await fetch(`/api/projetos/${projeto.id}/status`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({status})});
+            const resposta = await apiFetch(`/api/projetos/${projeto.id}/status`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({status})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível atualizar o status.");
             setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, status: dados.status, atualizadaEm: dados.atualizadaEm} : anterior);

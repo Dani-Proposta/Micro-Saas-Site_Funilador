@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import { ProgressoCartaoAdmin } from "../components/expressivo/ProgressoExpressivo";
@@ -47,7 +48,7 @@ export function ClienteDetalhes() {
             setCarregando(true); setErro(""); setEditando(false);
             try {
                 if (!id) throw new Error("ID do cliente não informado");
-                const resposta = await fetch(`/api/clientes/${id}`, {signal:controller.signal,cache:"no-store"});
+                const resposta = await apiFetch(`/api/clientes/${id}`, {signal:controller.signal,cache:"no-store"});
                 if (!resposta.ok) throw new Error("Não foi possível carregar o cliente");
                 const dados:ClienteDetalhado = await resposta.json();
                 if (!controller.signal.aborted) setCliente(dados);
@@ -72,7 +73,7 @@ export function ClienteDetalhes() {
         setSalvando(true);setErroEdicao("");
         const clienteId = cliente.id;
         try {
-            const resposta = await fetch(`/api/clientes/${clienteId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nome:nomeEdicao.trim(),email:emailEdicao.trim()})});
+            const resposta = await apiFetch(`/api/clientes/${clienteId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nome:nomeEdicao.trim(),email:emailEdicao.trim()})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível salvar as alterações");
             setCliente(anterior=>anterior?.id===clienteId ? {...anterior,nome:dados.nome,email:dados.email,usuarioId:dados.usuarioId} : anterior);

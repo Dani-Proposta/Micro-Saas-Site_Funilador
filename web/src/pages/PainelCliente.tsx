@@ -1,8 +1,10 @@
+import { AssinaturaAteliezinho } from "../components/AssinaturaAteliezinho";
+import { apiFetch } from "../lib/api-fetch";
 import { NavegacaoExpressiva } from "../components/expressivo/NavegacaoExpressiva";
 import { useAnimacaoConteudo } from "../hooks/useInteracaoModerna";
 import { Carregamento } from "../components/Carregamento";
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AppShell, Alert, Burger, Group, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useLocation, useNavigate, Routes, Route } from "react-router";
@@ -16,10 +18,12 @@ import { useMensagensNaoLidas } from "../hooks/useMensagensNaoLidas";
 
 //por dps em um index proprio
 import { RedefinirSenha } from "./RedefinirSenha";
-import { MeusProjetos } from "./MeusProjetos";
-import { MinhasSolicitacoes } from "./MinhasSolicitacoes";
-import { DashboardCliente } from "./DashboardCliente";
-import { MensagensCliente } from "./MensagensCliente";
+
+// Mantém o shell do portal montado durante o carregamento das páginas.
+const MeusProjetos = lazy(() => import("./MeusProjetos").then(m => ({default: m.MeusProjetos})));
+const MinhasSolicitacoes = lazy(() => import("./MinhasSolicitacoes").then(m => ({default: m.MinhasSolicitacoes})));
+const DashboardCliente = lazy(() => import("./DashboardCliente").then(m => ({default: m.DashboardCliente})));
+const MensagensCliente = lazy(() => import("./MensagensCliente").then(m => ({default: m.MensagensCliente})));
 
 type Cliente = {
     id: string;
@@ -76,7 +80,7 @@ function PortalCliente() {
 
         async function carregarCliente() {
             try {
-                const resposta = await fetch("/api/me", {signal: controller.signal});
+                const resposta = await apiFetch("/api/me", {signal: controller.signal});
                 const dados = await resposta.json();
 
                 if (resposta.status === 403 && dados.codigo === "TROCA_SENHA_OBRIGATORIA") {if (!controller.signal.aborted) setTrocaObrigatoria(true); return;}
@@ -142,6 +146,7 @@ function PortalCliente() {
                     {erro && <Alert color="red">{erro}</Alert>}
 
                 {cliente && (
+                    <Suspense fallback={<Carregamento texto="Carregando página..."/>}>
                     <Routes>
                         <Route index element={<DashboardCliente cliente={cliente} mensagensNaoLidas={mensagensNaoLidas}/>}/>
                         <Route path="projetos" element={<MeusProjetos/>}/>
@@ -149,8 +154,10 @@ function PortalCliente() {
                         <Route path="mensagens" element={<MensagensCliente foco={foco} alternarFoco={() => setEstadoFoco({chave: local.key, ativo: !foco})}/>}/>
                         <Route path="*" element={<Navigate to="/portal" replace/>}/>
                     </Routes>
+                    </Suspense>
                 )}
                 </Stack>
+                {cliente && !/^\/portal\/mensagens(?:\/|$)/.test(local.pathname) && <AssinaturaAteliezinho/>}
             </AppShell.Main>
 
         </AppShell>

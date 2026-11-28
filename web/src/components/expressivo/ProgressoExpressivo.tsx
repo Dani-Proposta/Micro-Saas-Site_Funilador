@@ -1,3 +1,4 @@
+import { apiFetch } from "../../lib/api-fetch";
 import { useEffect, useId, useState } from "react";
 import { motion } from "motion/react";
 import { useInViewport } from "@mantine/hooks";
@@ -32,7 +33,7 @@ export function ProgressoCartaoAdmin({id,atualizadaEm}: {id:string;atualizadaEm:
     useEffect(()=>{
         if(!inViewport||resultado?.chave===chave)return;
         const controller=new AbortController();
-        void fetch(`/api/projetos/${encodeURIComponent(id)}/marcos`,{signal:controller.signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();const dados=await r.json() as ResumoMarcos;if(!controller.signal.aborted)setResultado({chave,valor:dados.progresso!=null&&Number.isFinite(Number(dados.progresso))?Number(dados.progresso):null,erro:false});}).catch(()=>{if(!controller.signal.aborted)setResultado({chave,valor:null,erro:true});});
+        void apiFetch(`/api/projetos/${encodeURIComponent(id)}/marcos`,{signal:controller.signal,cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();const dados=await r.json() as ResumoMarcos;if(!controller.signal.aborted)setResultado({chave,valor:dados.progresso!=null&&Number.isFinite(Number(dados.progresso))?Number(dados.progresso):null,erro:false});}).catch(()=>{if(!controller.signal.aborted)setResultado({chave,valor:null,erro:true});});
         return ()=>controller.abort();
     },[id,chave,inViewport,resultado?.chave]);
     const atual=resultado?.chave===chave?resultado:null;

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { TrilhoMarcos } from "./expressivo/ProgressoExpressivo";
 import { ProgressoModerno, NumeroModerno } from "./InteracaoModerna";
@@ -120,7 +121,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         const atual = versao.current;
         async function carregar() {
             try {
-                const resposta = await fetch(endpoint, {signal: controller.signal, cache: "no-store"});
+                const resposta = await apiFetch(endpoint, {signal: controller.signal, cache: "no-store"});
                 const dados = await resposta.json();
                 if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível carregar os marcos");
                 if (!controller.signal.aborted && atual === versao.current) {setResumo(dados); setErro(null); onAtualizado?.(dados);}
@@ -149,7 +150,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         setSalvando(true);
         setErro(null);
         try {
-            const resposta = await fetch(url, {method, headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
+            const resposta = await apiFetch(url, {method, headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
             const dados: ResumoMarcos & {erro?: string} = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível salvar");
             setResumo(dados);
@@ -164,7 +165,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         if (!validacao || admin || cancelado || salvando) return;
         versao.current++; setSalvando(true); setErro(null);
         try {
-            const resposta = await fetch(`${endpoint}/${validacao.id}/validar`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({versao: validacao.versao})});
+            const resposta = await apiFetch(`${endpoint}/${validacao.id}/validar`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({versao: validacao.versao})});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível validar a entrega");
             setResumo(dados); onAtualizado?.(dados); setValidacao(null);

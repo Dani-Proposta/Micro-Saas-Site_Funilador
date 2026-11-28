@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import chat from "../styles/Chat.module.css";
 import { motion } from "motion/react";
 import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
@@ -64,7 +65,7 @@ async function buscarPagina(endpoint: string, signal: AbortSignal, cursor?: {tip
     const consulta = new URLSearchParams({estado: "true"});
     if (cursor) consulta.set(cursor.tipo, cursor.id);
     if (inicio) consulta.set("inicio", "true");
-    const resposta = await fetch(`${endpoint}?${consulta}`, {signal, cache: "no-store"});
+    const resposta = await apiFetch(`${endpoint}?${consulta}`, {signal, cache: "no-store"});
     const dados = await resposta.json();
     if (!resposta.ok) throw Object.assign(new Error(dados.erro ?? "Erro ao carregar mensagens."), {status: resposta.status});
     if (!Array.isArray(dados.mensagens) || typeof dados.temMais !== "boolean" || !(dados.arquivadaEm === null || typeof dados.arquivadaEm === "string")) {
@@ -102,6 +103,21 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
     const [dadosProjeto, setDadosProjeto] = useState(false);
     const [conteudo, setConteudo] = useState("");
     const [enviando, setEnviando] = useState(false);
+    const campoMensagemRef = useRef<HTMLTextAreaElement>(null);
+    const envioEmCurso = useRef(false);
+    const restaurarFocoMensagem = useRef(false);
+
+    useLayoutEffect(() => {
+        if (enviando || !restaurarFocoMensagem.current) return;
+        restaurarFocoMensagem.current = false;
+        const campo = campoMensagemRef.current;
+        if (!campo || !campo.isConnected || !document.hasFocus()) return;
+        const ativo = document.activeElement;
+        // Não rouba o foco de outro controle escolhido durante a requisição.
+        if (ativo === campo || ativo === document.body || ativo === null) {
+            campo.focus({preventScroll: true});
+        }
+    }, [enviando]);
     const [erroEnvio, setErroEnvio] = useState<string | null>(null);
     const [arquivadaServidor, setArquivadaServidor] = useState(false);
     const revisao = useRef(0);
@@ -348,7 +364,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
             executando = true;
             let falhou = false;
             try {
-                const resposta = await fetch(endpointLeitura, {method: "POST", signal: controller.signal, headers: {"Content-Type": "application/json"}, body: JSON.stringify({mensagemIds})});
+                const resposta = await apiFetch(endpointLeitura, {method: "POST", signal: controller.signal, headers: {"Content-Type": "application/json"}, body: JSON.stringify({mensagemIds})});
                 if (!resposta.ok) throw new Error("Falha ao registrar leitura.");
                 const dados = await resposta.json();
                 if (controller.signal.aborted) return;
@@ -422,7 +438,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
         setErroLeitura(null);
         const ids = mensagensRef.current.filter(m => m.remetenteTipo !== lado && !m.lida).map(m => m.id);
         try {
-            const resposta = await fetch(endpointLeitura, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({todas: true})});
+            const resposta = await apiFetch(endpointLeitura, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({todas: true})});
             if (!resposta.ok) throw new Error("Não foi possível marcar a conversa como lida.");
             aplicarLeituras(ids);
             ids.forEach(id => filaLeitura.current.delete(id));
@@ -432,14 +448,16 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
         } finally {setMarcandoTodas(false);}
     }
 
-    async function enviarMensagem() {
-        if (somenteLeitura || enviando || carregando || erro || !conteudo.trim()) return;
+    async function enviarMensagem(porEnter = false) {
+        if (somenteLeitura || envioEmCurso.current || enviando || carregando || erro || !conteudo.trim()) return;
 
+        envioEmCurso.current = true;
+        restaurarFocoMensagem.current = porEnter;
         setEnviando(true);
         setErroEnvio(null);
 
         try {
-            const resposta = await fetch(endpoint, {
+            const resposta = await apiFetch(endpoint, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({conteudo}),
@@ -466,6 +484,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
         } catch (erroRecebido) {
             setErroEnvio(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao enviar mensagem.");
         } finally {
+            envioEmCurso.current = false;
             setEnviando(false);
         }
     }
@@ -535,13 +554,13 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                     void enviarMensagem();
                 }}>
                     <Group align="flex-end" wrap="nowrap" gap={4} className={chat.compositor}>
-                        <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}
+                        <Textarea ref={campoMensagemRef} flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} readOnly={enviando}
                             enterKeyHint={enterParaEnviar.ativo ? "send" : "enter"}
                             onKeyDown={evento => {
                                 const acao = acaoEnterChat(enterParaEnviar.ativo, evento, !somenteLeitura && !enviando && !carregando && !erro && !!conteudo.trim());
                                 if (acao === "nativa") return;
                                 evento.preventDefault();
-                                if (acao === "enviar") evento.currentTarget.form?.requestSubmit();
+                                if (acao === "enviar") void enviarMensagem(true);
                             }}/>
                         <Button type="submit" className={expressivo ? "ex-enviar" : undefined} loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}><span className={chat.enviarRotulo}>Enviar{moderno ? <motion.span className={chat.enviarIcone} whileHover={animar ? {x:3,y:-2} : undefined} transition={{type:"spring",stiffness:380,damping:20}}><IconSend size={17} stroke={1.8} aria-hidden="true"/></motion.span> : <svg className={chat.enviarIcone} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></svg>}</span></Button>
                     </Group>

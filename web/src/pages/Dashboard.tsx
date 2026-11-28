@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { IconeModerno } from "../components/AcabamentoModerno";
 import { Carregamento } from "../components/Carregamento";
 import { PendenciasDashboard } from "../components/PendenciasDashboard";
@@ -23,7 +24,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
     const carregar = useCallback(async (signal: AbortSignal) => {
         setAtualizando(true);
         try {
-            const resposta = await fetch("/api/dashboard", {signal, cache:"no-store"});
+            const resposta = await apiFetch("/api/dashboard", {signal, cache:"no-store"});
             if (!resposta.ok) throw new Error("Não foi possível carregar os indicadores");
             const dados: ResumoDashboard = await resposta.json();
             if (!signal.aborted) {setResumo(dados); setErro(null); if (repetir.current) {repetir.current=false;setRepeticao(v=>v+1);}}
@@ -31,7 +32,7 @@ export function Dashboard({mensagensNaoLidas = null}: {mensagensNaoLidas?: numbe
             if (!signal.aborted) {setErro("Não foi possível atualizar os indicadores.");repetir.current=false;}
         } finally {if (!signal.aborted) setAtualizando(false);}
     }, []);
-    const atualizar = useAtualizacaoPeriodica(carregar, 30000);
+    const atualizar = useAtualizacaoPeriodica(carregar, 60000);
     return <Stack className={`${estrutura.dashboard} ${classes.pagina}`}>
         <Stack gap={4}>
             <Title order={1} className={estrutura.heading}>Visão geral</Title>

@@ -29,3 +29,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+// Registro isolado: não solicita permissão nem interfere nas requisições.
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((erro: unknown) => {
+    console.warn('Não foi possível registrar o Service Worker:', erro);
+  });
+}

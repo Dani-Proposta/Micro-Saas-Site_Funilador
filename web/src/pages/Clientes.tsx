@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { NumeroModerno, TransicaoConteudo } from "../components/InteracaoModerna";
 import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
@@ -44,7 +45,7 @@ export function Clientes() {
         async function carregar() {
             setCarregando(true); setErro("");
             try {
-                const resposta = await fetch("/api/clientes", {signal: controller.signal, cache:"no-store"});
+                const resposta = await apiFetch("/api/clientes", {signal: controller.signal, cache:"no-store"});
                 if (!resposta.ok) throw new Error("Não foi possível carregar os clientes");
                 const dados: Cliente[] = await resposta.json();
                 if (!controller.signal.aborted) {setClientes(dados);setRepeticao(v=>v+1);}
@@ -70,7 +71,7 @@ export function Clientes() {
         event.preventDefault(); if (enviando) return;
         setEnviando(true); setErroCadastro("");
         try {
-            const resposta = await fetch(clienteEditando ? `/api/clientes/${clienteEditando.id}` : "/api/clientes", {
+            const resposta = await apiFetch(clienteEditando ? `/api/clientes/${clienteEditando.id}` : "/api/clientes", {
                 method: clienteEditando ? "PATCH" : "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({nome, email}),
             });
             const dados = await resposta.json();

@@ -236,3 +236,32 @@
 @media (min-width:48em) {
  :global(html[data-funilador-estilo="moderno"]) .navbar { overflow-x:hidden; overflow-y:auto; }
 }
+
+/* 06.9.4.2 — Identidade autoral no cabeçalho desktop; mobile preservado. */
+.brandMarkDesktop { display: none; }
+@media (min-width: 48em) {
+    .brandMark { display: none; }
+    .brandMarkDesktop {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+    }
+    .brandMarkDesktop img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    :global(html[data-funilador-estilo="minimalista"]) .brandMarkDesktop { width: 34px; height: 34px; }
+    :global(html[data-funilador-estilo="expressivo"]) .brandMarkDesktop { width: 46px; height: 46px; }
+}
+
+/* 06.9.4.3 — Marca compacta no mobile, sem modificar o desktop. */
+.brandMarkMobile { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; }
+.brandMarkMobile img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@media (max-width: 25em) {
+    .brandMarkMobile { width: 26px; height: 26px; }
+}
+@media (max-width: 20em) {
+    .brandMarkMobile { width: 24px; height: 24px; }
+}
+@media (min-width: 48em) {
+    .brandMarkMobile { display: none; }
+}

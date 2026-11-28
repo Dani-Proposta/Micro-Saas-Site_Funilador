@@ -1,6 +1,7 @@
+import { AssinaturaAteliezinho } from "./components/AssinaturaAteliezinho";
 import { NavegacaoExpressiva } from "./components/expressivo/NavegacaoExpressiva";
 import { useAnimacaoConteudo } from "./hooks/useInteracaoModerna";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Carregamento } from "./components/Carregamento";
 //import externos
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
@@ -8,9 +9,8 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router'
 // imports importantes sksksksksskksk
 import { AppShell, Group, Text, Burger} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, ProjetoDetalhes, Convites, AceitarConvite, PainelCliente, Mensagens } from './pages';
+import { Login } from "./pages/Login";
 import { RedefinirSenha } from "./pages/RedefinirSenha";
-import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
 import { useAparencia, useExpressivoDesktop, useExpressivoMobile } from "./lib/contextoAparencia";
 import { MarcaPainel, MenuConta } from "./components/MenuConta";
@@ -18,6 +18,19 @@ import { NavegacaoMobile, NavegacaoPainel } from "./components/NavegacaoPainel";
 import classes from "./styles/Estrutura.module.css";
 import { CentralNotificacoes } from "./components/CentralNotificacoes";
 import { useMensagensNaoLidas } from "./hooks/useMensagensNaoLidas";
+
+// Carrega cada página apenas quando sua rota é acessada.
+const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({default: m.Dashboard})));
+const Solicitacoes = lazy(() => import("./pages/Solicitacoes").then(m => ({default: m.Solicitacoes})));
+const Clientes = lazy(() => import("./pages/Clientes").then(m => ({default: m.Clientes})));
+const ClienteDetalhes = lazy(() => import("./pages/ClienteDetalhes").then(m => ({default: m.ClienteDetalhes})));
+const Projetos = lazy(() => import("./pages/Projetos").then(m => ({default: m.Projetos})));
+const ProjetoDetalhes = lazy(() => import("./pages/ProjetoDetalhes").then(m => ({default: m.ProjetoDetalhes})));
+const Convites = lazy(() => import("./pages/Convites").then(m => ({default: m.Convites})));
+const AceitarConvite = lazy(() => import("./pages/AceitarConvite").then(m => ({default: m.AceitarConvite})));
+const PainelCliente = lazy(() => import("./pages/PainelCliente").then(m => ({default: m.PainelCliente})));
+const Mensagens = lazy(() => import("./pages/Mensagens").then(m => ({default: m.Mensagens})));
+const Financeiro = lazy(() => import("./pages/Financeiro").then(m => ({default: m.Financeiro})));
 
 function PainelAdmin() {
   //constantes importantes lmao
@@ -114,6 +127,7 @@ function PainelAdmin() {
 
       <NavegacaoExpressiva lado="admin" naoLidas={mensagensNaoLidas} local="dock" foco={foco}/>
       <AppShell.Main ref={mainRef} className={classes.main}>
+        <Suspense fallback={<Carregamento texto="Carregando página..."/>}>
         <Routes>
           <Route path="/" element={<Dashboard mensagensNaoLidas={mensagensNaoLidas}/> } />
           <Route path="/login" element={<Login />} />
@@ -126,6 +140,8 @@ function PainelAdmin() {
           <Route path="/convites" element={<Convites />}/>
           <Route path="/mensagens" element={<Mensagens foco={foco} alternarFoco={() => setEstadoFoco({chave: local.key, ativo: !foco})}/>}/>
         </Routes>
+        </Suspense>
+        {!/^\/mensagens(?:\/|$)/.test(local.pathname) && <AssinaturaAteliezinho/>}
       </AppShell.Main>
     </AppShell>
   )
@@ -133,12 +149,14 @@ function PainelAdmin() {
 
 function App() {
     return (
+        <Suspense fallback={<Carregamento tipo="sessao" texto="Carregando página..."/>}>
         <Routes>
             <Route path="/redefinir" element={<RedefinirSenha/>}/>
             <Route path="/convite/:token" element={<AceitarConvite/>}/>
             <Route path="/portal/*" element={<PainelCliente/>}/>
             <Route path="/*" element={<PainelAdmin/>}/>
         </Routes>
+        </Suspense>
     );
 }
 

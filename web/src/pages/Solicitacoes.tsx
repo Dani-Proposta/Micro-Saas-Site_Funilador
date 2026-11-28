@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { TransicaoConteudo, NumeroModerno } from "../components/InteracaoModerna";
 import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
@@ -87,7 +88,7 @@ export function Solicitacoes(){
             setErro(null);
 
             try{
-                const resposta = await fetch(`/api/solicitacoes`, { signal: controller.signal});
+                const resposta = await apiFetch(`/api/solicitacoes`, { signal: controller.signal});
 
                 if(!resposta.ok){
                     throw new Error("Falha ao buscar solicitações");
@@ -117,7 +118,7 @@ export function Solicitacoes(){
 
         async function carregarClientes() {
             try{
-                const resposta = await fetch(`/api/clientes`,{signal: controller.signal,});
+                const resposta = await apiFetch(`/api/clientes`,{signal: controller.signal,});
 
                 if(!resposta.ok){
                     throw new Error("falha ao carregar clientes");
@@ -149,7 +150,7 @@ export function Solicitacoes(){
         setEnviando(true);
         setErroEnvio(null);
         try{
-            const resposta = await fetch(`/api/solicitacoes`, {
+            const resposta = await apiFetch(`/api/solicitacoes`, {
                 method: "POST",
                 headers:{ "Content-Type": "application/json",},
                 body: JSON.stringify({
@@ -204,7 +205,7 @@ export function Solicitacoes(){
         setErroDecisao(null);
 
         try {
-            const resposta = await fetch(`/api/solicitacoes/${id}/status`, {
+            const resposta = await apiFetch(`/api/solicitacoes/${id}/status`, {
                 method: "PATCH",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({status: novoStatus}),

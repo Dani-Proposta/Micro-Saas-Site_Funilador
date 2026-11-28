@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useState } from "react";
 import { Alert, Button, Group, Modal, Stack, Text, Textarea } from "@mantine/core";
 
@@ -29,7 +30,7 @@ export function ReaberturaConversa({conversaId, pedido, lado, onAlterado, onAtua
         setEnviando(true);
         setErro(null);
         try {
-            const resposta = await fetch(lado === "cliente" ? `/api/me/conversas/${conversaId}/reaberturas` : `/api/conversas/${conversaId}/reaberturas/${pedidoDecisao}`, {
+            const resposta = await apiFetch(lado === "cliente" ? `/api/me/conversas/${conversaId}/reaberturas` : `/api/conversas/${conversaId}/reaberturas/${pedidoDecisao}`, {
                 method: lado === "cliente" ? "POST" : "PATCH",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(lado === "cliente" ? {} : {status: decisao, justificativa}),

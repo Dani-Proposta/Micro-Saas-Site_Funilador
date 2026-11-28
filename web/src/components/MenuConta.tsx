@@ -1,13 +1,17 @@
+import { apiFetch } from "../lib/api-fetch";
 import { toast } from "../lib/toasts";
-import { ActionIcon, Alert, Button, Drawer, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Alert, Button, Drawer, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput, useComputedColorScheme } from "@mantine/core";
 import { useEffect, useState, useRef } from "react";
 import type { SubmitEvent } from "react";
 import { useExpressivo, useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
 import { normalizarAparencia } from "../lib/aparencia";
 import type { Aparencia } from "../lib/aparencia";
 import { EditorAparencia } from "./EditorAparencia";
+import { PreferenciasPush } from "./PreferenciasPush";
+import { useLocation } from "react-router";
+import { authClient } from "../lib/auth-client";
 import classes from "../styles/Estrutura.module.css";
-import { IconLayoutDashboard, IconUsers, IconClipboardList, IconFolder, IconWallet, IconMail, IconMessageCircle, IconUserCircle, IconPalette, IconLogout } from "@tabler/icons-react";
+import { IconLayoutDashboard, IconUsers, IconClipboardList, IconFolder, IconWallet, IconMail, IconMessageCircle, IconUserCircle, IconPalette, IconSettings, IconLogout } from "@tabler/icons-react";
 import { usePreferenciasExpressivo } from "../lib/expressivo";
 import { useExpressivoMobile } from "../lib/contextoAparencia";
 import { useRelogio } from "../hooks/useRelogio";
@@ -23,10 +27,11 @@ const caminhos = {
     mensagens: "M21 11a8 8 0 0 1-8 8H4l2-4a8 8 0 1 1 15-4z",
     conta: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-2a8 8 0 0 1 16 0v2",
     tema: "M20 15a8 8 0 0 1-11-11 8 8 0 1 0 11 11z",
+    configuracoes: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2",
     sair: "M10 4H4v16h6 M14 8l4 4-4 4 M8 12h12",
 } as const;
 
-const iconesModernos = {painel:IconLayoutDashboard, clientes:IconUsers, solicitacoes:IconClipboardList, projetos:IconFolder, financeiro:IconWallet, convites:IconMail, mensagens:IconMessageCircle, conta:IconUserCircle, tema:IconPalette, sair:IconLogout};
+const iconesModernos = {painel:IconLayoutDashboard, clientes:IconUsers, solicitacoes:IconClipboardList, projetos:IconFolder, financeiro:IconWallet, convites:IconMail, mensagens:IconMessageCircle, conta:IconUserCircle, tema:IconPalette, configuracoes:IconSettings, sair:IconLogout};
 export function IconePainel({nome, tamanho = 18}: {nome: keyof typeof caminhos; tamanho?: number}) {
     const {aparencia} = useAparencia();
     const expressivo = useExpressivo();
@@ -39,8 +44,14 @@ export function IconePainel({nome, tamanho = 18}: {nome: keyof typeof caminhos; 
 }
 
 export function MarcaPainel({lado}: {lado: "admin" | "cliente"}) {
+    const {aparencia} = useAparencia();
+    const tema = useComputedColorScheme("light", {getInitialValueInEffect: true});
+    const simbolo = aparencia.estilo === "minimalista"
+        ? `/brand/funilador-mono-${tema === "dark" ? "claro" : "escuro"}.svg`
+        : "/brand/funilador-emblema.svg";
     return <Group gap={9} wrap="nowrap" className={classes.brand}>
-        <span className={classes.brandMark}><IconePainel nome="marca" tamanho={20}/></span>
+        <span className={classes.brandMarkMobile}><img src={aparencia.estilo === "minimalista" ? simbolo : "/brand/funilador-favicon.svg"} width={30} height={30} alt="" aria-hidden="true"/></span>
+        <span className={classes.brandMarkDesktop}><img src={simbolo} width={40} height={40} alt="" aria-hidden="true"/></span>
         <div className={classes.brandText}><Text fw={750} size="md" truncate>Funilador</Text><Text size="xs" c="dimmed" truncate>{lado === "admin" ? "Área administrativa" : "Portal do cliente"}</Text></div>
     </Group>;
 }
@@ -54,7 +65,7 @@ type DadosConta = Omit<Aparencia,"tema"> & {
 };
 
 async function consultarConta(caminho = "", corpo?: object, signal?: AbortSignal): Promise<DadosConta> {
-    const resposta = await fetch(`/api/conta${caminho}`, {
+    const resposta = await apiFetch(`/api/conta${caminho}`, {
         method: corpo ? "PATCH" : "GET",
         ...(corpo ? {headers: {"Content-Type":"application/json"}, body: JSON.stringify(corpo)} : {}),
         signal,
@@ -81,7 +92,7 @@ function SenhaConta({voltar}: {voltar: () => void}) {
         if (atual === nova) {setErro("A nova senha deve ser diferente da senha atual."); return;}
         setEnviando(true);
         try {
-            const resposta = await fetch("/api/conta/senha", {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({atual,nova}),cache:"no-store"});
+            const resposta = await apiFetch("/api/conta/senha", {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({atual,nova}),cache:"no-store"});
             const dados = await resposta.json();
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível alterar a senha.");
             setAtual(""); setNova(""); setConfirmacao(""); setSucesso(true);
@@ -111,6 +122,10 @@ function SenhaConta({voltar}: {voltar: () => void}) {
 export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: {nome?: string | null; email?: string | null; sair: () => void; saindo?: boolean; aoAbrir?: () => void; aoAlterarNome?: (nome: string) => void}) {
     const {aparencia, aplicar} = useAparencia();
     const agora = useRelogio();
+    const {pathname, key: chaveRota} = useLocation();
+    const {data: sessao} = authClient.useSession();
+    const usuarioId = sessao?.user.id;
+    const emMensagens = /^\/(?:portal\/)?mensagens\/?$/.test(pathname);
     const minimalista = aparencia.estilo === "minimalista";
     const expressivoMobile = useExpressivoMobile();
     const {valor:preferenciasExpressivas}=usePreferenciasExpressivo();
@@ -118,7 +133,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     const moderno = aparencia.estilo === "moderno" || expressivoMobile;
     const reduzirMovimento = useMovimentoReduzido();
     const [aberta, setAberta] = useState(false);
-    const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "senha">("menu");
+    const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "configuracoes" | "senha">("menu");
     const [conta, setConta] = useState<DadosConta | null>(null);
     const [nomeEditado, setNomeEditado] = useState("");
     const [carregando, setCarregando] = useState(false);
@@ -196,9 +211,10 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     }
 
     const bloqueado = !!conta?.proximaAlteracaoNome && new Date(conta.proximaAlteracaoNome).getTime() > agora;
-    const titulos = {menu:"Conta e preferências", dados:"Minha conta", preferencias:"Preferências", senha:"Alterar senha"};
+    const titulos = {menu:"Conta e preferências", dados:"Minha conta", preferencias:"Preferências", configuracoes:"Configurações", senha:"Alterar senha"};
 
     return <>
+        {usuarioId && !aberta && <PreferenciasPush key={usuarioId} usuarioId={usuarioId} convite emMensagens={emMensagens} chaveRota={chaveRota}/>}
         <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:minimalista ? "fade" : "pop-top-right", duration:reduzirMovimento ? 0 : minimalista ? 120 : moderno ? 240 : 180}}>
             <Menu.Target><ActionIcon visibleFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" title="Conta e preferências"><IconePainel nome="conta"/></ActionIcon></Menu.Target>
             <Menu.Dropdown className={`${classes.accountDropdown} ex-conta-ramificada`}>
@@ -206,21 +222,23 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
                 <Menu.Item leftSection={<IconePainel nome="conta"/>} onClick={() => abrir("dados")}>Minha conta</Menu.Item>
                 <Menu.Divider/>
                 <Menu.Item leftSection={<IconePainel nome="tema"/>} onClick={() => abrir("preferencias")}>Preferências</Menu.Item>
+                <Menu.Item leftSection={<IconePainel nome="configuracoes"/>} onClick={() => abrir("configuracoes")}>Configurações</Menu.Item>
                 <Menu.Divider/>
                 <Menu.Item leftSection={<IconePainel nome="sair"/>} color="red" disabled={saindo} onClick={sair}>Sair</Menu.Item>
             </Menu.Dropdown>
         </Menu>
         <ActionIcon hiddenFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" aria-haspopup="dialog" aria-expanded={aberta} onClick={() => abrir("menu")}><IconePainel nome="conta"/></ActionIcon>
-        <Drawer opened={aberta && lateral && secao === "menu"} onClose={fechar} position="right" size="min(340px, 94vw)" title="Conta e preferências" classNames={{content:"ex-mobile-drawer",body:"ex-mobile-drawer-body"}} transitionProps={{transition:"slide-left",duration:reduzirMovimento?0:340}}><Stack gap="sm" className="funilador-conta-acoes"><Text fw={700}>{conta?.nome || nome || "Minha conta"}</Text><Button fullWidth leftSection={<IconePainel nome="conta"/>} onClick={()=>mudarSecao("dados")}>Minha conta</Button><Button fullWidth variant="light" leftSection={<IconePainel nome="tema"/>} onClick={()=>mudarSecao("preferencias")}>Preferências</Button><Button fullWidth color="red" variant="light" leftSection={<IconePainel nome="sair"/>} disabled={saindo} onClick={()=>{fechar();sair();}}>Sair</Button></Stack></Drawer>
+        <Drawer opened={aberta && lateral && secao === "menu"} onClose={fechar} position="right" size="min(340px, 94vw)" title="Conta e preferências" classNames={{content:"ex-mobile-drawer",body:"ex-mobile-drawer-body"}} transitionProps={{transition:"slide-left",duration:reduzirMovimento?0:340}}><Stack gap="sm" className="funilador-conta-acoes"><Text fw={700}>{conta?.nome || nome || "Minha conta"}</Text><Button fullWidth leftSection={<IconePainel nome="conta"/>} onClick={()=>mudarSecao("dados")}>Minha conta</Button><Button fullWidth variant="light" leftSection={<IconePainel nome="tema"/>} onClick={()=>mudarSecao("preferencias")}>Preferências</Button><Button fullWidth variant="light" leftSection={<IconePainel nome="configuracoes"/>} onClick={()=>mudarSecao("configuracoes")}>Configurações</Button><Button fullWidth color="red" variant="light" leftSection={<IconePainel nome="sair"/>} disabled={saindo} onClick={()=>{fechar();sair();}}>Sair</Button></Stack></Drawer>
         <Modal opened={aberta && !(lateral && secao === "menu")} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:`${classes.accountDialog}${moderno && secao === "menu" ? " funilador-conta-menu-mobile" : ""}${secao === "dados" ? " ex-perfil-conta" : ""}`, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
             {secao === "menu" ? <Stack gap="xs" className="funilador-conta-acoes">
                 <Text size="sm" fw={600} style={{overflowWrap:"anywhere"}}>{conta?.nome || nome || "Minha conta"}</Text>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="conta"/>} onClick={() => mudarSecao("dados")}>Minha conta</Button>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="tema"/>} onClick={() => mudarSecao("preferencias")}>Preferências</Button>
+                <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="configuracoes"/>} onClick={() => mudarSecao("configuracoes")}>Configurações</Button>
                 <Button fullWidth variant="subtle" justify="flex-start" color="red" leftSection={<IconePainel nome="sair"/>} disabled={saindo} onClick={() => {fechar(); sair();}}>Sair</Button>
             </Stack> : secao === "senha" ? <SenhaConta voltar={() => mudarSecao("dados")}/> : <Stack gap="sm">
-                {carregando && <Text size="sm" c="dimmed">Carregando conta...</Text>}
-                {erro && <Alert color="red">{erro}</Alert>}
+                {secao !== "configuracoes" && carregando && <Text size="sm" c="dimmed">Carregando conta...</Text>}
+                {secao !== "configuracoes" && erro && <Alert color="red">{erro}</Alert>}
                 {!carregando && conta && secao === "dados" && <>
                     <form onSubmit={salvarNome}>
                         <Stack gap="xs">
@@ -234,7 +252,8 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
                 {!carregando && conta && secao === "preferencias" && <>
                     <EditorAparencia inicial={normalizarAparencia({...conta,tema:conta.tema ?? undefined})} salvando={salvando} salvar={v=>void salvarAparencia(v)}/>
                 </>}
-                {!carregando && !conta && <Button variant="default" onClick={() => void carregar()}>Tentar novamente</Button>}
+                {secao === "configuracoes" && usuarioId && <PreferenciasPush key={usuarioId} usuarioId={usuarioId}/>}
+                {secao !== "configuracoes" && !carregando && !conta && <Button variant="default" onClick={() => void carregar()}>Tentar novamente</Button>}
                 <Button variant="subtle" disabled={salvando} onClick={() => mudarSecao("menu")}>Voltar</Button>
             </Stack>}
         </Modal>

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { useExpressivo } from "../lib/contextoAparencia";
 import { ProgressoCartaoAdmin } from "../components/expressivo/ProgressoExpressivo";
 import { celebrarProjeto } from "../lib/celebrarProjeto";
@@ -93,7 +94,7 @@ export function Projetos() {
 
             try {
                 const endereco = filtro === "arquivados" ? "/api/projetos?arquivados=true" : "/api/projetos";
-                const resposta = await fetch(endereco, { signal: controller.signal });
+                const resposta = await apiFetch(endereco, { signal: controller.signal });
 
                 if (!resposta.ok) {
                     throw new Error("Falhou pra procurar os projetos");
@@ -122,7 +123,7 @@ export function Projetos() {
     useEffect(() => {
         async function carregarClientes() {
             try {
-                const resposta = await fetch("/api/clientes");
+                const resposta = await apiFetch("/api/clientes");
 
                 if (!resposta.ok) {
                     throw new Error("Erro ao buscar os clientes");
@@ -152,7 +153,7 @@ export function Projetos() {
         setErroEnvio(null);
 
         try {
-            const resposta = await fetch("/api/projetos", {
+            const resposta = await apiFetch("/api/projetos", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ clienteId, titulo, descricao }),
@@ -194,7 +195,7 @@ export function Projetos() {
         setErroStatus(null);
 
         try {
-            const resposta = await fetch(`/api/projetos/${id}/status`, {
+            const resposta = await apiFetch(`/api/projetos/${id}/status`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: novoStatus }),

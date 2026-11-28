@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { LinhaDeslizante } from "../components/expressivo/LinhaDeslizante";
 import chat from "../styles/Chat.module.css";
 import { FiltroConversas, IconeChat } from "../components/ElementosChat";
@@ -117,7 +118,7 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
         const versao = revisao.current;
 
         try {
-            const resposta = await fetch("/api/conversas?todas=true", {signal, cache: "no-store"});
+            const resposta = await apiFetch("/api/conversas?todas=true", {signal, cache: "no-store"});
             const dados = await resposta.json();
 
             if (!resposta.ok) {
@@ -398,7 +399,7 @@ function NovaConversa({
 
         async function carregarProjetos() {
             try {
-                const resposta = await fetch("/api/projetos", {
+                const resposta = await apiFetch("/api/projetos", {
                     signal: controller.signal,
                 });
                 const dados = await resposta.json();
@@ -438,7 +439,7 @@ function NovaConversa({
                     ? { clienteId: cliente.clienteId, tipo, titulo }
                     : { clienteId: cliente.clienteId, tipo, projetoId };
 
-            const resposta = await fetch("/api/conversas", {
+            const resposta = await apiFetch("/api/conversas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(corpo),
@@ -579,7 +580,7 @@ function RenomearConversa({
         setErro(null);
 
         try {
-            const resposta = await fetch(`/api/conversas/${conversa.id}`, {
+            const resposta = await apiFetch(`/api/conversas/${conversa.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ titulo }),
@@ -664,7 +665,7 @@ function AlterarArquivamento({
         setErro(null);
 
         try {
-            const resposta = await fetch(`/api/conversas/${conversa.id}/${acao}`, {
+            const resposta = await apiFetch(`/api/conversas/${conversa.id}/${acao}`, {
                 method: "PATCH",
             });
 

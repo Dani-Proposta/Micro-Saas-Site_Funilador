@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api-fetch";
 import { MolduraAcesso } from "../components/MolduraAcesso";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
@@ -22,7 +23,7 @@ export function RedefinirSenha({provisoria = false}: {provisoria?: boolean}) {
         if (nova !== confirmar) {setErro("As senhas não coincidem."); return;}
         setEnviando(true);
         try {
-            const resposta = await fetch(provisoria ? "/api/conta/senha" : "/api/recuperacao", {method:provisoria ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(provisoria ? {provisoria:true,nova} : {token:token.trim(),senha:nova}),cache:"no-store"});
+            const resposta = await apiFetch(provisoria ? "/api/conta/senha" : "/api/recuperacao", {method:provisoria ? "PATCH" : "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(provisoria ? {provisoria:true,nova} : {token:token.trim(),senha:nova}),cache:"no-store"});
             const info = await resposta.json();
             if (!resposta.ok) throw new Error(info.erro ?? "Não foi possível redefinir a senha");
             setToken(""); setNova(""); setConfirmar(""); setFeito(true);
