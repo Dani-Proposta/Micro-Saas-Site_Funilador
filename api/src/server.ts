@@ -1,6 +1,7 @@
 //precisa pra se quer existir
 import express from "express";
 import { existsSync } from "node:fs";
+import { isIP } from "node:net";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,7 +25,7 @@ import type { Cliente } from "./cliente.ts";
 
 import { auth } from "./auth.ts";
 import { criarRotasPush } from "./lib/rotas-push.ts";
-import { iniciarProcessamentoPush } from "./lib/processar-push.ts";
+import { iniciarProcessamentoPush, solicitarProcessamentoPush } from "./lib/processar-push.ts";
 
 import { error } from "node:console";
 
@@ -35,6 +36,22 @@ app.disable("x-powered-by");
 // Respostas da API podem conter dados privados e credenciais temporárias.
 app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
+    next();
+});
+
+// No ingress público do Northflank este cabeçalho é sobrescrito pelo proxy.
+// Não habilitar trust proxy globalmente: X-Forwarded-For pode conter dados do cliente.
+// Este modo de produção pressupõe acesso externo apenas pelo ingress público.
+app.use("/api", (req, res, next) => {
+    if (process.env.NODE_ENV === "production") {
+        const ip = req.get("x-envoy-external-address")?.trim();
+        if (!ip || !isIP(ip)) {
+            res.status(403).json({erro: "Origem de rede não autorizada"}); return;
+        }
+        res.locals.ipCliente = ip;
+    } else {
+        res.locals.ipCliente = req.ip ?? "local";
+    }
     next();
 });
 
@@ -52,8 +69,29 @@ app.use("/api", (req, res, next) => {
     next();
 });
 
+// Os eventos de notificação são gerados por escritas da aplicação e seus
+// gatilhos SQL. Agendar depois da resposta de sucesso (transações concluídas).
+app.use("/api", (req, res, next) => {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+        const caminho = req.path;
+        // Leituras, preferências, autenticação e inscrição Push não criam eventos.
+        const ignora = /(?:^|\/)leituras\/?$/.test(caminho) ||
+            /^\/(?:auth|conta|notificacoes|me\/notificacoes)(?:\/|$)/.test(caminho);
+        if (!ignora) {
+            res.once("finish", () => {
+                const conviteAceito = req.method === "POST" && /^\/convite\/[^/]+\/aceitar\/?$/.test(caminho);
+                if (res.statusCode >= 200 && res.statusCode < 300 &&
+                    (typeof res.locals.usuarioId === "string" || conviteAceito)) {
+                    solicitarProcessamentoPush();
+                }
+            });
+        }
+    }
+    next();
+});
+
 // Limites por IP para endpoints públicos, antes de autenticação e parsing.
-// Não confiar em X-Forwarded-For sem configurar o proxy de produção.
+// Usar o IP validado pelo middleware de ingresso acima.
 app.use("/api", (req, res, next) => {
     const caminho = req.path.replace(/\/+$/, "").toLowerCase();
     let categoria: string;
@@ -66,7 +104,7 @@ app.use("/api", (req, res, next) => {
         categoria = "aceite-convite"; limite = 15;
     } else {next(); return;}
     try {
-        limitarAcesso(`${categoria}:${req.ip ?? "desconhecido"}`, limite);
+        limitarAcesso(`${categoria}:${res.locals.ipCliente}`, limite);
         next();
     } catch (erro) {
         if (erro instanceof ErroConversa && erro.status === 429) res.set("Retry-After", "600");
@@ -2604,7 +2642,7 @@ app.post("/api/clientes/:id/acesso", async (req, res) => {
 app.post("/api/recuperacao", async (req, res) => {
     try {
         exigirJsonAcesso(req);
-        limitarAcesso(`publico:${req.ip ?? "local"}`, 30);
+        limitarAcesso(`publico:${res.locals.ipCliente}`, 30);
         const {token, senha} = req.body ?? {};
         if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token) || !senhaValida(senha)) throw new ErroConversa(400, "Código ou senha inválidos");
         const hash = hashRecuperacao(token);

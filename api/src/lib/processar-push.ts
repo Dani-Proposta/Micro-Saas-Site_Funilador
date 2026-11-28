@@ -6,6 +6,12 @@ import { categoriaPush } from './catalogo-push.ts';
 type Evento = { id: string; tipo: string; titulo: string; recente: boolean };
 type Destino = InscricaoPush & { id: string; sessao_id: string };
 let iniciado = false;
+let emExecucao = false;
+let solicitado = false;
+let temporizador: ReturnType<typeof setTimeout> | undefined;
+let falhas = 0;
+const atraso = 15000;
+const maxFalhas = 2;
 
 // Um consumidor por processo; SKIP LOCKED evita que instâncias concorrentes
 // reivindiquem o mesmo evento. Entrega best effort, sem repetir após reinício.
@@ -23,7 +29,7 @@ async function processar() {
                 n.criada_em >= clock_timestamp() - interval '5 minutes' AS recente
         `);
         const evento = resultado.rows[0];
-        if (!evento) return;
+        if (!evento) return false;
         if (!evento.recente) continue;
         const destinos = await pool.query<Destino>(`
             SELECT p.id, p.sessao_id, p.endpoint, p.p256dh, p.auth
@@ -57,16 +63,55 @@ async function processar() {
             }));
         }
     }
+    return true; // Pode haver mais eventos depois de um lote cheio.
+}
+
+// Sem polling ocioso: só consulta na inicialização ou após uma escrita da API.
+function agendar(ms: number) {
+    if (!iniciado || emExecucao || temporizador) return;
+    temporizador = setTimeout(() => {
+        temporizador = undefined;
+        void ciclo();
+    }, ms);
+    temporizador.unref();
+}
+
+async function ciclo() {
+    if (emExecucao || !solicitado) return;
+    emExecucao = true;
+    solicitado = false;
+    let proximo = atraso;
+    try {
+        const loteCheio = await processar();
+        falhas = 0;
+        if (loteCheio) {
+            solicitado = true;
+            proximo = 0;
+        }
+    } catch {
+        console.warn('Processamento Push indisponível; notificações internas preservadas.');
+        falhas++;
+        // Retentativas limitadas, inclusive quando o banco está indisponível.
+        if (falhas <= maxFalhas) solicitado = true;
+        proximo = 60000;
+    } finally {
+        emExecucao = false;
+        if (solicitado) agendar(proximo);
+    }
+}
+
+export function solicitarProcessamentoPush() {
+    if (!iniciado) return;
+    solicitado = true;
+    if (!emExecucao && !temporizador) {
+        falhas = 0;
+        agendar(atraso);
+    }
 }
 
 export function iniciarProcessamentoPush() {
     if (iniciado || !chavePublicaPush()) return;
     iniciado = true;
-    async function ciclo() {
-        let intervalo = 15000;
-        try { await processar(); }
-        catch { console.warn('Processamento Push indisponível; notificações internas preservadas.'); intervalo = 60000; }
-        finally { setTimeout(() => { void ciclo(); }, intervalo).unref(); }
-    }
-    void ciclo();
+    solicitado = true;
+    agendar(0);
 }

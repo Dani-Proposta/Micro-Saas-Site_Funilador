@@ -23,7 +23,10 @@ export const auth = betterAuth({
     database: pool,
     baseURL,
     trustedOrigins: producao ? [baseURL] : ["http://localhost:5173/", "http://192.168.15.14:5173"],
-    ...(producao ? {advanced: {useSecureCookies: true}} : {}),
+    ...(producao ? {advanced: {
+        useSecureCookies: true,
+        ipAddress: {ipAddressHeaders: ["x-envoy-external-address"]},
+    }} : {}),
 
     emailAndPassword: {enabled:true, disableSignUp:true, minPasswordLength:8, maxPasswordLength:128,},
     //alterações de perfil passam pela API com controle de intervalo
