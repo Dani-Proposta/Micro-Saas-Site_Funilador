@@ -13,7 +13,9 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EVENTO_LEITURA } from "../hooks/useMensagensNaoLidas";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
-import { ActionIcon, Alert, Box, Button, Center, Divider, Group, Menu, ScrollArea, Stack, Text, Textarea } from "@mantine/core";
+import { acaoEnterChat, useEnterParaEnviar } from "../hooks/useEnterParaEnviar";
+import { toast } from "../lib/toasts";
+import { ActionIcon, Alert, Box, Button, Center, Divider, Group, Menu, ScrollArea, Stack, Switch, Text, Textarea } from "@mantine/core";
 
 type Mensagem = {
     id: string;
@@ -87,6 +89,7 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
 
     const {aparencia} = useAparencia();
     const expressivo = useExpressivo();
+    const enterParaEnviar = useEnterParaEnviar();
 
     const reduzir = useMovimentoReduzido();
     const moderno = aparencia.estilo === "moderno" || expressivo;
@@ -532,8 +535,22 @@ export function HistoricoMensagens({conversaId, projetoId, arquivada = false, la
                     void enviarMensagem();
                 }}>
                     <Group align="flex-end" wrap="nowrap" gap={4} className={chat.compositor}>
-                        <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}/>
+                        <Textarea flex={1} miw={0} aria-label="Mensagem" placeholder="Digite sua mensagem..." value={conteudo} onChange={evento => setConteudo(evento.currentTarget.value)} autosize minRows={1} maxRows={4} maxLength={5000} disabled={enviando}
+                            enterKeyHint={enterParaEnviar.ativo ? "send" : "enter"}
+                            onKeyDown={evento => {
+                                const acao = acaoEnterChat(enterParaEnviar.ativo, evento, !somenteLeitura && !enviando && !carregando && !erro && !!conteudo.trim());
+                                if (acao === "nativa") return;
+                                evento.preventDefault();
+                                if (acao === "enviar") evento.currentTarget.form?.requestSubmit();
+                            }}/>
                         <Button type="submit" className={expressivo ? "ex-enviar" : undefined} loading={enviando} disabled={carregando || !!erro || !conteudo.trim()}><span className={chat.enviarRotulo}>Enviar{moderno ? <motion.span className={chat.enviarIcone} whileHover={animar ? {x:3,y:-2} : undefined} transition={{type:"spring",stiffness:380,damping:20}}><IconSend size={17} stroke={1.8} aria-hidden="true"/></motion.span> : <svg className={chat.enviarIcone} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></svg>}</span></Button>
+                    </Group>
+                    <Group justify="space-between" align="center" gap={6} wrap="wrap" mt={6} px={2}>
+                        <Switch size="sm" label="Enter para enviar" checked={enterParaEnviar.ativo} disabled={!enterParaEnviar.disponivel}
+                            onChange={evento => {
+                                if (!enterParaEnviar.salvar(evento.currentTarget.checked)) toast.mostrar("aviso", {titulo:"Preferência não salva", mensagem:"Não foi possível salvar a preferência neste navegador."});
+                            }}/>
+                        <Text size="xs" c="dimmed">{enterParaEnviar.ativo ? "Shift + Enter: nova linha" : "Enter: nova linha"}</Text>
                     </Group>
                 </form>
             )}
