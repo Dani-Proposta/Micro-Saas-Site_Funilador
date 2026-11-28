@@ -1,0 +1,109 @@
+/* 06.5.3.4 — Botões e ações do Minimalista.
+   Carregado depois do CSS do Mantine. Cores, variantes e tamanhos continuam
+   sendo definidos pelo Mantine e pelas preferências existentes. */
+
+/* Contorno e movimento: não interfere em cards usados como botões. */
+html[data-funilador-estilo="minimalista"] .mantine-Button-root,
+html[data-funilador-estilo="minimalista"] .mantine-ActionIcon-root {
+    border-radius: 6px;
+    box-shadow: none;
+    transition: background-color 120ms ease, border-color 120ms ease,
+        color 120ms ease, opacity 120ms ease, box-shadow 120ms ease,
+        transform 120ms ease, filter 120ms ease;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-Button-root {
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    font-weight: 600;
+}
+
+/* Mantém o tamanho mínimo fornecido pelo Mantine e permite que ações
+   normais cresçam em altura quando o texto precisa de duas linhas.
+   Botões compactos conservam o dimensionamento original. */
+html[data-funilador-estilo="minimalista"] .mantine-Button-root:not([data-size^="compact"]) {
+    height: auto;
+    min-height: var(--button-height, 36px);
+    padding-block: 4px;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-Button-root:not([data-size^="compact"]) .mantine-Button-label {
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    line-height: 1.25;
+    text-align: center;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-Button-inner {
+    align-items: center;
+    min-inline-size: 0;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-Button-section {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-Button-section > svg,
+html[data-funilador-estilo="minimalista"] .mantine-ActionIcon-icon > svg {
+    display: block;
+    flex-shrink: 0;
+}
+
+html[data-funilador-estilo="minimalista"] .mantine-ActionIcon-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* A variante e a cor da ação continuam com o significado original.
+   Não substitui o vermelho das ações destrutivas ou outros estados. */
+html[data-funilador-estilo="minimalista"] .mantine-Button-root:is([data-variant="subtle"], [data-variant="transparent"]) {
+    font-weight: 500;
+}
+
+html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root):focus-visible {
+    outline: 2px solid var(--mantine-primary-color-light-color);
+    outline-offset: 2px;
+}
+
+/* 06.5.3.9 — resposta tátil discreta, sem deslocar o layout. */
+html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root):active {
+    transform: none;
+}
+html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root):active:not(:disabled):not([data-disabled]):not([aria-disabled="true"]):not([data-loading]) {
+    filter: brightness(.94);
+}
+@media (prefers-reduced-motion: no-preference) {
+    html[data-funilador-estilo="minimalista"]:not([data-funilador-movimento="reduzido"]) :is(.mantine-Button-root, .mantine-ActionIcon-root):active:not(:disabled):not([data-disabled]):not([aria-disabled="true"]):not([data-loading]) {
+        transform: scale(.985);
+    }
+}
+
+/* Mantém o feedback nativo de hover e de carregamento.
+   Desabilitado não se confunde com uma ação disponível. */
+html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root):is(:disabled, [data-disabled], [aria-disabled="true"]):not([data-loading]) {
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root)[data-loading] {
+    cursor: wait;
+}
+
+/* Respeita tanto a opção interna quanto a configuração do sistema.
+   Não elimina o indicador de carregamento ou o contorno de foco. */
+html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"] :is(.mantine-Button-root, .mantine-ActionIcon-root),
+html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"] :is(.mantine-Button-root, .mantine-ActionIcon-root) * {
+    transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root),
+    html[data-funilador-estilo="minimalista"] :is(.mantine-Button-root, .mantine-ActionIcon-root) * {
+        transition: none !important;
+    }
+}

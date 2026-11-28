@@ -1,0 +1,184 @@
+import { apiFetch } from "../lib/api-fetch";
+import { TransicaoConteudo, NumeroModerno } from "../components/InteracaoModerna";
+import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
+import { toast } from "../lib/toasts";
+import { CampoData } from "../components/CampoData";
+import classes from "../styles/Trabalho.module.css";
+import { FiltrosTrabalho } from "../components/FiltrosTrabalho";
+import { correspondeBusca } from "../lib/buscaRegistros";
+import { EstadoLista } from "../components/EstadoLista";
+import { ordenarRegistros, type OrdemRegistros } from "../lib/ordenacaoRegistros";
+import estrutura from "../styles/Estrutura.module.css";
+import { Carregamento } from "../components/Carregamento";
+import { formatarPrazo } from "../lib/comercial";
+import { DetalhesSolicitacao } from "../components/DetalhesSolicitacao";
+import { statusSolicitacao } from "../lib/solicitacoes";
+import type { SolicitacaoDetalhada } from "../lib/solicitacoes";
+
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { comStatus, filtroStatus, statusSolicitacoes } from "../lib/navegacaoContextual";
+import { Alert, Badge, Button, Group, Modal, Select, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+
+type Solicitacao = SolicitacaoDetalhada;
+
+export function MinhasSolicitacoes() {
+
+    const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+    const [params, setParams] = useSearchParams();
+    const status = filtroStatus(params, statusSolicitacoes);
+    const alvoNotificacao = params.get("solicitacao");
+    const eventoNotificacao = params.get("notificacao");
+    const [busca, setBusca] = useState("");
+    const [ordem, setOrdem] = useState<OrdemRegistros>("padrao");
+    const solicitacoesVisiveis = ordenarRegistros(solicitacoes.filter(s => alvoNotificacao ? s.id === alvoNotificacao : (status === "todos" || s.status === status) && correspondeBusca(busca, s.titulo, s.descricao, s.clienteNome)), ordem);
+    const filtrosAtivos = !!busca.trim() || status !== "todos" || ordem !== "padrao";
+    function limparFiltros() {
+        setBusca(""); setOrdem("padrao");
+        setParams(comStatus(params, "todos"));
+    }
+    function limparAtalho() {
+        const proximo = new URLSearchParams(params);
+        proximo.delete("solicitacao");
+        proximo.delete("notificacao");
+        setParams(proximo);
+    }
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
+
+    const [modalAberto, setModalAberto] = useState(false);
+    const [detalhesId, setDetalhesId] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const detalhes = solicitacoes.find(s => s.id === detalhesId);
+    const [titulo, setTitulo] = useState("");
+    const [descricao, setDescricao] = useState("");
+    const [orcamentoEsperado, setOrcamentoEsperado] = useState("");
+    const [prazoEsperado, setPrazoEsperado] = useState("");
+
+    const [enviando, setEnviando] = useState(false);
+    const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        async function carregarSolicitacoes() {
+            try {
+                const resposta = await apiFetch("/api/me/solicitacoes", {signal: controller.signal});
+                const dados = await resposta.json();
+
+                if (!resposta.ok) throw new Error(dados.erro ?? "Erro ao carregar solicitações.");
+
+                if (!controller.signal.aborted) setSolicitacoes(dados);
+
+            } catch (erroRecebido) {
+                if (!controller.signal.aborted) setErro(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao carregar solicitações.");
+            } finally {
+                if (!controller.signal.aborted) setCarregando(false);
+            }
+        }
+
+        void carregarSolicitacoes();
+        return () => controller.abort();
+    }, [eventoNotificacao]);
+
+    function fecharModal() {
+        if (enviando) return;
+
+        setModalAberto(false);
+        setTitulo("");
+        setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
+        setErroEnvio(null);
+    }
+
+    async function criarSolicitacao() {
+        if (enviando) return;
+
+        if (!titulo.trim() || !descricao.trim()) {
+            setErroEnvio("Preencha o título e a descrição.");
+            return;
+        }
+
+        setEnviando(true);
+        setErroEnvio(null);
+
+        try {
+            const resposta = await apiFetch("/api/me/solicitacoes", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({titulo, descricao, orcamentoEsperado, prazoEsperado}),
+            });
+
+            const dados = await resposta.json();
+
+            if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível criar a solicitação.");
+
+            setSolicitacoes((anteriores) => [dados, ...anteriores]);
+            toast.mostrar("sucesso", {titulo:"Solicitação enviada", mensagem:"Você pode acompanhar a resposta no portal."});
+            setModalAberto(false);
+            setTitulo("");
+            setDescricao(""); setOrcamentoEsperado(""); setPrazoEsperado("");
+            setErroEnvio(null);
+            setBusca(""); setOrdem("padrao");
+            const proximo = comStatus(params, "todos");
+            proximo.delete("solicitacao");
+            proximo.delete("notificacao");
+            setParams(proximo);
+
+        } catch (erroRecebido) {
+            setErroEnvio(erroRecebido instanceof Error ? erroRecebido.message : "Falha ao enviar solicitação.");
+        } finally {
+            setEnviando(false);
+        }
+    }
+
+    return (
+        <Stack gap="md" className={classes.pagina}>
+
+            <CabecalhoModerno titulo="Minhas solicitações" descricao="Acompanhe os pedidos enviados." secao="Área de trabalho" icone="solicitacoes" classeTitulo={estrutura.heading} acoes={<Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button>} original={<Group justify="space-between"><Title order={1} className={estrutura.heading}>Minhas solicitações</Title><Button size="xs" disabled={carregando || !!erro} onClick={() => setModalAberto(true)}>+ Nova solicitação</Button></Group>}/>
+
+            <Text size="sm" c="dimmed">Envie novas solicitações e acompanhe suas respostas.</Text>
+
+            {detalhes && <DetalhesSolicitacao key={detalhes.id} solicitacao={detalhes} onClose={() => setDetalhesId(null)} acoes={detalhes.projetoId && <Button size="xs" variant="light" onClick={() => navigate(`/portal/projetos?projeto=${detalhes.projetoId}`)}>Ver projeto</Button>}/>}
+            <Modal opened={modalAberto} onClose={fecharModal} title="Nova solicitação" centered closeOnEscape={!enviando} closeOnClickOutside={!enviando} withCloseButton={!enviando}>
+                <Stack gap="md">
+                    <TextInput label="Título" placeholder="Sobre o que é sua solicitação?" value={titulo} onChange={(evento) => setTitulo(evento.currentTarget.value)} maxLength={150} disabled={enviando} required/>
+                    <Textarea label="Descrição" placeholder="Descreva o que você precisa..." value={descricao} onChange={(evento) => setDescricao(evento.currentTarget.value)} minRows={5} maxLength={5000} disabled={enviando} required/>
+
+                    <div className="funilador-campos-alinhados">
+                    <TextInput label="Orçamento esperado" aria-label="Orçamento esperado (R$)" leftSection={<span className="funilador-moeda" aria-hidden="true">R$</span>} leftSectionWidth={36} leftSectionPointerEvents="none" placeholder="Ex.: 1500,00" inputMode="decimal" value={orcamentoEsperado} onChange={evento => setOrcamentoEsperado(evento.currentTarget.value)} maxLength={13} disabled={enviando}/>
+                    <CampoData label="Prazo esperado" value={prazoEsperado} onChange={setPrazoEsperado} disabled={enviando}/>
+                    </div>
+
+                    {erroEnvio && <Alert color="red">{erroEnvio}</Alert>}
+
+                    <Button loading={enviando} onClick={() => void criarSolicitacao()}>Enviar solicitação</Button>
+                </Stack>
+            </Modal>
+
+            <FiltrosTrabalho ordem={ordem} onOrdem={setOrdem} onLimpar={limparFiltros} filtrosAtivos={filtrosAtivos} busca={busca} onBusca={setBusca} total={solicitacoes.length} visiveis={solicitacoesVisiveis.length} carregando={carregando || !!erro} foco={!!alvoNotificacao}>
+            <Select label="Status" value={status} allowDeselect={false} data={[{value: "todos", label: "Todos os status"}, ...statusSolicitacoes]} onChange={valor => {const proximo = comStatus(params, valor); proximo.delete("solicitacao"); proximo.delete("notificacao"); setParams(proximo);}}/>
+            </FiltrosTrabalho>
+            {alvoNotificacao && <Group gap="xs"><Text size="sm" c="dimmed">Exibindo registro da notificação.</Text><Button size="compact-xs" variant="subtle" onClick={limparAtalho}>Mostrar todos</Button></Group>}
+            {carregando && <Carregamento/>}
+            {erro && <Alert color="red">{erro}</Alert>}
+            {!carregando && !erro && solicitacoesVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhuma solicitação encontrada"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há solicitações nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
+
+            {!carregando && !erro && solicitacoesVisiveis.length > 0 && <TransicaoConteudo identidade={solicitacoesVisiveis.map(s=>s.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
+                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes" estado={solicitacao.status}>
+                    <div className={classes.cardTopo}><IconeModerno nome="solicitacoes" tamanho={22}/>
+                        <Stack gap={4} className={classes.minimo}>
+                            <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{solicitacao.titulo}</Text>
+                            
+                        </Stack>
+                        <Badge variant="light" color={statusSolicitacao[solicitacao.status].color}>{statusSolicitacao[solicitacao.status].label}</Badge>
+                    </div>
+                    <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{solicitacao.descricao}</Text>
+                    <div className={classes.dados}><div><Text size="xs" c="dimmed">Orçamento esperado</Text><Text size="sm" fw={500}>{<NumeroModerno valor={solicitacao.orcamentoEsperado} moeda/>}</Text></div><div><Text size="xs" c="dimmed">Prazo esperado</Text><Text size="sm" fw={500}>{formatarPrazo(solicitacao.prazoEsperado)}</Text></div></div>
+                    <Text size="xs" c="dimmed"><IconeModerno nome="calendario" tamanho={14}/>Enviada em {new Date(solicitacao.criadaEm).toLocaleDateString("pt-BR")}</Text>
+                    <div className={classes.cardAcoes}><Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label={`Ver detalhes de ${solicitacao.titulo}`} size="xs" variant="subtle" onClick={()=>setDetalhesId(solicitacao.id)}><span>Ver detalhes</span> <IconeModerno nome="abrir" tamanho={15}/></Button>{solicitacao.projetoId && <Button size="xs" variant="light" onClick={()=>navigate(`/portal/projetos?projeto=${solicitacao.projetoId}`)}>Ver projeto <IconeModerno nome="abrir" tamanho={15}/></Button>}</div>
+                </CartaoRegistro>)}
+            </TransicaoConteudo>}
+
+        </Stack>
+    );
+}

@@ -1,0 +1,267 @@
+/* estrutura dos paineis */
+.shell { --funilador-acento: var(--mantine-primary-color-6); }
+.header { background: var(--mantine-color-body); border-bottom: 1px solid var(--mantine-color-default-border); }
+.headerInner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: clamp(12px, 2vw, 24px); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brandMark { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 9px; background: var(--mantine-primary-color-6); color: white; }
+.brandText { min-width: 0; line-height: 1.15; }
+.navbar { background: var(--mantine-color-body); padding: 14px 10px; }
+.navLabel { padding: 8px 12px 12px; text-transform: uppercase; letter-spacing: .08em; }
+.navLink[aria-current="page"] { background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); font-weight: 600; }
+.navLink { border-radius: 8px; min-height: 42px; margin-bottom: 3px; transition: background-color 150ms ease, color 150ms ease; }
+.navLink:focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 2px; }
+.main { min-width: 0; }
+.dashboard { max-width: 1400px; margin-inline: auto; width: 100%; }
+.heading { letter-spacing: -.035em; line-height: 1.15; }
+.section { scroll-margin-top: 84px; min-width: 0; }
+.section:focus { outline: none; }
+.section:focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 4px; border-radius: 8px; }
+.metric { border-radius: 12px; min-width: 0; text-align: left; transition: border-color 150ms ease, background-color 150ms ease; }
+.metric:has(button:focus-visible) { border-color: var(--mantine-primary-color-5); }
+.metricValue { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; letter-spacing: -.02em; }
+.bell { overflow: visible !important; flex-shrink: 0; }
+.bell :global(.mantine-Indicator-root) { display: flex; align-items: center; justify-content: center; }
+.account { flex-shrink: 0; }
+@media (max-width: 30em) { .brandMark { display: none; } .headerInner { gap: 6px; padding-inline: 10px; } .brand { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .navLink, .metric { transition: none; } }
+
+/* ritmo visual compartilhado */
+.shell { --funilador-gap: clamp(10px, 1.2vw, 18px); }
+.headerInner { padding-inline: clamp(10px, 1.5vw, 20px); }
+.headerActions { flex-shrink: 0; }
+.navbar { padding: 10px 8px; overflow-y: auto; transition: transform 220ms cubic-bezier(.2,.75,.25,1); }
+.navLabel { padding: 6px 10px 8px; }
+.navLink { min-height: 36px; margin-bottom: 2px; padding-block: 7px; transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease; }
+.navLink[aria-current="page"] { box-shadow: inset 3px 0 var(--mantine-primary-color-5); }
+.navLink :global(.mantine-NavLink-label) { font-size: var(--mantine-font-size-sm); overflow-wrap: anywhere; }
+.main { min-width: 0; overflow-wrap: anywhere; }
+.heading, .main :global(h1) { font-size: clamp(1.42rem, 1.15rem + .65vw, 1.85rem); font-weight: 700; letter-spacing: -.025em; line-height: 1.22; }
+/* titulos de paginas antigas sem classe propria */
+.main > :global(.mantine-Stack-root) > :global(.mantine-Group-root) > :global(h2) { font-size: clamp(1.42rem, 1.15rem + .65vw, 1.85rem); letter-spacing: -.025em; line-height: 1.22; }
+.dashboard { max-width: 1520px; }
+.dashboard :global(.mantine-Title-root):is(h3,h4) { font-size: clamp(1.05rem, .98rem + .25vw, 1.25rem); line-height: 1.3; }
+.metric { border-radius: 10px; transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease; }
+.metric:hover { border-color: var(--mantine-color-default-border); box-shadow: var(--mantine-shadow-xs); }
+.main :global(.mantine-Button-root), .header :global(.mantine-ActionIcon-root) { transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, opacity 180ms ease; }
+.main :global(button):focus-visible, .header :global(button):focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 2px; }
+.accountDialog { max-width: calc(100vw - 24px); }
+.accountBody { min-width: 0; overflow-wrap: anywhere; }
+/* carregamentos sem saltos ou flashes */
+.loadingRegion { min-width: 0; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skeletonCard { min-width: 0; }
+.skeletonLine { display: block; border-radius: 5px; background: var(--mantine-color-default-hover); animation: funiladorPulse 1.5s ease-in-out infinite; }
+.inlineLoading, .sessionLoading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
+.sessionLoading { min-height: 100dvh; }
+.loadingDots { display: inline-flex; gap: 4px; align-items: center; color: var(--mantine-primary-color-5); }
+.loadingDots i { display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: funiladorPulse 1.2s ease-in-out infinite; }
+.loadingDots i:nth-child(2) { animation-delay: .15s; }
+.loadingDots i:nth-child(3) { animation-delay: .3s; }
+@keyframes funiladorPulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+@media (max-width: 47.99em) {
+  .headerInner { gap: 8px; padding-inline: 10px; }
+  .headerActions { gap: 6px; }
+  .accountDialog { width: min(100%, 360px); }
+  .section { scroll-margin-top: 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navbar, .navLink, .metric, .main :global(.mantine-Button-root), .header :global(.mantine-ActionIcon-root) { transition: none; }
+  .skeletonLine, .loadingDots i { animation: none; }
+}
+
+.heading + :global(.mantine-Text-root) { font-size: var(--mantine-font-size-sm); line-height: 1.45; }
+
+/* limites de largura e quebra de linha */
+:global(html), :global(body), :global(#root) { min-width: 0; max-width: 100%; }
+.shell, .main, .dashboard { min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.dashboard { max-width: 1520px; }
+.header { min-width: 0; }
+.headerInner { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.headerIdentity { flex: 1 1 0; min-width: 0; }
+.headerIdentity > :global(.mantine-Burger-root) { flex-shrink: 0; }
+.brand { flex: 1 1 0; min-width: 0; }
+.brandText { flex: 1 1 0; min-width: 0; }
+.headerActions { flex: 0 0 auto; min-width: 0; }
+.sectionHeader, .sectionHeading { min-width: 0; max-width: 100%; }
+.sectionHeading { flex: 1 1 10rem; }
+.sectionHeader > :global(.mantine-Button-root) { max-width: 100%; height: auto; min-height: var(--mantine-button-height, 30px); }
+.sectionHeader :global(.mantine-Button-label) { white-space: normal; overflow-wrap: anywhere; }
+.safeGrid, .safeGrid > *, .metric > *, .dashboard > *, .main > :global(.mantine-Stack-root) { min-width: 0; max-width: 100%; }
+.metric :global(.mantine-Group-root) > :global(.mantine-Text-root) { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 47.99em) {
+  .headerInner { padding-inline: 8px; gap: 6px; }
+  .headerIdentity { gap: 6px; }
+  .headerActions { gap: 4px; }
+  .sectionHeader { align-items: flex-start; }
+}
+@media (max-width: 25em) {
+  .brandMark { display: none; }
+  .brandText > :global(.mantine-Text-root):first-child { font-size: var(--mantine-font-size-sm); }
+  .brandText > :global(.mantine-Text-root):last-child { font-size: 10px; }
+  .sectionHeader { flex-direction: column; align-items: flex-start; }
+  .sectionHeading { flex: 0 1 auto; width: 100%; }
+  .sectionHeader > :global(.mantine-Button-root) { align-self: flex-start; }
+}
+@media (max-width: 18em) {
+  .brandText > :global(.mantine-Text-root):last-child { display: none; }
+  .headerInner { padding-inline: 6px; gap: 4px; }
+  .headerIdentity, .headerActions { gap: 3px; }
+}
+
+/* 06.5.3.1 — Minimalista: cabeçalho e menus, sem alterar os outros estilos. */
+:global(html[data-funilador-estilo="minimalista"]) .brandMark {
+    border-radius: 5px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-primary-color-light-color);
+    box-shadow: none;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell) {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 6px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+    box-shadow: none;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell):hover,
+:global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell)[aria-expanded="true"] {
+    background: var(--mantine-color-default-hover);
+    border-color: var(--mantine-primary-color-5);
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.accountDropdown, .notificationDropdown, .accountDialog) {
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    box-shadow: var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="minimalista"]) .accountDropdown :global(.mantine-Menu-item) {
+    border-radius: 4px;
+    min-height: 38px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .accountDropdown :global(.mantine-Menu-label) {
+    overflow-wrap: anywhere;
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.accountDropdown, .notificationDropdown) :global(button):focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.account, .bell) {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .navbar,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .header :global(.mantine-ActionIcon-root) {
+    transition: none !important;
+}
+
+/* 06.5.3.1.1 — contador ancorado ao botão, não ao desenho do sino. */
+:global(html[data-funilador-estilo="minimalista"]) .bell :global(.mantine-Indicator-root) {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+:global(html[data-funilador-estilo="minimalista"]) .bell :global(.mantine-Indicator-indicator) {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    transform: translate(15%, -15%);
+    box-shadow: 0 0 0 2px var(--mantine-color-body);
+    pointer-events: none;
+}
+
+/* 06.5.4.1 — estrutura Moderna; o restante mantém suas regras existentes. */
+:global(html[data-funilador-estilo="moderno"]) .header {
+    box-shadow: 0 2px 14px color-mix(in srgb, var(--mantine-color-black) 9%, transparent);
+}
+:global(html[data-funilador-estilo="moderno"]) .brandMark {
+    border-radius: 11px;
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--mantine-primary-color-filled) 25%, transparent);
+}
+:global(html[data-funilador-estilo="moderno"]) .navbar {
+    padding: 16px 12px;
+    background: color-mix(in srgb, var(--mantine-color-default) 45%, var(--mantine-color-body));
+    transition: transform 280ms cubic-bezier(.22,1,.36,1);
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.account, .bell) {
+    border-radius: 11px;
+    min-width: 40px;
+    min-height: 40px;
+    transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+:global(html[data-funilador-estilo="moderno"]) :is(.account, .bell):hover {
+    border-color: var(--mantine-primary-color-5);
+    box-shadow: var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown {
+    padding: 6px;
+    border-radius: 14px;
+    box-shadow: var(--mantine-shadow-md);
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown :global(.mantine-Menu-item) {
+    border-radius: 9px;
+    min-height: 40px;
+}
+:global(html[data-funilador-estilo="moderno"]) .accountDropdown :global(.mantine-Menu-label) {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 47.99em) {
+    /* O drawer próprio substitui somente o navbar mobile do Moderno. */
+    :global(html[data-funilador-estilo="moderno"]) .navbar { display: none; }
+    :global(html[data-funilador-expressivo-mobile="true"]) .navbar { display: none; }
+    :global(html[data-funilador-estilo="moderno"]) .headerIdentity > :global(.mantine-Burger-root) {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: var(--mantine-color-default-hover);
+    }
+    :global(html[data-funilador-expressivo-mobile="true"]) .headerIdentity > :global(.mantine-Burger-root) {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: var(--mantine-color-default-hover);
+    }
+    :global(html[data-funilador-estilo="moderno"]) :is(.account, .bell) {
+        width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    }
+    :global(html[data-funilador-expressivo-mobile="true"]) :is(.account, .bell) {
+        width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    }
+}
+
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .navbar { overflow-x:hidden; overflow-y:auto; }
+}
+
+/* 06.9.4.2 — Identidade autoral no cabeçalho desktop; mobile preservado. */
+.brandMarkDesktop { display: none; }
+@media (min-width: 48em) {
+    .brandMark { display: none; }
+    .brandMarkDesktop {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+    }
+    .brandMarkDesktop img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    :global(html[data-funilador-estilo="minimalista"]) .brandMarkDesktop { width: 34px; height: 34px; }
+    :global(html[data-funilador-estilo="expressivo"]) .brandMarkDesktop { width: 46px; height: 46px; }
+}
+
+/* 06.9.4.3 — Marca compacta no mobile, sem modificar o desktop. */
+.brandMarkMobile { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; }
+.brandMarkMobile img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@media (max-width: 25em) {
+    .brandMarkMobile { width: 26px; height: 26px; }
+}
+@media (max-width: 20em) {
+    .brandMarkMobile { width: 24px; height: 24px; }
+}
+@media (min-width: 48em) {
+    .brandMarkMobile { display: none; }
+}

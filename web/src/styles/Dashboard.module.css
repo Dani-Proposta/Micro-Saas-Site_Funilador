@@ -1,0 +1,275 @@
+/* composição compacta e responsiva */
+.pagina { gap: clamp(16px, 2vw, 24px); }
+.grade { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 142px),1fr)); gap:var(--funilador-gap-painel,8px); min-width:0; }
+.grade > * { min-width:0; max-width:100%; }
+.indicador { text-align:left; cursor:pointer; min-width:0; gap:var(--funilador-gap-painel,8px); border-radius:12px; transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+.indicadorTopo { align-items:flex-start; min-height:30px; }
+.indicadorTopo > *:first-child { min-width:0; overflow-wrap:anywhere; line-height:1.3; }
+.icone { display:grid; place-items:center; width:27px; height:27px; flex:none; border-radius:8px; background:var(--mantine-primary-color-light); color:var(--mantine-primary-color-light-color); }
+.numero { font-variant-numeric:tabular-nums; letter-spacing:-.025em; overflow-wrap:anywhere; min-width:0; }
+.seta { color:var(--mantine-color-dimmed); font-size:14px; line-height:1.3; flex:none; }
+.indicador:focus-visible { outline:2px solid var(--mantine-primary-color-5); outline-offset:2px; }
+@media (hover:hover) { .indicador:hover { border-color:var(--mantine-primary-color-5); background:var(--mantine-color-default-hover); } }
+.financeiro { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--funilador-gap-painel,8px); min-width:0; }
+.financeiro > * { min-width:0; }
+.resumo { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--funilador-gap-painel,8px); }
+.resumo > * { min-width:0; }
+.destaque { grid-column:1/-1; background:var(--mantine-primary-color-light); border-color:var(--mantine-primary-color-light-hover); }
+.financeCard { border-radius:12px; gap:6px; min-width:0; }
+.financeCard .numero { font-size:clamp(1.05rem, .9rem + .8vw, 1.45rem); line-height:1.3; }
+.destaque .numero { font-size:clamp(1.35rem,1.1rem + 1vw,1.9rem); }
+.grafico { min-width:0; border-radius:12px; }
+.barras { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:7px; align-items:end; min-width:0; }
+.coluna { min-width:0; text-align:center; }
+.trilho { height:86px; display:flex; flex-direction:column; justify-content:flex-end; background:var(--mantine-color-default-hover); border-radius:6px; overflow:hidden; }
+.recebido { background:var(--mantine-color-teal-6); }
+.previsto { background:var(--mantine-color-violet-5); }
+.colunaAtual .trilho { outline:1px solid var(--mantine-primary-color-5); outline-offset:1px; }
+.rotuloMes { display:block; font-size:10px; margin-top:6px; font-variant-numeric:tabular-nums; }
+.detalhesGrafico { font-size:var(--mantine-font-size-xs); color:var(--mantine-color-dimmed); }
+.detalhesGrafico summary { cursor:pointer; }
+.linhaGrafico { display:grid; grid-template-columns: minmax(40px,.55fr) minmax(0,1fr) minmax(0,1fr); gap:6px; padding-block:4px; overflow-wrap:anywhere; }
+.projetos { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); gap:var(--funilador-gap-painel,8px); }
+.projeto { min-width:0; text-align:left; cursor:pointer; gap:7px; }
+.projeto:focus-visible { outline:2px solid var(--mantine-primary-color-5); outline-offset:2px; }
+@media (hover:hover) { .projeto:hover { border-color:var(--mantine-primary-color-5); } }
+.srOnly { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media(min-width:75em) { .financeiro { grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); } }
+@media(max-width:25em) { .resumo { grid-template-columns:minmax(0,1fr); } .grade { grid-template-columns:repeat(auto-fit,minmax(min(100%,128px),1fr)); } }
+@media(prefers-reduced-motion:reduce) { .indicador { transition:none; } }
+.pendencia { gap:5px; min-width:0; }
+.pendencia :global(.mantine-Text-root) { overflow-wrap:anywhere; }
+.pendencias { display:grid; gap:var(--funilador-gap-painel,8px); grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+.pendencias:empty { display:none; }
+
+/* 06.5.3.3 — acabamento exclusivo do Minimalista. */
+.acaoIndicador, .iconeAuxiliar, .legendaMinimalista { display: none; }
+.financeTopo { display: contents; }
+:global(html[data-funilador-estilo="minimalista"]) .financeTopo { display: flex; }
+:global(html[data-funilador-estilo="minimalista"]) .grade {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+:global(html[data-funilador-estilo="minimalista"]) :is(.indicador, .financeCard, .grafico, .pendencia, .pendenciaDetalhe, .projeto) {
+    border-radius: 6px;
+    box-shadow: none;
+    background: var(--mantine-color-body);
+    border-color: var(--mantine-color-default-border);
+}
+:global(html[data-funilador-estilo="minimalista"]) .indicador {
+    display: flex; flex-direction: column; gap: 10px;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .indicadorTopo { min-height: 34px; align-items: flex-start; }
+:global(html[data-funilador-estilo="minimalista"]) .indicadorTopo > :first-child { font-size: var(--mantine-font-size-sm); color: var(--mantine-color-text); overflow-wrap: break-word; }
+:global(html[data-funilador-estilo="minimalista"]) .indicador > :last-child { margin-top: auto; align-items: baseline; }
+:global(html[data-funilador-estilo="minimalista"]) .indicador .numero { font-size: clamp(1.35rem, 1.1rem + .6vw, 1.7rem); line-height: 1.2; }
+:global(html[data-funilador-estilo="minimalista"]) .icone { border-radius: 4px; background: transparent; color: var(--mantine-color-dimmed); }
+:global(html[data-funilador-estilo="minimalista"]) .acaoIndicador { display: inline; font-size: 11px; }
+:global(html[data-funilador-estilo="minimalista"]) .seta { white-space: normal; text-align: end; }
+:global(html[data-funilador-estilo="minimalista"]) .iconeAuxiliar { display: inline-flex; flex: none; align-items: center; justify-content: center; color: var(--mantine-color-dimmed); }
+:global(html[data-funilador-estilo="minimalista"]) .financeTopo > :first-child { min-width: 0; overflow-wrap: break-word; }
+:global(html[data-funilador-estilo="minimalista"]) .financeCard { gap: 8px; }
+:global(html[data-funilador-estilo="minimalista"]) .financeCard > :global(.mantine-Button-root) { margin-top: auto; }
+:global(html[data-funilador-estilo="minimalista"]) .destaque { border-inline-start: 3px solid var(--mantine-primary-color-filled); }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .legendaOriginal { display: none; }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista { display: flex; flex-wrap: wrap; gap: 12px; color: var(--mantine-color-text); font-size: var(--mantine-font-size-xs); }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista > span { display: inline-flex; align-items: center; gap: 5px; }
+:global(html[data-funilador-estilo="minimalista"]) .legendaMinimalista i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .trilho { height: 112px; border-radius: 3px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .trilho > div { flex-shrink: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .previsto { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0,0,0,.28) 4px 6px); }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .rotuloMes { font-size: 11px; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .linhaGrafico { border-bottom: 1px solid var(--mantine-color-default-border); font-variant-numeric: tabular-nums; }
+:global(html[data-funilador-estilo="minimalista"]) .grafico .detalhesGrafico summary:focus-visible { outline: 2px solid var(--mantine-primary-color-5); outline-offset: 2px; }
+:global(html[data-funilador-estilo="minimalista"]) .pendencias { grid-template-columns: repeat(auto-fit, minmax(min(100%, 218px), 1fr)); }
+:global(html[data-funilador-estilo="minimalista"]) .pendencia { gap: 8px; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo { align-items: flex-start; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo > :global(.mantine-Text-root) { flex: 1; overflow-wrap: break-word; line-height: 1.35; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaTopo > :global(.mantine-Button-root) { flex-shrink: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .pendenciaRodape { margin-top: auto; }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] { border-inline-start: 3px solid var(--mantine-color-red-6); }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] { border-inline-start: 3px solid var(--mantine-color-yellow-7); }
+:global(html[data-funilador-estilo="minimalista"]) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="violet"] { border-inline-start: 3px solid var(--mantine-color-violet-6); }
+:global(html[data-funilador-estilo="minimalista"]) .pendencia[data-selecionada="true"] { outline: 1px solid var(--mantine-primary-color-filled); outline-offset: -1px; }
+:global(html[data-funilador-estilo="minimalista"]) .projeto { gap: 9px; transition: background-color 120ms ease, border-color 120ms ease; }
+@media (hover:hover) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.indicador,.projeto):hover { background: var(--mantine-color-default-hover); border-color: var(--mantine-primary-color-5); }
+}
+@media (max-width: 25em) {
+    :global(html[data-funilador-estilo="minimalista"]) .grade { grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); }
+    :global(html[data-funilador-estilo="minimalista"]) .acaoIndicador { display: none; }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) :is(.indicador,.projeto,.pendencia) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+    :global(html[data-funilador-estilo="minimalista"]) :is(.indicador,.projeto,.pendencia) { transition: none; }
+}
+
+/* 06.5.4.3 — Moderno desktop: composição Bento com os cards funcionais existentes. */
+@media (min-width: 48em) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina {
+        container-type: inline-size;
+        gap: clamp(20px, 2vw, 30px);
+    }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .bento {
+        position: relative;
+        isolation: isolate;
+        --funilador-gap-painel: calc(var(--mantine-spacing-xs) + 2px);
+    }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .bento[data-bento-luz="true"]::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 18px;
+        background-image: var(--bento-luz, none);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 2;
+        transition: opacity 220ms ease;
+    }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .bento[data-bento-luz="true"]:hover::after { opacity: .65; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.indicador, .financeCard, .grafico, .pendencia, .pendenciaDetalhe, .projeto) {
+        border-radius: 16px;
+        padding: var(--mantine-spacing-md);
+        border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 12%, var(--mantine-color-default-border));
+        background: linear-gradient(145deg, color-mix(in srgb, var(--mantine-color-default-hover) 45%, var(--mantine-color-body)), var(--mantine-color-body) 80%);
+        box-shadow: 0 4px 15px -10px color-mix(in srgb, var(--mantine-color-text) 35%, transparent);
+        transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador { min-height: 116px; display: flex; flex-direction: column; gap: 10px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicadorTopo { align-items: center; min-height: 38px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicadorTopo > :first-child { font-size: var(--mantine-font-size-sm); color: var(--mantine-color-text); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador > :last-child { margin-top: auto; align-items: center; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador .numero { font-size: clamp(1.65rem, 1.3rem + .8vw, 2.15rem); line-height: 1.15; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .icone { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--mantine-primary-color-light-hover); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .icone svg { width: 19px; height: 19px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .seta { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mantine-color-default-hover); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .financeiro { grid-template-columns: minmax(0, 1fr); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .financeTopo { display: flex; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .financeTopo > :first-child { min-width: 0; overflow-wrap: break-word; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .iconeAuxiliar { display: inline-grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; color: var(--mantine-primary-color-light-color); background: var(--mantine-primary-color-light); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .destaque { background: linear-gradient(130deg, color-mix(in srgb, var(--mantine-primary-color-filled) 19%, var(--mantine-color-body)), var(--mantine-color-body)); border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 40%, var(--mantine-color-default-border)); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .destaque .numero { font-size: clamp(1.7rem, 1.25rem + 1vw, 2.35rem); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .financeCard > :global(.mantine-Button-root) { margin-top: auto; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grafico > :global(.mantine-Stack-root) { height: 100%; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grafico .trilho { height: clamp(115px, 12vw, 168px); border-radius: 9px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grafico .trilho > div { flex-shrink: 0; transition: height 350ms cubic-bezier(.22,.75,.25,1); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grafico .previsto { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(0,0,0,.2) 6px 8px); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grafico .rotuloMes { font-size: 12px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencias { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencia { min-height: 124px; gap: 10px; --pendencia-acento: var(--mantine-color-default-border); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo { align-items: flex-start; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Text-root) { flex: 1; line-height: 1.35; overflow-wrap: break-word !important; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Button-root) { flex-shrink: 0; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaRodape { margin-top: auto; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaRodape > :global(.mantine-Stack-root) > :first-child { font-size: 1.65rem; line-height: 1.15; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] { --pendencia-acento: var(--mantine-color-red-6); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] { --pendencia-acento: var(--mantine-color-yellow-7); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="violet"] { --pendencia-acento: var(--mantine-color-violet-6); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe) { border-inline-start: 3px solid var(--pendencia-acento, var(--mantine-color-default-border)); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencia[data-selecionada="true"] { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: -2px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .projeto { min-height: 112px; gap: 10px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .projeto > :last-child { margin-top: auto; }
+    @container (min-width: 820px) {
+        :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .financeiro { grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); }
+    }
+    @container (min-width: 900px) {
+        :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) { grid-template-columns: repeat(6, minmax(0,1fr)); }
+        :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) > .indicador { grid-column: span 2; }
+        :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade:has(> .indicador:nth-child(5)):not(:has(> .indicador:nth-child(6))) > .indicador:nth-child(-n+2) { grid-column: span 3; }
+    }
+}
+@media (min-width: 48em) and (hover: hover) and (pointer: fine) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.indicador,.projeto,.pendencia,.financeCard):hover {
+        border-color: var(--mantine-primary-color-light-color);
+        box-shadow: 0 8px 24px -14px color-mix(in srgb, var(--mantine-primary-color-filled) 60%, transparent);
+    }
+}
+@media (min-width: 48em) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) :is(.indicador,.projeto):hover { transform: translateY(-2px); }
+}
+@media (min-width: 48em) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])[data-funilador-movimento="reduzido"]) :is(.indicador,.projeto,.pendencia,.pendenciaDetalhe,.financeCard,.grafico,.trilho > div) { transition: none; }
+}
+@media (min-width: 48em) and (prefers-reduced-motion: reduce) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.indicador,.projeto,.pendencia,.pendenciaDetalhe,.financeCard,.grafico,.trilho > div) { transition: none; }
+}
+
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina {gap:20px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pagina {gap:20px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .grade {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:14px;min-height:108px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:14px;min-height:108px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicadorTopo {min-height:36px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicadorTopo {min-height:36px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .numero {font-size:clamp(18px,5vw,26px);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .numero {font-size:clamp(18px,5vw,26px);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .resumo {gap:10px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .resumo {gap:10px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .destaque {grid-column:1/-1;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .destaque {grid-column:1/-1;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .projetos {grid-template-columns:1fr;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .projetos {grid-template-columns:1fr;}
+}
+@media (max-width:22em) { :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .resumo {grid-template-columns:1fr;} :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .resumo {grid-template-columns:1fr;} }
+
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:10px;min-height:0;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:10px;min-height:0;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .resumo {gap:8px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .resumo {gap:8px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade {gap:8px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .grade {gap:8px;}
+}
+
+/* 06.5.5.2 — alertas distinguíveis sem depender do acento escolhido ou do hover. */
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="red"] {
+    --pendencia-acento:var(--mantine-color-red-5);
+    --pendencia-tinta:var(--mantine-color-red-light-color);
+}
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe)[data-prioridade="yellow"] {
+    --pendencia-acento:var(--mantine-color-orange-5);
+    --pendencia-tinta:var(--mantine-color-orange-light-color);
+}
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]) {
+    border:1px solid color-mix(in srgb,var(--pendencia-acento) 70%,var(--md-edge));
+    border-inline-start:3px solid var(--pendencia-acento);
+    background:linear-gradient(145deg,color-mix(in srgb,var(--pendencia-acento) 12%,var(--md-surface)),var(--md-surface) 80%);
+    box-shadow:0 8px 24px -15px var(--pendencia-acento),inset 0 1px 0 color-mix(in srgb,var(--pendencia-acento) 28%,transparent);
+}
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]):focus-within {
+    border-color:var(--pendencia-acento);box-shadow:0 0 20px -9px var(--pendencia-acento);
+}
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencia:is([data-prioridade="red"],[data-prioridade="yellow"]) .iconeAuxiliar {
+    color:var(--pendencia-tinta);background:color-mix(in srgb,var(--pendencia-acento) 17%,var(--md-inset));
+}
+:global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]) :global(.funilador-pendencia-acao) {
+    color:var(--pendencia-tinta);background:color-mix(in srgb,var(--pendencia-acento) 16%,var(--md-inset));border:1px solid color-mix(in srgb,var(--pendencia-acento) 40%,transparent);
+}
+@media (hover:hover) and (pointer:fine) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.pendencia,.pendenciaDetalhe):is([data-prioridade="red"],[data-prioridade="yellow"]):hover {border-color:var(--pendencia-acento);box-shadow:0 0 25px -12px var(--pendencia-acento);}
+}
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencia {gap:10px;padding:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendencia {gap:10px;padding:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo {align-items:center;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo {align-items:center;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Text-root) {flex:1;min-width:0;line-height:1.35;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Text-root) {flex:1;min-width:0;line-height:1.35;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Button-root) {flex-shrink:0;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendenciaTopo > :global(.mantine-Button-root) {flex-shrink:0;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendencia .iconeAuxiliar {display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:10px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendencia .iconeAuxiliar {display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:10px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pendenciaRodape > :global(.mantine-Stack-root) {min-width:0;max-width:100%;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pendenciaRodape > :global(.mantine-Stack-root) {min-width:0;max-width:100%;}
+}
+
+/* 06.5.6.3: resumo independente da altura do gráfico. */
+@media (min-width:48em) {
+ :global(html[data-funilador-expressivo-desktop="true"]) .financeiro.financeiro {grid-template-columns:minmax(0,1fr);align-items:start;}
+ :global(html[data-funilador-expressivo-desktop="true"]) .resumo {grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));align-items:stretch;}
+ :global(html[data-funilador-expressivo-desktop="true"]) .resumo .destaque {grid-column:auto;}
+ :global(html[data-funilador-expressivo-desktop="true"]) .resumo .financeCard {min-height:160px;height:auto;}
+}

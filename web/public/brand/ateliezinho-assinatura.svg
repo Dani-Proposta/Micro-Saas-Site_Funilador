@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 256 186" role="img" aria-label="Ateliêzinho — assinatura autoral de chapéu, órbita, lua e engrenagem"><defs>
+<linearGradient id="hat" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#c9a0ff"/><stop offset=".25" stop-color="#8547db"/><stop offset=".60" stop-color="#38205f"/><stop offset="1" stop-color="#1c112f"/></linearGradient>
+<linearGradient id="brim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d7b3ff"/><stop offset=".30" stop-color="#8d56ec"/><stop offset=".72" stop-color="#35205a"/><stop offset="1" stop-color="#211234"/></linearGradient>
+<linearGradient id="ribbon" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#6e35cf"/><stop offset=".48" stop-color="#e5c7ff"/><stop offset="1" stop-color="#8b43e5"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#b974e0"/><stop offset=".45" stop-color="#f3b378"/><stop offset="1" stop-color="#fff1cf"/></linearGradient>
+</defs>
+<!-- Anel externo e plano posterior da órbita -->
+<path d="M26 167 C-4 148 55 103 119 77 C181 52 237 50 239 69" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
+<!-- Fita de convergência -->
+<!-- Chapéu e aba -->
+<path d="M69 124 C89 104 104 58 129 31 C145 13 164 10 180 22 C193 32 198 48 190 56 C185 61 175 59 176 53 C184 54 186 44 180 38 C165 25 156 42 160 62 C165 91 179 112 188 133Z" fill="url(#hat)" stroke="#d1a5ff" stroke-width="1.7" stroke-linejoin="round"/>
+<path d="M83 107 C116 108 145 118 176 116 L188 133 L69 124Z" fill="#29183e" stroke="#a780e8" stroke-width="1.3"/>
+<path d="M49 119 C79 112 118 120 155 129 C184 136 209 143 219 154 C230 170 187 178 151 172 C113 166 62 152 43 140 C26 130 32 123 49 119Z" fill="url(#brim)" stroke="#c391ff" stroke-width="2"/>
+<path d="M44 134 C75 145 116 156 150 161 C180 167 203 165 214 158 C196 176 153 171 119 163 C89 156 58 145 44 134Z" fill="#1c102e" opacity=".8"/>
+<path d="M128 62 C108 64 104 88 120 98 C132 105 146 99 151 87 C134 95 118 79 128 62Z" fill="url(#gold)"/>
+<!-- Fivela: engrenagem com lua crescente -->
+<polygon points="160.48,97.05 162.96,96.31 162.25,91.35 169.75,91.35 169.04,96.31 171.52,97.05 171.96,97.23 174.24,98.46 177.24,94.46 182.54,99.76 178.54,102.76 179.77,105.04 179.95,105.48 180.69,107.96 185.65,107.25 185.65,114.75 180.69,114.04 179.95,116.52 179.77,116.96 178.54,119.24 182.54,122.24 177.24,127.54 174.24,123.54 171.96,124.77 171.52,124.95 169.04,125.69 169.75,130.65 162.25,130.65 162.96,125.69 160.48,124.95 160.04,124.77 157.76,123.54 154.76,127.54 149.46,122.24 153.46,119.24 152.23,116.96 152.05,116.52 151.31,114.04 146.35,114.75 146.35,107.25 151.31,107.96 152.05,105.48 152.23,105.04 153.46,102.76 149.46,99.76 154.76,94.46 157.76,98.46 160.04,97.23" fill="url(#gold)" stroke="#ffe1ba" stroke-width="1.2" stroke-linejoin="round"/>
+<circle cx="166" cy="111" r="12" fill="#25163e"/>
+<path d="M166 102 A9 9 0 1 0 174 114 A8 8 0 0 1 166 102Z" fill="#f9c48c"/>
+<!-- Plano frontal da órbita -->
+<path d="M239 69 C246 90 191 132 127 156 C66 180 32 178 26 167" fill="none" stroke="url(#gold)" stroke-width="6.5" stroke-linecap="round"/>
+<path d="M235 68 C240 89 188 129 127 153 C67 177 32 175 27 166" fill="none" stroke="#fff1d9" stroke-opacity=".64" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M52 66 Q54 73 61 75 Q54 77 52 84 Q50 77 43 75 Q50 73 52 66Z" fill="url(#gold)"/><path d="M201 43 Q203 47 207 49 Q203 51 201 55 Q199 51 195 49 Q199 47 201 43Z" fill="url(#gold)"/></svg>

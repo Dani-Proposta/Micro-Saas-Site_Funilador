@@ -1,0 +1,176 @@
+/* 06.5.3.7.1 — Central de notificações: acabamento exclusivo do Minimalista. */
+:global(html[data-funilador-estilo="minimalista"]) .dropdown {
+    max-width: calc(100vw - 24px);
+    padding: 12px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central { min-width: 0; }
+:global(html[data-funilador-estilo="minimalista"]) .ferramentas {
+    padding-block: 6px 10px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+:global(html[data-funilador-estilo="minimalista"]) .secao {
+    letter-spacing: .045em;
+    font-size: 10px;
+    padding-block: 5px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .icone {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-dimmed);
+    background: var(--mantine-color-body);
+}
+:global(html[data-funilador-estilo="minimalista"]) .lista { gap: 6px; }
+:global(html[data-funilador-estilo="minimalista"]) .central .pendencia {
+    border-radius: 6px;
+    border-inline-start: 2px solid var(--mantine-color-orange-6);
+    padding: 10px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .pendencia[data-urgente="true"] { border-inline-start-color: var(--mantine-color-red-6); }
+:global(html[data-funilador-estilo="minimalista"]) .tituloPendencia { min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
+:global(html[data-funilador-estilo="minimalista"]) .linkPendencia {
+    border-top: 1px solid var(--mantine-color-default-border);
+    margin-top: 6px;
+    padding: 7px 4px 3px;
+    border-radius: 3px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .evento {
+    border: 0;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    border-radius: 4px;
+    background: transparent !important;
+    padding: 10px 5px;
+    transition: background-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central .evento[data-nova="true"] .icone {
+    color: var(--mantine-primary-color-light-color);
+    border-color: var(--mantine-primary-color-5);
+}
+:global(html[data-funilador-estilo="minimalista"]) .naoLida {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--mantine-primary-color-light-color);
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+:global(html[data-funilador-estilo="minimalista"]) .naoLida i {
+    width: 6px;
+    height: 6px;
+    background: var(--mantine-primary-color-filled);
+    border-radius: 50%;
+}
+:global(html[data-funilador-estilo="minimalista"]) .vazio {
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: 6px;
+    padding: 18px 10px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .paginacao {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding-top: 8px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .central button:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (hover: hover) {
+    :global(html[data-funilador-estilo="minimalista"]) .central .evento:not(:disabled):hover,
+    :global(html[data-funilador-estilo="minimalista"]) .linkPendencia:hover { background: var(--mantine-color-default-hover) !important; }
+}
+@media (max-width: 30em) {
+    :global(html[data-funilador-estilo="minimalista"]) .central .evento { padding: 12px 3px; }
+    :global(html[data-funilador-estilo="minimalista"]) .ferramentas button { min-height: 36px; }
+    :global(html[data-funilador-estilo="minimalista"]) .paginacao button { min-height: 36px; }
+    :global(html[data-funilador-estilo="minimalista"]) .linkPendencia { min-height: 44px; }
+}
+:global(html[data-funilador-movimento="reduzido"]) .central .evento { transition: none; }
+@media (prefers-reduced-motion: reduce) { .central .evento { transition: none; } }
+
+:global(html:not([data-funilador-estilo="minimalista"])) .tituloPendencia { display: contents; }
+
+/* 06.5.4 — Moderno Desktop */
+@media (min-width: 48em) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .dropdown { padding: 14px; max-width: calc(100vw - 24px); border-radius: 18px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central { min-width: 0; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .ferramentas { padding-block: 8px; border-bottom: 1px solid var(--mantine-color-default-border); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .secao { letter-spacing: .07em; font-size: 10px; padding-block: 5px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .icone { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 11px; background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista { gap: 8px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia { border-radius: 13px; padding: 10px; background: var(--mantine-color-default); border-inline-start: 3px solid var(--mantine-color-orange-6); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia[data-urgente="true"] { border-inline-start-color: var(--mantine-color-red-6); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia { display: flex; flex: 1 1 130px; min-width: 0; overflow-wrap: anywhere; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .linkPendencia { border-radius: 8px; padding-inline: 8px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento { border-radius: 12px; padding: 10px; transition: background-color 180ms,border-color 180ms; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento[data-nova="true"] { border-inline-start: 3px solid var(--mantine-primary-color-5); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento[data-nova="false"] .icone { background: var(--mantine-color-default-hover); color: var(--mantine-color-dimmed); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .vazio { padding: 20px 12px; border-radius: 13px; border: 1px dashed var(--mantine-color-default-border); }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .paginacao { border-top: 1px solid var(--mantine-color-default-border); padding-top: 10px; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central button:focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: -2px; }
+}
+@media (min-width: 48em) and (hover:hover) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento:not(:disabled):hover, :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .linkPendencia:hover { background: var(--mantine-color-default-hover) !important; }
+}
+
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia .icone { color:var(--mantine-color-orange-7); background:var(--mantine-color-orange-light); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia[data-urgente="true"] .icone { color:var(--mantine-color-red-7); background:var(--mantine-color-red-light); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .linkPendencia { border:1px solid transparent; padding-block:7px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .linkPendencia:hover { border-color:var(--mantine-primary-color-light-hover); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento:hover { border-color:var(--mantine-primary-color-5); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento > :global(.mantine-Group-root) > svg, :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .linkPendencia svg { flex-shrink:0; color:var(--mantine-color-dimmed); }
+}
+@media (min-width:48em) and (prefers-reduced-motion:no-preference) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) .central :is(.evento,.linkPendencia) svg { transition:transform 180ms,color 180ms; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) .central :is(.evento,.linkPendencia):hover svg { transform:translateX(2px); }
+}
+
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .dropdown { background:var(--md-surface); border-color:var(--md-edge); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia { padding:14px; background:var(--md-inset); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento { background:var(--md-inset); padding:13px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .linkPendencia { min-height:40px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .ferramentas button { min-height:32px; }
+}
+
+/* Limite de altura do popover inteiro, inclusive confirmações e mensagens de erro. */
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .dropdown { max-height:calc(100dvh - 84px); overflow-y:auto; overscroll-behavior:contain; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central { gap:9px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .paginacao { flex-shrink:0; }
+}
+
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .icone {display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:10px;background:var(--mantine-primary-color-light);color:var(--mantine-primary-color-light-color);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .icone {display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:10px;background:var(--mantine-primary-color-light);color:var(--mantine-primary-color-light-color);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia {border-radius:14px;background:var(--md-inset);padding:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .pendencia {border-radius:14px;background:var(--md-inset);padding:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento {border-radius:14px;background:var(--md-inset);padding:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .evento {border-radius:14px;background:var(--md-inset);padding:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .linkPendencia {padding:10px 6px;min-height:44px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .linkPendencia {padding:10px 6px;min-height:44px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia {min-width:0;flex:1 1 130px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia {min-width:0;flex:1 1 130px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .paginacao {padding-top:10px;border-top:1px solid var(--md-edge);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .paginacao {padding-top:10px;border-top:1px solid var(--md-edge);}
+}
+
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia {flex:1 1 100%;justify-content:flex-start;align-items:center;gap:8px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia {flex:1 1 100%;justify-content:flex-start;align-items:center;gap:8px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia > :global(.mantine-Text-root) {min-width:0;overflow-wrap:anywhere;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .tituloPendencia > :global(.mantine-Text-root) {min-width:0;overflow-wrap:anywhere;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia .icone {color:var(--mantine-color-orange-light-color);background:var(--mantine-color-orange-light);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .pendencia .icone {color:var(--mantine-color-orange-light-color);background:var(--mantine-color-orange-light);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .pendencia[data-urgente="true"] .icone {color:var(--mantine-color-red-light-color);background:var(--mantine-color-red-light);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .pendencia[data-urgente="true"] .icone {color:var(--mantine-color-red-light-color);background:var(--mantine-color-red-light);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .central .evento > :global(.mantine-Group-root) > svg {flex-shrink:0;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .central .evento > :global(.mantine-Group-root) > svg {flex-shrink:0;}
+}

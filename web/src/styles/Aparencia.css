@@ -1,0 +1,219 @@
+/* tokens de aparência compartilhados, inclusive em portais */
+html { --funilador-radius-painel: 12px; --funilador-gap-painel: 8px; }
+html[data-funilador-estilo="minimalista"] { --funilador-radius-painel: 5px; }
+html[data-funilador-estilo="expressivo"] { --funilador-radius-painel: 18px; }
+html[data-funilador-densidade="compacta"] { --funilador-gap-painel: 5px; }
+html[data-funilador-densidade="confortavel"] { --funilador-gap-painel: 12px; }
+html[data-funilador-estilo="minimalista"] :is(.mantine-Card-root,.mantine-Paper-root) { border-radius:var(--funilador-radius-painel); box-shadow:none; }
+html[data-funilador-estilo="expressivo"] :is(.mantine-Card-root,.mantine-Paper-root) { border-radius:var(--funilador-radius-painel); }
+html[data-funilador-estilo="expressivo"] .mantine-Card-root { background-image:linear-gradient(145deg,color-mix(in srgb,var(--mantine-primary-color-filled) 7%,transparent),transparent 65%); }
+html[data-funilador-estilo="expressivo"] .mantine-Card-root[data-with-border] { border-color:color-mix(in srgb,var(--mantine-primary-color-filled) 24%,var(--mantine-color-default-border)); }
+html[data-funilador-densidade="compacta"] .mantine-AppShell-navbar .mantine-NavLink-root { min-height:32px; padding-block:5px; }
+html[data-funilador-densidade="confortavel"] .mantine-AppShell-navbar .mantine-NavLink-root { min-height:44px; padding-block:10px; }
+/* reduzir efeitos sem remover elementos nem mudar a navegação */
+html[data-funilador-movimento="reduzido"] *,html[data-funilador-movimento="reduzido"] *::before,html[data-funilador-movimento="reduzido"] *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+@media(prefers-reduced-motion:reduce) { html *,html *::before,html *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+/* controles e prévia */
+button.funilador-amostra-cor { display:grid; place-items:center; padding:0; flex:none; width:34px; height:34px; border-radius:50%; color:white; font-weight:700; text-align:center; border:2px solid var(--mantine-color-default-border); }
+.funilador-amostra-cor[aria-pressed="true"] { outline:2px solid var(--mantine-color-text); outline-offset:2px; }
+.funilador-amostra-cor:focus-visible { outline:3px solid var(--mantine-primary-color-filled); outline-offset:3px; }
+.funilador-amostra-cor:disabled { opacity:.65; cursor:not-allowed; }
+.funilador-previa { border:1px solid; border-radius:12px; display:grid; gap:10px; padding:12px; min-width:0; }
+.funilador-previa-grade { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.funilador-previa-card { padding:10px; border-radius:12px; border:1px solid color-mix(in srgb,currentColor 18%,transparent); min-width:0; overflow-wrap:anywhere; }
+.funilador-previa-botao { background:var(--previa-acento); border-radius:10px; padding:8px; text-align:center; font-size:12px; font-weight:600; color:white; }
+.funilador-previa[data-estilo="minimalista"] :is(.funilador-previa-card,.funilador-previa-botao) { border-radius:4px; }
+.funilador-previa[data-estilo="expressivo"] .funilador-previa-card { border-radius:18px; border-color:var(--previa-acento); background-image:linear-gradient(145deg,color-mix(in srgb,var(--previa-acento) 12%,transparent),transparent 65%); }
+.funilador-previa[data-estilo="expressivo"] .funilador-previa-botao { border-radius:40px; }
+.funilador-previa[data-densidade="compacta"] { padding:8px; gap:6px; }
+.funilador-previa[data-densidade="compacta"] .funilador-previa-card { padding:6px; }
+.funilador-previa[data-densidade="confortavel"] { padding:16px; gap:14px; }
+.funilador-previa[data-densidade="confortavel"] .funilador-previa-card { padding:14px; }
+
+.funilador-amostra-cor svg { display:block; pointer-events:none; }
+.funilador-paletas { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,84px),1fr)); gap:8px; margin-top:8px; }
+button.funilador-paleta { display:grid; justify-items:center; align-content:start; gap:5px; min-width:0; padding:5px; border:1px solid var(--mantine-color-default-border); border-radius:8px; text-align:center; }
+.funilador-paleta[aria-pressed="true"] { border-color:var(--mantine-primary-color-filled); box-shadow:0 0 0 1px var(--mantine-primary-color-filled); }
+.funilador-paleta:focus-visible { outline:2px solid var(--mantine-primary-color-filled); outline-offset:3px; }
+.funilador-paleta-amostra { display:grid; grid-template-columns:1fr 1fr; align-items:end; gap:4px; position:relative; border:1px solid; padding:6px; border-radius:5px; width:100%; height:42px; }
+.funilador-paleta-amostra > span { height:15px; border-radius:3px; }
+.funilador-paleta-amostra > svg { position:absolute; top:2px; left:50%; transform:translateX(-50%); width:16px; height:16px; }
+.funilador-paleta:disabled { opacity:.65; cursor:not-allowed; }
+/* superfícies claras foscas: a cor branca de ícones e botões permanece intacta */
+html[data-mantine-color-scheme="light"][data-funilador-paleta] {
+    --funilador-fundo:var(--mantine-color-gray-2);
+    --funilador-superficie:var(--mantine-color-gray-0);
+    --funilador-navegacao:var(--mantine-color-gray-1);
+    --funilador-campo:var(--mantine-color-gray-1);
+    --mantine-color-body:var(--funilador-fundo);
+    --mantine-color-default:var(--funilador-superficie);
+    --mantine-color-default-hover:var(--mantine-color-gray-3);
+    --mantine-color-default-border:var(--mantine-color-gray-4);
+    --mantine-color-text:var(--mantine-color-gray-9);
+    --mantine-color-bright:var(--mantine-color-gray-9);
+    --mantine-color-default-color:var(--mantine-color-gray-9);
+    --mantine-color-dimmed:var(--mantine-color-gray-7);
+    --mantine-color-placeholder:var(--mantine-color-gray-7);
+    --mantine-color-disabled:var(--mantine-color-gray-3);
+    --mantine-color-disabled-color:var(--mantine-color-gray-6);
+    --mantine-color-disabled-border:var(--mantine-color-gray-4);
+    --mantine-primary-color-light-color:var(--mantine-primary-color-9);
+    --mantine-color-anchor:var(--mantine-primary-color-9);
+    --mantine-color-error:var(--mantine-color-red-9);
+    --mantine-color-success:var(--mantine-color-teal-9);
+    --mantine-color-red-text:var(--mantine-color-red-9);
+    --mantine-color-red-light-color:var(--mantine-color-red-9);
+    --mantine-color-green-text:var(--mantine-color-green-9);
+    --mantine-color-green-light-color:var(--mantine-color-green-9);
+    --mantine-color-teal-text:var(--mantine-color-teal-9);
+    --mantine-color-teal-light-color:var(--mantine-color-teal-9);
+    --mantine-color-orange-text:var(--mantine-color-orange-9);
+    --mantine-color-orange-light-color:var(--mantine-color-orange-9);
+    --mantine-color-yellow-text:var(--mantine-color-yellow-9);
+    --mantine-color-yellow-light-color:var(--mantine-color-yellow-9);
+    --mantine-color-blue-text:var(--mantine-color-blue-9);
+    --mantine-color-blue-light-color:var(--mantine-color-blue-9);
+    --mantine-color-cyan-text:var(--mantine-color-cyan-9);
+    --mantine-color-cyan-light-color:var(--mantine-color-cyan-9);
+    --mantine-color-violet-text:var(--mantine-color-violet-9);
+    --mantine-color-violet-light-color:var(--mantine-color-violet-9);
+    --mantine-color-grape-text:var(--mantine-color-grape-9);
+    --mantine-color-grape-light-color:var(--mantine-color-grape-9);
+    --mantine-color-pink-text:var(--mantine-color-pink-9);
+    --mantine-color-pink-light-color:var(--mantine-color-pink-9);
+    --mantine-color-lime-text:var(--mantine-color-lime-9);
+    --mantine-color-lime-light-color:var(--mantine-color-lime-9);
+    --mantine-color-indigo-text:var(--mantine-color-indigo-9);
+    --mantine-color-indigo-light-color:var(--mantine-color-indigo-9);
+}
+/* variáveis locais preservam fundos específicos, como cartões financeiros destacados */
+html[data-mantine-color-scheme="light"][data-funilador-paleta] :is(.mantine-Card-root,.mantine-Paper-root,.mantine-Modal-content,.mantine-Modal-header,.mantine-Drawer-content,.mantine-Drawer-header,.mantine-Popover-dropdown,.mantine-Menu-dropdown) {
+    --mantine-color-body:var(--funilador-superficie);
+}
+html[data-mantine-color-scheme="light"][data-funilador-paleta] :is(.mantine-AppShell-header,.mantine-AppShell-navbar,.mantine-AppShell-footer) {
+    --mantine-color-body:var(--funilador-navegacao);
+}
+html[data-mantine-color-scheme="light"][data-funilador-paleta] .mantine-Input-input:not([data-variant="unstyled"]):not([data-variant="filled"]):not(:disabled):not([data-disabled]) {
+    --input-bg:var(--funilador-campo);
+}
+
+/* 06.5.3.8 — editor de preferências: acabamento exclusivo do Minimalista. */
+.funilador-estilo-amostra,
+.funilador-previa-identidade,
+.funilador-previa-tag,
+.funilador-previa-registro,
+.funilador-preferencia-status,
+.funilador-preferencia-descartar { display:none; }
+.funilador-preferencia-acoes { display:grid; gap:var(--mantine-spacing-md); }
+
+html[data-funilador-estilo="minimalista"] .funilador-editor-aparencia { gap:16px; min-width:0; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-secao {
+    padding-bottom:14px;
+    border-bottom:1px solid var(--mantine-color-default-border);
+    min-width:0;
+}
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-opcoes { gap:8px 16px; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao {
+    position:relative;
+    border:1px solid var(--mantine-color-default-border);
+    border-radius:6px;
+    padding:10px;
+    min-width:0;
+    transition:background-color 120ms ease,border-color 120ms ease;
+}
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao:has(input:checked) {
+    border-color:var(--mantine-primary-color-filled);
+    background:var(--mantine-primary-color-light);
+}
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao:has(input:focus-visible) {
+    outline:2px solid var(--mantine-primary-color-filled);
+    outline-offset:2px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao .mantine-Radio-body { align-items:flex-start; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao .mantine-Radio-labelWrapper { flex:1; min-width:0; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao .mantine-Radio-label { display:block; font-weight:600; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao .mantine-Radio-description { overflow-wrap:anywhere; padding-inline-end:0; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-rotulo { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+html[data-funilador-estilo="minimalista"] .funilador-estilo-amostra {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px;
+    width:46px; height:29px; padding:4px; flex-shrink:0;
+    border:1px solid var(--mantine-color-default-border);
+    background:var(--mantine-color-body); border-radius:4px;
+}
+.funilador-estilo-amostra i { display:block; border:1px solid var(--mantine-color-default-border); border-radius:2px; min-width:0; }
+.funilador-estilo-amostra i:first-child,.funilador-estilo-amostra i:last-child { grid-column:1/-1; }
+.funilador-estilo-amostra i:last-child { background:var(--mantine-primary-color-filled); border:0; }
+.funilador-estilo-amostra[data-estilo="moderno"] { border-radius:7px; }
+.funilador-estilo-amostra[data-estilo="moderno"] i { border-radius:4px; background:var(--mantine-color-default-hover); }
+.funilador-estilo-amostra[data-estilo="expressivo"] { border-radius:10px; background:var(--mantine-primary-color-light); }
+.funilador-estilo-amostra[data-estilo="expressivo"] i { border-radius:6px; border-color:var(--mantine-primary-color-filled); }
+.funilador-estilo-amostra[data-estilo="moderno"] i:last-child,.funilador-estilo-amostra[data-estilo="expressivo"] i:last-child { background:var(--mantine-primary-color-filled); }
+html[data-funilador-estilo="minimalista"] button.funilador-paleta { border-radius:6px; }
+html[data-funilador-estilo="minimalista"] .funilador-paleta[aria-pressed="true"] { box-shadow:none; border-color:var(--mantine-primary-color-filled); }
+html[data-funilador-estilo="minimalista"] button.funilador-amostra-cor { border-radius:6px; }
+html[data-funilador-estilo="minimalista"] .funilador-previa-identidade { display:block; }
+html[data-funilador-estilo="minimalista"] .funilador-previa-topo { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+html[data-funilador-estilo="minimalista"] .funilador-previa-tag { display:inline-block; font-size:10px; border:1px solid color-mix(in srgb,currentColor 25%,transparent); border-radius:4px; padding:2px 6px; }
+html[data-funilador-estilo="minimalista"] .funilador-previa[data-estilo="minimalista"] { border-radius:6px; }
+html[data-funilador-estilo="minimalista"] .funilador-previa[data-estilo="expressivo"] { border-radius:18px; }
+html[data-funilador-estilo="minimalista"] .funilador-previa-registro { display:flex; align-items:center; gap:6px; font-size:11px; flex-wrap:wrap; padding:8px; border:1px solid color-mix(in srgb,currentColor 18%,transparent); border-radius:4px; }
+.funilador-previa-ponto { width:6px; height:6px; flex:none; border-radius:50%; background:var(--previa-acento); }
+.funilador-previa-situacao { margin-inline-start:auto; font-size:10px; }
+.funilador-previa[data-estilo="moderno"] .funilador-previa-registro { border-radius:10px; }
+.funilador-previa[data-estilo="expressivo"] .funilador-previa-registro { border-radius:16px; border-color:var(--previa-acento); }
+.funilador-previa[data-densidade="compacta"] .funilador-previa-registro { padding:5px; }
+.funilador-previa[data-densidade="confortavel"] .funilador-previa-registro { padding:12px; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-rodape { display:grid; gap:8px; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-status { display:block; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-acoes { gap:8px; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-descartar { display:inline-block; }
+html[data-funilador-estilo="minimalista"] .funilador-preferencia-descartar .mantine-Button-inner {
+    width:100%;
+    justify-content:center;
+}
+@media (hover:hover) {
+    html[data-funilador-estilo="minimalista"] .funilador-estilo-opcao:not(:has(input:disabled)):hover { border-color:var(--mantine-primary-color-filled); }
+}
+@media (max-width:25em) {
+    html[data-funilador-estilo="minimalista"] .funilador-previa-grade { grid-template-columns:1fr; }
+    html[data-funilador-estilo="minimalista"] .funilador-preferencia-opcoes { gap:10px; }
+}
+
+html:not([data-funilador-estilo="minimalista"]) .funilador-preferencia-descartar { display:none; }
+
+/* 06.5.3.9 — microinterações de seleção, apenas no Minimalista.
+   O estado, as cores e a navegação por teclado continuam sob controle do Mantine. */
+html[data-funilador-estilo="minimalista"] :is(.mantine-Checkbox-input, .mantine-Radio-radio) {
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+html[data-funilador-estilo="minimalista"] :is(.mantine-Checkbox-icon, .mantine-Radio-icon) {
+    transition: opacity 140ms ease, transform 140ms ease;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Switch-track {
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+html[data-funilador-estilo="minimalista"] .mantine-Switch-thumb {
+    transition-duration: 140ms;
+    transition-timing-function: ease;
+}
+/* Mantém o posicionamento e as propriedades de movimento nativos do indicador. */
+html[data-funilador-estilo="minimalista"] .mantine-SegmentedControl-indicator {
+    transition-duration: 140ms;
+    transition-timing-function: ease;
+}
+html[data-funilador-estilo="minimalista"] :is(.mantine-SegmentedControl-label, .mantine-Combobox-option, .mantine-Menu-item) {
+    transition: background-color 120ms ease, color 120ms ease;
+}
+html[data-funilador-estilo="minimalista"] :is(.funilador-paleta, .funilador-amostra-cor) {
+    transition: border-color 120ms ease, background-color 120ms ease, opacity 120ms ease;
+}
+@media (hover: hover) {
+    html[data-funilador-estilo="minimalista"] .funilador-paleta:not(:disabled):hover {
+        border-color: var(--mantine-primary-color-filled);
+    }
+    html[data-funilador-estilo="minimalista"] .funilador-amostra-cor:not(:disabled):hover {
+        border-color: var(--mantine-color-text);
+    }
+}
+/* As regras globais de movimento reduzido no início deste arquivo
+   também se aplicam aos novos controles. */

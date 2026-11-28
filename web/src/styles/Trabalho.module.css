@@ -1,0 +1,106 @@
+.pagina, .minimo, .card, .marco { min-width: 0; max-width: 100%; }
+.quebra { overflow-wrap: anywhere; min-width: 0; }
+.grade { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; align-items: stretch; }
+.grade > * { min-width: 0; }
+.card { display: flex; flex-direction: column; gap: var(--funilador-gap-painel,8px); }
+.cardTopo { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--funilador-gap-painel,8px); }
+.cardTopo > :first-child { flex: 1 1 120px; min-width: 0; }
+.cardTopo > :last-child { max-width: 100%; }
+.cardAcoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--mantine-color-default-border); }
+.cardAcoes > * { min-width: 0; max-width: 100%; }
+.cardAcoes > :global(.mantine-Select-root) { flex: 1 1 135px; }
+.cardAcoes > button { flex: 0 1 auto; }
+.filtros { display: flex; flex-wrap: wrap; gap: var(--funilador-gap-painel,8px); align-items: flex-end; }
+.filtros > * { flex: 1 1 135px; min-width: 0; }
+.filtros > :first-child { flex: 2 1 220px; }
+.dados, .marcoDados { min-width: 0; padding: 9px; border-radius: var(--mantine-radius-sm); background: var(--mantine-color-default-hover); }
+.dados { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.dados > *, .marcoDados > * { min-width: 0; overflow-wrap: anywhere; }
+.abas { flex-wrap: wrap; }
+.abas > button { min-width: 0; white-space: normal; }
+.marco { overflow-wrap: anywhere; }
+.evento { border-inline-start: 2px solid var(--mantine-color-default-border); padding-inline-start: 12px; padding-block: 3px; }
+@media (min-width: 90em) { .grade { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 62em) { .grade { grid-template-columns: 1fr; } }
+@media (max-width: 30em) {
+    .filtros > :first-child { flex-basis: 100%; }
+    .abas > button { flex: 1 1 44%; font-size: var(--mantine-font-size-xs); padding-inline: 8px; }
+}
+@media (max-width: 20em) {
+    .dados { grid-template-columns: 1fr; }
+    .cardAcoes > button { flex: 1 1 auto; }
+}
+.campos { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.campos > * { min-width: 0; }
+.clienteLongo { max-width: 100%; height: auto; min-height: 30px; }
+.clienteLongo :global(.mantine-Button-label) { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 25em) { .campos { grid-template-columns: 1fr; } }
+
+/* Alinhamento e hierarquia exclusivos do Minimalista. */
+:global(html[data-funilador-estilo="minimalista"]) .cardTopo { align-items: center; }
+:global(html[data-funilador-estilo="minimalista"]) .cardAcoes { padding-top: 6px; }
+:global(html[data-funilador-estilo="minimalista"]) .card .dados {
+    padding: 6px 0;
+    background: transparent;
+    border-radius: 0;
+    font-variant-numeric: tabular-nums;
+}
+:global(html[data-funilador-estilo="minimalista"]) .filtros > * { flex-basis: 145px; }
+:global(html[data-funilador-estilo="minimalista"]) .filtros > :first-child { flex-basis: 210px; }
+@media (max-width: 30em) {
+    :global(html[data-funilador-estilo="minimalista"]) .filtros > :first-child { flex-basis: 100%; }
+}
+
+/* Moderno desktop — cartões de projeto, marcos e solicitações. */
+@media (min-width:48em) {
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.card,.marco) { border-radius: 15px; border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.dados,.marcoDados) { border-radius: 11px; padding: 12px; border: 1px solid var(--mantine-color-default-border); }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes { padding-top: 10px; }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .evento { border-inline-start-color: var(--mantine-primary-color-5); padding-block: 6px; }
+}
+
+/* 06.5.4.12 — composição interna, não somente a borda. */
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:11px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.funilador-icone-moderno) { width:42px; height:42px; border-radius:13px; background:var(--mantine-primary-color-light); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo:not(:has(> :global(.funilador-icone-moderno))) { display:flex; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :last-child { max-width:100%; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes { background:var(--md-inset); margin-inline:-4px; margin-bottom:-4px; padding:10px; border:1px solid var(--md-edge); border-radius:13px; gap:8px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes > button { min-height:34px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes :global(.mantine-Input-input) { min-height:34px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .card .dados { padding:12px; background:var(--md-inset); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .card .dados > div > :global(.mantine-Text-root):last-child { font-size:15px; font-weight:650; }
+}
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo:has(> :global(.funilador-icone-moderno)) { display:flex; flex-wrap:wrap; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.funilador-icone-moderno):first-child { flex:0 0 42px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :nth-child(2) { flex:1 1 110px; min-width:0; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.mantine-Badge-root) { flex:0 0 auto; max-width:100%; }
+}
+.cardTopo > :global(.funilador-icone-moderno) + * { flex:1 1 120px; min-width:0; }
+@media (min-width:48em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes:has(> :global(.funilador-acao-compacta):only-child) {background:transparent;border:0;padding:0;min-height:0;}
+}
+
+@media (max-width:47.99em) {
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .grade {grid-template-columns:1fr;gap:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .grade {grid-template-columns:1fr;gap:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo {display:grid;grid-template-columns: auto minmax(0,1fr);align-items:start;gap:8px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cardTopo {display:grid;grid-template-columns: auto minmax(0,1fr);align-items:start;gap:8px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.funilador-icone-moderno) {width:36px;height:36px;border-radius:12px;background:var(--mantine-primary-color-light);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.funilador-icone-moderno) {width:36px;height:36px;border-radius:12px;background:var(--mantine-primary-color-light);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.mantine-Badge-root) {grid-column:2;justify-self:start;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cardTopo > :global(.mantine-Badge-root) {grid-column:2;justify-self:start;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardTopo:not(:has(> :global(.funilador-icone-moderno))) {display:flex;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cardTopo:not(:has(> :global(.funilador-icone-moderno))) {display:flex;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) :is(.dados,.marcoDados,.cardAcoes) {padding:12px;border-radius:13px;background:var(--md-inset);border:1px solid var(--md-edge);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) :is(.dados,.marcoDados,.cardAcoes) {padding:12px;border-radius:13px;background:var(--md-inset);border:1px solid var(--md-edge);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cardAcoes > button {flex:1 1 auto;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cardAcoes > button {flex:1 1 auto;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .filtros > * {flex-basis:calc(50% - 8px);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .filtros > * {flex-basis:calc(50% - 8px);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .filtros > :first-child {flex-basis:100%;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .filtros > :first-child {flex-basis:100%;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .campos {grid-template-columns:1fr;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .campos {grid-template-columns:1fr;}
+}

@@ -1,0 +1,268 @@
+/* trilho compartilhado, medido pela seleção real */
+.trilho, .abas { position: relative; isolation: isolate; min-width: 0; }
+.trilho { display: flex; flex-direction: column; gap: 3px; padding: 2px; }
+.trilho > .link { position: relative; z-index: 1; min-width: 0; margin: 0; }
+.trilho > .link :global(.mantine-NavLink-body) { min-width: 0; }
+.trilho > .link :global(.mantine-NavLink-section) { flex-shrink: 0; }
+.trilho > .link:focus-visible { outline-offset: -2px; }
+.trilho::before, .abas::after {
+    content: ""; position: absolute; pointer-events: none; z-index: 0;
+    top: 0; left: 0; width: var(--trilho-w, 0px); height: var(--trilho-h, 0px);
+    transform: translate(var(--trilho-x, 0px), var(--trilho-y, 0px));
+    opacity: 0; transition: transform 260ms cubic-bezier(.22,.75,.22,1), width 220ms ease, height 220ms ease, opacity 150ms ease;
+}
+/* minimalista: destaque plano, sem trilho animado */
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link { border-radius: 4px; }
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] {
+    color: var(--mantine-color-text); background: var(--mantine-color-default-hover); box-shadow: inset 2px 0 var(--mantine-primary-color-filled);
+}
+/* moderno: indicador linear móvel e ícone em destaque */
+:global(html[data-funilador-estilo="moderno"]) .trilho::before {
+    width: 3px; border-radius: 4px; background: var(--mantine-primary-color-filled);
+}
+:global(html[data-funilador-estilo="moderno"]) .trilho[data-trilho-ativo]::before { opacity: 1; }
+:global(html[data-funilador-estilo="moderno"]) .trilho > .link { border-radius: 7px; }
+:global(html[data-funilador-estilo="moderno"]) .trilho[data-trilho-ativo] > .link[aria-current="page"] {
+    box-shadow: none; background: color-mix(in srgb, var(--mantine-primary-color-filled) 9%, transparent); color: var(--mantine-color-text);
+}
+:global(html[data-funilador-estilo="moderno"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+/* expressivo: cápsula móvel com relevo e realce */
+:global(html[data-funilador-estilo="expressivo"]) .trilho::before {
+    border-radius: 999px;
+    background: linear-gradient(110deg, color-mix(in srgb, var(--mantine-primary-color-filled) 24%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-primary-color-filled) 9%, var(--mantine-color-body)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 55%, var(--mantine-color-default-border)), 0 2px 8px color-mix(in srgb, var(--mantine-primary-color-filled) 16%, transparent);
+    transition-timing-function: cubic-bezier(.18,.8,.25,1.18);
+}
+:global(html[data-funilador-estilo="expressivo"]) .trilho[data-trilho-ativo]::before { opacity: 1; }
+:global(html[data-funilador-estilo="expressivo"]) .trilho > .link { border-radius: 999px; }
+:global(html[data-funilador-estilo="expressivo"]) .trilho[data-trilho-ativo] > .link[aria-current="page"] { background: transparent; box-shadow: none; color: var(--mantine-color-text); }
+:global(html[data-funilador-estilo="expressivo"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] { color: var(--mantine-primary-color-light-color); }
+/* abas mantêm a semântica e o teclado nativos do mantine */
+.abas > button { position: relative; z-index: 1; min-height: 36px; overflow-wrap: anywhere; }
+.abas > button:focus-visible { outline-offset: -2px; }
+:global(html[data-funilador-estilo="moderno"]) .abas,
+:global(html[data-funilador-estilo="expressivo"]) .abas {
+    gap: 4px; padding: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-default-hover); border-radius: 12px;
+}
+:global(html[data-funilador-estilo="expressivo"]) .abas { border-radius: 20px; }
+:global(html[data-funilador-estilo="moderno"]) .abas::before,
+:global(html[data-funilador-estilo="expressivo"]) .abas::before { display: none; }
+:global(html[data-funilador-estilo="moderno"]) .abas > button,
+:global(html[data-funilador-estilo="expressivo"]) .abas > button { border: 0; border-radius: 999px; margin: 0; background: transparent; }
+:global(html[data-funilador-estilo="moderno"]) .abas > button:hover:not([aria-selected="true"]),
+:global(html[data-funilador-estilo="expressivo"]) .abas > button:hover:not([aria-selected="true"]) { background: color-mix(in srgb, var(--mantine-color-text) 6%, transparent); }
+:global(html[data-funilador-estilo="moderno"]) .abas[data-trilho-ativo]::after {
+    opacity: 1; border-radius: 999px; background: var(--mantine-color-body); box-shadow: inset 0 0 0 1px var(--mantine-color-default-border), var(--mantine-shadow-xs);
+}
+:global(html[data-funilador-estilo="expressivo"]) .abas[data-trilho-ativo]::after {
+    opacity: 1; border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--mantine-primary-color-filled) 28%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-primary-color-filled) 10%, var(--mantine-color-body)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 55%, var(--mantine-color-default-border));
+    transition-timing-function: cubic-bezier(.18,.8,.25,1.18);
+}
+:global(html[data-funilador-estilo="moderno"]) .abas > button[aria-selected="true"],
+:global(html[data-funilador-estilo="expressivo"]) .abas > button[aria-selected="true"] { font-weight: 650; color: var(--mantine-color-text); }
+/* entrada escalonada apenas ao abrir o menu no celular */
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="expressivo"]) .trilho[data-mobile-aberto="true"] > .link { animation: entradaNav 220ms ease-out both; animation-delay: calc(var(--ordem-nav, 0) * 22ms); }
+}
+@media (max-width: 30em) {
+    .abas { width: 100%; }
+    .abas > button { flex: 1 1 44%; padding-inline: 6px; font-size: var(--mantine-font-size-xs); white-space: normal; }
+}
+@keyframes entradaNav { from { transform: translateX(-7px); opacity: .65; } to { transform: translateX(0); opacity: 1; } }
+:global(html[data-funilador-movimento="reduzido"]) .trilho::before,
+:global(html[data-funilador-movimento="reduzido"]) .abas::after,
+:global(html[data-funilador-movimento="reduzido"]) .trilho > .link { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .trilho::before, .abas::after, .trilho > .link { transition: none !important; animation: none !important; } }
+
+/* integração do LineSidebar original, sem alterar o css instalado pelo jsrepo */
+.lineOriginal { width: 100%; min-width: 0; box-sizing: border-box; }
+.lineOriginal :global(.line-sidebar__list) { position: relative; width: 100%; min-width: 0; padding: 4px 0; }
+.lineOriginal :global(.line-sidebar__item) { min-width: 0; }
+.lineOriginal :global(.line-sidebar__item)::before { pointer-events: none; inset: 0; }
+.lineLink { display: flex; align-items: center; gap: 7px; min-height: 38px; min-width: 0; padding: 6px 8px 6px 3px; border-radius: 7px; text-decoration: none; color: var(--mantine-color-text); }
+.lineLink:hover { background: var(--mantine-color-default-hover); }
+.lineLink[aria-current="page"] { font-weight: 600; background: color-mix(in srgb, var(--mantine-primary-color-filled) 8%, transparent); }
+.lineLink:focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: -2px; }
+.lineIcon { flex: 0 0 auto; display: inline-flex; color: var(--mantine-color-dimmed); }
+.lineLink[aria-current="page"] .lineIcon { color: var(--mantine-primary-color-light-color); }
+.lineLink :global(.line-sidebar__label) { flex: 1 1 auto; min-width: 0; align-items: center; }
+.lineLink :global(.line-sidebar__text) { overflow-wrap: anywhere; }
+.lineBadge { flex-shrink: 0; max-width: 60px; }
+:global(html[data-funilador-densidade="compacta"]) .lineLink { min-height: 34px; padding-block: 4px; }
+:global(html[data-funilador-densidade="confortavel"]) .lineLink { min-height: 46px; padding-block: 9px; }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__label) { transform: none; }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__marker) { transform: translateY(-50%); }
+.lineOriginal[data-reduced-motion] :global(.line-sidebar__item)::after { transform: translateY(-50%); }
+
+/* 06.5.3.1 — Minimalista: navegação plana, foco de teclado e densidade. */
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link {
+    min-height: 40px;
+    padding-block: 7px;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link:hover {
+    background: var(--mantine-color-default-hover);
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    box-shadow: inset 2px 0 var(--mantine-primary-color-filled);
+    font-weight: 600;
+}
+:global(html[data-funilador-estilo="minimalista"]) .trilho > .link[aria-current="page"] :global(.mantine-NavLink-section)[data-position="left"] {
+    color: var(--mantine-primary-color-light-color);
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button {
+    border-radius: 4px 4px 0 0;
+    min-height: 40px;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button[aria-selected="true"] {
+    color: var(--mantine-color-text);
+    font-weight: 600;
+    border-bottom-color: var(--mantine-primary-color-filled);
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .trilho > .link,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .abas:not([aria-orientation="vertical"]) > button {
+    min-height: 34px;
+    padding-block: 4px;
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="confortavel"]) .trilho > .link,
+:global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="confortavel"]) .abas:not([aria-orientation="vertical"]) > button {
+    min-height: 46px;
+    padding-block: 9px;
+}
+:global(html[data-funilador-estilo="minimalista"]) .abas > button:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-5);
+    outline-offset: -2px;
+}
+@media (max-width: 47.99em) {
+    :global(html[data-funilador-estilo="minimalista"]) .trilho > .link,
+    :global(html[data-funilador-estilo="minimalista"]) .abas:not([aria-orientation="vertical"]) > button {
+        min-height: 44px;
+    }
+    :global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .trilho > .link,
+    :global(html[data-funilador-estilo="minimalista"][data-funilador-densidade="compacta"]) .abas:not([aria-orientation="vertical"]) > button {
+        min-height: 44px;
+    }
+}
+:global(html[data-funilador-estilo="minimalista"][data-funilador-movimento="reduzido"]) .abas > button {
+    transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    :global(html[data-funilador-estilo="minimalista"]) .abas > button { transition: none !important; }
+}
+
+/* 06.5.4.1 — desktop: Line Sidebar com espaço para o movimento. */
+:global(html[data-funilador-estilo="moderno"]) .lineOriginal :global(.line-sidebar__marker) {
+    height: 2px; border-radius: 2px;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineOriginal :global(.line-sidebar__list) {
+    padding-block: 6px;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink {
+    min-height: 42px;
+    border-radius: 10px;
+    padding-inline-end: 12px;
+    transition: background-color 220ms ease, box-shadow 220ms ease;
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink[aria-current="page"] {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 24%, transparent);
+    background: var(--mantine-primary-color-light);
+}
+:global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__label) {
+    padding-inline-end: 24px;
+}
+:global(html[data-funilador-estilo="moderno"][data-funilador-densidade="compacta"]) .lineLink { min-height: 34px; }
+:global(html[data-funilador-estilo="moderno"][data-funilador-densidade="confortavel"]) .lineLink { min-height: 48px; }
+
+/* Mobile: superfície de navegação independente, sem efeito de proximidade. */
+.mobileSheet {
+    border-radius: 24px 24px 0 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-bottom: 0;
+    max-height: 85dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.mobileSheetHeader { border-radius: 24px 24px 0 0; }
+.mobileSheetHeader :global(.mantine-Drawer-title) { font-weight: 700; }
+.mobileSheetBody { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+.mobileGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.mobileTile {
+    position: relative; display: flex; flex-direction: column; gap: 8px;
+    align-items: flex-start; justify-content: center;
+    min-width: 0; min-height: 88px; padding: 12px;
+    border: 1px solid var(--mantine-color-default-border); border-radius: 15px;
+    background: var(--mantine-color-default); color: var(--mantine-color-text);
+    text-decoration: none; overflow-wrap: anywhere;
+    animation: modernoEntradaMobile 260ms cubic-bezier(.22,1,.36,1) backwards;
+    animation-delay: calc(var(--ordem-nav, 0) * 32ms);
+    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.mobileTileIcon {
+    display: grid; place-items: center; width: 36px; height: 36px;
+    border-radius: 11px; color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+}
+.mobileTileLabel { font-size: var(--mantine-font-size-sm); font-weight: 600; line-height: 1.3; }
+.mobileTile[aria-current="page"] {
+    background: var(--mantine-primary-color-light);
+    border-color: var(--mantine-primary-color-filled);
+}
+.mobileTile[aria-current="page"] .mobileTileIcon {
+    background: var(--mantine-primary-color-filled); color: white;
+}
+.mobileTileMark { display: none; }
+.mobileTile[aria-current="page"] .mobileTileMark {
+    display: block; position: absolute; top: 12px; right: 12px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--mantine-primary-color-filled);
+}
+.mobileBadge { position: absolute; top: 12px; right: 12px; }
+.mobileTile:has(.mobileBadge) .mobileTileMark { display: none; }
+.mobileTile:focus-visible { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: 2px; }
+.mobileTile:active { transform: scale(.975); }
+@media (hover:hover) { .mobileTile:hover { border-color: var(--mantine-primary-color-filled); } }
+@media (max-width: 22em) {
+    .mobileGrid { gap: 7px; }
+    .mobileTile { padding: 9px; min-height: 82px; }
+}
+@keyframes modernoEntradaMobile {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+:global(html[data-funilador-movimento="reduzido"]) .mobileTile {
+    animation: none !important; transition: none !important; transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .mobileTile { animation: none !important; transition: none !important; transform: none !important; }
+}
+
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .lineLink { position:relative; gap:10px; padding-inline-start:5px; }
+ :global(html[data-funilador-estilo="moderno"]) .lineIcon { width:29px; height:29px; display:grid; place-items:center; border-radius:9px; background:color-mix(in srgb,var(--mantine-color-text) 5%,transparent); color:var(--mantine-color-dimmed); }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink[aria-current="page"] .lineIcon { background:var(--mantine-primary-color-light-hover); color:var(--mantine-primary-color-light-color); }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink[aria-current="page"] { background:linear-gradient(110deg,var(--mantine-primary-color-light-hover),var(--mantine-primary-color-light)); box-shadow:inset 0 0 0 1px var(--mantine-primary-color-light-hover),0 5px 14px -10px var(--mantine-primary-color-filled); }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__label) { padding-inline-end:18px; }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__text) { overflow-wrap:normal; word-break:normal; }
+}
+@media (min-width:48em) and (prefers-reduced-motion:no-preference) {
+ :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lineIcon { transition:transform 240ms cubic-bezier(.2,.8,.2,1.3),color 180ms,background-color 180ms; }
+ :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lineLink:hover .lineIcon { transform:scale(1.12) rotate(-5deg); color:var(--mantine-primary-color-light-color); }
+}
+
+
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .lineOriginal { overflow-x:clip; }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__label) { padding-inline-end:0; margin-inline-end:18px; }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink :global(.line-sidebar__text) { white-space:normal; overflow-wrap:break-word; }
+ :global(html[data-funilador-estilo="moderno"]) .lineOriginal :global(.line-sidebar__marker) { transform:translateY(-50%) scaleX(calc(.7 + var(--effect,0)*.3)); }
+}
+@media (min-width:48em) {
+ :global(html[data-funilador-estilo="moderno"]) .lineOriginal[data-reduced-motion] :global(.line-sidebar__marker) { transform:translateY(-50%); }
+ :global(html[data-funilador-estilo="moderno"]) .lineLink { min-width:0; gap:7px; }
+ :global(html[data-funilador-estilo="moderno"]) .lineBadge { max-width:45px; }
+}

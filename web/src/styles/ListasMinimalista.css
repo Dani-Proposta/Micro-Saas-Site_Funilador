@@ -1,0 +1,79 @@
+/* 06.5.3.6 — Registros, filtros e estados de lista. */
+.funilador-estado-lista { min-width: 0; overflow-wrap: anywhere; }
+.funilador-estado-lista svg { color: var(--mantine-color-dimmed); }
+.funilador-filtros-rodape:empty { display: none; }
+
+html[data-funilador-estilo="minimalista"] :is(.funilador-filtros, .funilador-tabela-clientes, .funilador-financeiro-registros, .funilador-estado-lista) {
+    border-radius: 6px;
+    box-shadow: none;
+}
+html[data-funilador-estilo="minimalista"] .funilador-filtros-rodape {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding-top: 6px;
+    font-variant-numeric: tabular-nums;
+}
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 6px;
+    background: var(--mantine-color-body);
+}
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros:empty { display: none; }
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: var(--funilador-gap-painel, 10px) 12px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root + .mantine-Card-root {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root:first-child { border-radius: 5px 5px 0 0; }
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root:last-child { border-radius: 0 0 5px 5px; }
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root:only-child { border-radius: 5px; }
+html[data-funilador-estilo="minimalista"] .funilador-lista-registros .mantine-Badge-root {
+    max-width: 100%;
+}
+html[data-funilador-estilo="minimalista"] .funilador-tabela-clientes .mantine-Table-th {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+    background: var(--mantine-color-default-hover);
+}
+html[data-funilador-estilo="minimalista"] .funilador-tabela-clientes .mantine-Avatar-root {
+    border-radius: 6px;
+    border: 1px solid var(--mantine-color-default-border);
+}
+html[data-funilador-estilo="minimalista"] :is(.funilador-tabela-clientes, .funilador-financeiro-registros) .mantine-Pagination-control {
+    border-radius: 4px;
+    box-shadow: none;
+}
+html[data-funilador-estilo="minimalista"] :is(.funilador-tabela-clientes, .funilador-financeiro-registros) .mantine-Pagination-root {
+    font-variant-numeric: tabular-nums;
+    max-width: 100%;
+}
+html[data-funilador-estilo="minimalista"] .funilador-financeiro-filtros { align-items: end; }
+html[data-funilador-estilo="minimalista"] .funilador-estado-lista { border-style: dashed; background: transparent; }
+html[data-funilador-estilo="minimalista"] .funilador-carregamento-lista > .mantine-SimpleGrid-root {
+    gap: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 6px;
+}
+html[data-funilador-estilo="minimalista"] .funilador-carregamento-lista .mantine-Card-root {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+html[data-funilador-estilo="minimalista"] .funilador-carregamento-lista .mantine-Card-root + .mantine-Card-root {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+@media (hover: hover) {
+    html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root:hover {
+        background: var(--mantine-color-default-hover);
+    }
+}
+@media (max-width: 30em) {
+    html[data-funilador-estilo="minimalista"] .funilador-lista-registros > .mantine-Card-root { padding: 10px; }
+}
