@@ -88,7 +88,11 @@ Funilador/
 
 O projeto adota autenticação por convite(por enquanto só convidando o cliente para ter acesso), controle de acesso por perfil, validações de titularidade dos registros no backend, consultas parametrizadas, restrição de origem em operações de escrita. O banco de dados utiliza uma função de acesso operacional distinta da função administrativa de migração para garantir autenticidade nos pedidos.
 
-### Desempenho
+- Interface: React + Vite
+- Linguagem: Typescript
+- Componentes visuais: Mantine UI
+- Backend e API: Node.js + Express
+- Banco: PostgreSQL
 
 A divisão do código por rotas reduz o tamanho do módulo JavaScript principal. Comparação entre o build anterior à otimização e o build local de 28/11/2026:
 
