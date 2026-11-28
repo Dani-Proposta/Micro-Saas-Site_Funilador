@@ -1,14 +1,15 @@
 import { Card, Loader, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
 import classes from "../styles/Estrutura.module.css";
 
 type Props = {tipo?: "lista" | "indicadores" | "detalhes" | "compacto" | "sessao"; texto?: string; quantidade?: number};
 
 export function Carregamento({tipo = "lista", texto = "Carregando...", quantidade = 3}: Props) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
 
     const reduzir = useMovimentoReduzido();
-    const moderno = aparencia.estilo === "moderno";
+    const moderno = (aparencia.estilo === "moderno" || expressivo);
     const blocos = Array.from({length: quantidade}, (_, i) => i);
     if (tipo === "compacto" || tipo === "sessao") return <div className={tipo === "sessao" ? classes.sessionLoading : classes.inlineLoading} role="status">
         {moderno && !reduzir ? <Loader size="xs" type="dots" aria-hidden="true"/> : <span className={classes.loadingDots} aria-hidden="true"><i/><i/><i/></span>}<Text size="sm" c="dimmed">{texto}</Text>

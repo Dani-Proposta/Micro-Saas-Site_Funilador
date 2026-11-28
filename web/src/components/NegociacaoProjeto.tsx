@@ -1,3 +1,5 @@
+import { useExpressivo } from "../lib/contextoAparencia";
+import { NumeroModerno, ProgressoModerno } from "./InteracaoModerna";
 import { CampoData } from "./CampoData";
 import chat from "../styles/Chat.module.css";
 import { useEffect, useRef, useState } from "react";
@@ -95,6 +97,7 @@ export function CartaoProposta({proposta, endpoint, lado, somenteLeitura, onAlte
 
 //consultar projeto sem sair da conversa
 export function ResumoProjetoChat({projetoId, lado, onFechar}: {projetoId: string; lado: "admin" | "cliente"; onFechar: () => void}) {
+    const expressivo = useExpressivo();
     const [dados, setDados] = useState<{valorAcordado: string | null; prazoAcordado: string | null; totalPago: string; progresso: number | null; marcos: {id: string; titulo: string; status: string}[]} | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const endpoint = lado === "admin" ? `/api/projetos/${projetoId}/marcos` : `/api/me/projetos/${projetoId}/marcos`;
@@ -110,5 +113,5 @@ export function ResumoProjetoChat({projetoId, lado, onFechar}: {projetoId: strin
         }
         void carregar(); return () => controller.abort();
     }, [endpoint]);
-    return <Modal opened onClose={onFechar} title="Dados do projeto" centered><Stack gap="sm">{erro ? <Alert color="red">{erro}</Alert> : !dados ? <Text size="sm">Carregando...</Text> : <><Text size="sm">Valor acordado: {formatarValor(dados.valorAcordado)}</Text><Text size="sm">Prazo acordado: {formatarPrazo(dados.prazoAcordado)}</Text><Text size="sm">{lado === "admin" ? "Recebido" : "Total pago"}: {formatarValor(dados.totalPago)}</Text><Text size="sm">Progresso: {dados.progresso == null ? "Não definido" : `${dados.progresso}%`}</Text><Text size="sm">Marcos concluídos: {dados.marcos.filter(m => m.status === "concluido").length}/{dados.marcos.filter(m => m.status !== "cancelado").length}</Text></>}<Button component={Link} to={lado === "admin" ? `/projetos/${projetoId}` : `/portal/projetos?projeto=${projetoId}`} variant="light">Abrir projeto</Button></Stack></Modal>;
+    return <Modal opened onClose={onFechar} title="Dados do projeto" centered size={expressivo ? "xl" : undefined}><Stack gap={expressivo ? "lg" : "sm"}>{erro ? <Alert color="red">{erro}</Alert> : !dados ? <Text size="sm">Carregando...</Text> : expressivo ? <><div className="ex-resumo-projeto"><div><Text c="dimmed" size="xs">Valor acordado</Text><Text fw={800} size="xl"><NumeroModerno valor={dados.valorAcordado} moeda/></Text></div><div><Text c="dimmed" size="xs">{lado === "admin" ? "Recebido" : "Total pago"}</Text><Text fw={800} size="xl"><NumeroModerno valor={dados.totalPago} moeda/></Text></div><div><Text c="dimmed" size="xs">Prazo acordado</Text><Text fw={650}>{formatarPrazo(dados.prazoAcordado)}</Text></div><div><Text c="dimmed" size="xs">Marcos concluídos</Text><Text fw={800} size="xl">{dados.marcos.filter(m=>m.status==="concluido").length}/{dados.marcos.filter(m=>m.status!=="cancelado").length}</Text></div></div><Card withBorder><Stack gap="sm"><Group justify="space-between"><Text fw={700}>Progresso do projeto</Text><Text fw={800} size="xl"><NumeroModerno valor={dados.progresso} percentual/></Text></Group>{dados.progresso!=null&&<ProgressoModerno valor={dados.progresso}/>}</Stack></Card></> : <><Text size="sm">Valor acordado: {formatarValor(dados.valorAcordado)}</Text><Text size="sm">Prazo acordado: {formatarPrazo(dados.prazoAcordado)}</Text><Text size="sm">{lado === "admin" ? "Recebido" : "Total pago"}: {formatarValor(dados.totalPago)}</Text><Text size="sm">Progresso: {dados.progresso == null ? "Não definido" : `${dados.progresso}%`}</Text><Text size="sm">Marcos concluídos: {dados.marcos.filter(m => m.status === "concluido").length}/{dados.marcos.filter(m => m.status !== "cancelado").length}</Text></>}<Button component={Link} to={lado === "admin" ? `/projetos/${projetoId}` : `/portal/projetos?projeto=${projetoId}`} variant="light">Abrir projeto</Button></Stack></Modal>;
 }

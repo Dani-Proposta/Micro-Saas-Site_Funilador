@@ -1,3 +1,5 @@
+import { motion } from "motion/react";
+import type { ReactNode } from "react";
 import { TransicaoConteudo } from "./InteracaoModerna";
 import chat from "../styles/Chat.module.css";
 import visual from "../styles/Notificacoes.module.css";
@@ -13,7 +15,12 @@ import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { caminhoPendencia } from "../lib/selecionarPendencias";
 import { caminhoPagamento } from "../lib/pendenciasProjeto";
 import { formatarValor } from "../lib/comercial";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
+
+function EntradaNotificacao({animar,children}:{animar:boolean;children:ReactNode}) {
+    if(!animar)return <>{children}</>;
+    return <motion.div className="ex-notificacao-entrada" initial={{opacity:.55,x:8}} whileInView={{opacity:1,x:0}} viewport={{once:true,amount:.15}} transition={{duration:.35,ease:[.22,1,.36,1]}}>{children}</motion.div>;
+}
 
 type Notificacao = {
     id: string;
@@ -73,10 +80,11 @@ const alertas = [
 export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
     const navigate = useNavigate();
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
     const reduzirMovimento = useMovimentoReduzido();
     const minimalista = aparencia.estilo === "minimalista";
     const mobile = useMediaQuery("(max-width: 47.99em)", false, {getInitialValueInEffect:false});
-    const modernoDesktop = aparencia.estilo === "moderno";
+    const modernoDesktop = (aparencia.estilo === "moderno" || expressivo);
     const infinito = mobile && modernoDesktop;
     const sentinela = useRef<HTMLDivElement>(null);
     const ultimoPedido = useRef(-1);
@@ -287,7 +295,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                         <Text size="xs" c="dimmed" ta="center">{pagina === 0 && categoriasAtivas.length ? "As pendências ativas continuam acima." : "Novas notificações aparecerão aqui."}</Text>
                     </Stack> : <Text size="sm" c="dimmed">Nenhuma notificação nesta página.</Text>)}
                     {paginaAtual?.itens.map(n => (
-                        <UnstyledButton key={n.id} disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} className={`${chat.evento} ${visual.evento}`} data-nova={n.quantidade > 0} data-importante={n.prioridade === "importante"} style={{cursor: ocupada ? "wait" : "pointer"}}>
+                        <EntradaNotificacao key={n.id} animar={expressivo&&!reduzirMovimento}><UnstyledButton disabled={ocupada} onClick={() => void marcar(n)} p="xs" w="100%" bg={n.quantidade ? "var(--mantine-color-default-hover)" : undefined} className={`${chat.evento} ${visual.evento}`} data-nova={n.quantidade > 0} data-importante={n.prioridade === "importante"} style={{cursor: ocupada ? "wait" : "pointer"}}>
                             <Group align="flex-start" justify="space-between" wrap="nowrap" gap="xs">
                                 {comIcones && <span className={visual.icone}><IconeNotificacao tipo={n.tipo} moderno={modernoDesktop}/></span>}
                                 <Box miw={0} flex={1}>
@@ -299,7 +307,7 @@ export function CentralNotificacoes({lado}: {lado: "admin" | "cliente"}) {
                                 {n.quantidade > 0 && (minimalista ? <span className={visual.naoLida} aria-label={`${n.quantidade} não lida(s)`}><i aria-hidden="true"/>{n.quantidade > 1 ? n.quantidade : "Nova"}</span> : <Badge color="red" size="sm">{n.quantidade > 1 || n.tipo === "mensagem" ? n.quantidade : "Nova"}</Badge>)}
                                 {modernoDesktop ? <IconChevronRight size={16} aria-hidden="true"/> : <Text c="dimmed" aria-hidden="true">›</Text>}
                             </Group>
-                        </UnstyledButton>
+                        </UnstyledButton></EntradaNotificacao>
                     ))}
                     </>}
                 </Stack></TransicaoConteudo>);

@@ -114,10 +114,10 @@
 .enviarIcone { display: none; }
 
 @media (min-width: 48em) {
-    :global(html[data-funilador-estilo="moderno"]) .pagina.pagina {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina.pagina {
         gap: 10px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .pagina .topo :global(h1) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .topo :global(h1) {
         font-size: clamp(1.12rem, 1.5vw, 1.4rem);
         letter-spacing: -.025em;
     }
@@ -173,100 +173,100 @@
         outline-offset: -2px;
         border-radius: 6px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root),
-    :global(html[data-funilador-estilo="moderno"]) .pagina .painel {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .lista > :global(.mantine-Card-root),
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .painel {
         border: 1px solid var(--mantine-color-default-border);
         border-radius: 14px;
         background: var(--mantine-color-default);
         padding: 12px;
         box-shadow: var(--mantine-shadow-xs);
     }
-    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-root) {
         border-radius: 10px;
         min-height: 45px;
         padding-inline: 8px;
         transition: background-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
     }
-    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root)[data-active] {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-root)[data-active] {
         background: var(--mantine-primary-color-light);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 38%, transparent);
     }
-    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="left"] {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-section)[data-position="left"] {
         padding: 6px;
         border-radius: 9px;
         background: var(--mantine-color-default-hover);
     }
-    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root)[data-active] :global(.mantine-NavLink-section)[data-position="left"] {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-root)[data-active] :global(.mantine-NavLink-section)[data-position="left"] {
         background: var(--mantine-primary-color-light);
     }
-    :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root):focus-visible {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-root):focus-visible {
         outline: 2px solid var(--mantine-primary-color-filled);
         outline-offset: -2px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .cabecalho {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cabecalho {
         min-height: 50px;
         padding: 4px 4px 10px;
         margin-bottom: 4px;
         gap: 8px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .titulo {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .titulo {
         font-size: clamp(.9rem, 1.1vw, 1.05rem);
         font-weight: 650;
     }
-    :global(html[data-funilador-estilo="moderno"]) .historico {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .historico {
         border: 1px solid var(--mantine-color-default-border);
         border-radius: 12px;
         background: var(--mantine-color-body);
     }
-    :global(html[data-funilador-estilo="moderno"]) .historico :global(.mantine-ScrollArea-viewport) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .historico :global(.mantine-ScrollArea-viewport) {
         padding: 12px 14px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .balao:not([data-proposta="true"]) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao:not([data-proposta="true"]) {
         max-width: min(78%, 650px);
         padding: 9px 12px 6px !important;
         background: var(--mantine-color-default);
         border: 1px solid var(--mantine-color-default-border);
         border-radius: 14px 14px 14px 5px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .balao[data-propria="true"]:not([data-proposta="true"]) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao[data-propria="true"]:not([data-proposta="true"]) {
         background: color-mix(in srgb, var(--mantine-primary-color-filled) 16%, var(--mantine-color-body));
         border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 24%, var(--mantine-color-default-border));
         border-radius: 14px 14px 5px 14px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .horaMensagem {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .horaMensagem {
         font-variant-numeric: tabular-nums;
         margin-top: 3px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .proposta {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .proposta {
         border-radius: 12px;
         padding: 12px;
         box-shadow: var(--mantine-shadow-xs);
     }
-    :global(html[data-funilador-estilo="moderno"]) .compositor {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor {
         padding: 8px 2px 2px;
         border-top: 0;
         gap: 8px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .compositor :global(.mantine-Textarea-input) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor :global(.mantine-Textarea-input) {
         border-radius: 11px;
         min-height: 42px;
         padding-block: 10px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .compositor > :global(.mantine-Button-root) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor > :global(.mantine-Button-root) {
         min-height: 42px;
         border-radius: 11px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .enviarRotulo {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .enviarRotulo {
         display: inline-flex;
         align-items: center;
         gap: 8px;
     }
-    :global(html[data-funilador-estilo="moderno"]) .enviarIcone { display: block; flex-shrink: 0; }
-    :global(html[data-funilador-estilo="moderno"]) .menuConversa {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .enviarIcone { display: block; flex-shrink: 0; }
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .menuConversa {
         border-radius: 12px;
         box-shadow: var(--mantine-shadow-md);
     }
-    :global(html[data-funilador-estilo="moderno"]) .menuConversa :global(.mantine-Menu-item) {
+    :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .menuConversa :global(.mantine-Menu-item) {
         min-height: 36px;
         border-radius: 7px;
     }
@@ -274,25 +274,25 @@
 
 /* Refinamento desktop: o painel não comprime nomes letra por letra. */
 @media (min-width:48em) {
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-body) { flex: 1 1 0; min-width: 0; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-label) > :global(.mantine-Group-root) { flex-wrap: nowrap; min-width:0; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-label) :global(.mantine-Text-root) { flex:1 1 auto; min-width:0; overflow-wrap:normal; word-break:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-description) { overflow-wrap:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="left"] { margin-inline-end:8px; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-section)[data-position="right"] { margin-inline-start:6px; }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-Badge-root) { flex-shrink:0; }
- :global(html[data-funilador-estilo="moderno"]) .painel { background:linear-gradient(145deg,var(--mantine-color-default),color-mix(in srgb,var(--mantine-primary-color-filled) 5%,var(--mantine-color-body))) !important; }
- :global(html[data-funilador-estilo="moderno"]) .historico { background:radial-gradient(ellipse at 80% 5%,color-mix(in srgb,var(--mantine-primary-color-filled) 7%,transparent),transparent 60%),var(--mantine-color-body); }
- :global(html[data-funilador-estilo="moderno"]) .lista :global(.mantine-NavLink-root):hover { background:var(--mantine-primary-color-light); }
- :global(html[data-funilador-estilo="moderno"]) .balao:not([data-proposta="true"]) { box-shadow:0 5px 14px -11px var(--mantine-color-text); }
- :global(html[data-funilador-estilo="moderno"]) .compositor:focus-within { background:color-mix(in srgb,var(--mantine-primary-color-filled) 5%,transparent); border-radius:12px; }
- :global(html[data-funilador-estilo="moderno"]) .divisorRedimensionavel:hover > span { box-shadow:0 0 0 4px var(--mantine-primary-color-light),0 0 12px var(--mantine-primary-color-filled); }
- :global(html[data-funilador-estilo="moderno"]) .cabecalho { flex-wrap:wrap; }
- :global(html[data-funilador-estilo="moderno"]) .ferramentas { margin-inline-start:auto; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-body) { flex: 1 1 0; min-width: 0; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-label) > :global(.mantine-Group-root) { flex-wrap: nowrap; min-width:0; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-label) :global(.mantine-Text-root) { flex:1 1 auto; min-width:0; overflow-wrap:normal; word-break:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-description) { overflow-wrap:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-section)[data-position="left"] { margin-inline-end:8px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-section)[data-position="right"] { margin-inline-start:6px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-Badge-root) { flex-shrink:0; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .painel { background:linear-gradient(145deg,var(--mantine-color-default),color-mix(in srgb,var(--mantine-primary-color-filled) 5%,var(--mantine-color-body))) !important; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .historico { background:radial-gradient(ellipse at 80% 5%,color-mix(in srgb,var(--mantine-primary-color-filled) 7%,transparent),transparent 60%),var(--mantine-color-body); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .lista :global(.mantine-NavLink-root):hover { background:var(--mantine-primary-color-light); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao:not([data-proposta="true"]) { box-shadow:0 5px 14px -11px var(--mantine-color-text); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor:focus-within { background:color-mix(in srgb,var(--mantine-primary-color-filled) 5%,transparent); border-radius:12px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .divisorRedimensionavel:hover > span { box-shadow:0 0 0 4px var(--mantine-primary-color-light),0 0 12px var(--mantine-primary-color-filled); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cabecalho { flex-wrap:wrap; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .ferramentas { margin-inline-start:auto; }
 }
 @media (min-width:48em) and (prefers-reduced-motion:no-preference) {
- :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root) :global(.mantine-NavLink-section)[data-position="left"] { transition:transform 220ms cubic-bezier(.2,.8,.2,1),background-color 180ms; }
- :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root):hover :global(.mantine-NavLink-section)[data-position="left"] { transform:scale(1.08); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root) :global(.mantine-NavLink-section)[data-position="left"] { transition:transform 220ms cubic-bezier(.2,.8,.2,1),background-color 180ms; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) .lista :global(.mantine-NavLink-root):hover :global(.mantine-NavLink-section)[data-position="left"] { transform:scale(1.08); }
 }
 
 
@@ -309,30 +309,41 @@
 
 @keyframes chatCabecalhoModerno { from {opacity:.35;transform:translateY(4px);} to {opacity:1;transform:translateY(0);} }
 @media (min-width:48em) and (prefers-reduced-motion:no-preference) {
- :global(html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"])) .cabecalho { animation:chatCabecalhoModerno 240ms cubic-bezier(.22,.75,.25,1) both; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"])) .cabecalho { animation:chatCabecalhoModerno 240ms cubic-bezier(.22,.75,.25,1) both; }
 }
 
 @media (min-width:48em) {
- :global(html[data-funilador-estilo="moderno"]) .pagina .painel { background:var(--md-surface); border-color:var(--md-edge); }
- :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root) { background:var(--md-surface); border-color:var(--md-edge); }
- :global(html[data-funilador-estilo="moderno"]) .compositor { padding:10px; background:var(--md-inset); border:1px solid var(--md-edge); border-radius:14px; }
- :global(html[data-funilador-estilo="moderno"]) .compositor > :global(.mantine-Button-root) { min-height:36px; }
- :global(html[data-funilador-estilo="moderno"]) .cabecalho { padding-block:10px; }
- :global(html[data-funilador-estilo="moderno"]) .historico { border-radius:14px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .painel { background:var(--md-surface); border-color:var(--md-edge); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .lista > :global(.mantine-Card-root) { background:var(--md-surface); border-color:var(--md-edge); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor { padding:10px; background:var(--md-inset); border:1px solid var(--md-edge); border-radius:14px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor > :global(.mantine-Button-root) { min-height:36px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cabecalho { padding-block:10px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .historico { border-radius:14px; }
 }
 
 @media (max-width:47.99em) {
- :global(html[data-funilador-estilo="moderno"]) .pagina .painel {padding:9px;background:var(--md-surface);border:1px solid var(--md-edge);border-radius:19px;}
- :global(html[data-funilador-estilo="moderno"]) .pagina .lista > :global(.mantine-Card-root) {padding:12px;}
- :global(html[data-funilador-estilo="moderno"]) .cabecalho {padding:5px 0 9px;}
- :global(html[data-funilador-estilo="moderno"]) .historico {background:var(--md-inset);border-radius:14px;border:1px solid var(--md-edge);}
- :global(html[data-funilador-estilo="moderno"]) .balao {padding:10px;border-radius:15px 15px 15px 5px;font-size:14px;}
- :global(html[data-funilador-estilo="moderno"]) .balao[data-propria="true"] {border-radius:15px 15px 5px 15px;border-color:var(--mantine-primary-color-light-hover);}
- :global(html[data-funilador-estilo="moderno"]) .balao[data-proposta="true"] {padding:0;}
- :global(html[data-funilador-estilo="moderno"]) .compositor {padding:8px 0 0;gap:6px;}
- :global(html[data-funilador-estilo="moderno"]) .filtros :global(.mantine-SegmentedControl-label) {min-height:38px;font-size:12px;}
- :global(html[data-funilador-estilo="moderno"]) .ferramentas {max-width:100%;flex-wrap:wrap;}
- :global(html[data-funilador-estilo="moderno"]) .identidade {min-width:0;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .painel {padding:9px;background:var(--md-surface);border:1px solid var(--md-edge);border-radius:19px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pagina .painel {padding:9px;background:var(--md-surface);border:1px solid var(--md-edge);border-radius:19px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .pagina .lista > :global(.mantine-Card-root) {padding:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .pagina .lista > :global(.mantine-Card-root) {padding:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .cabecalho {padding:5px 0 9px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .cabecalho {padding:5px 0 9px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .historico {background:var(--md-inset);border-radius:14px;border:1px solid var(--md-edge);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .historico {background:var(--md-inset);border-radius:14px;border:1px solid var(--md-edge);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao {padding:10px;border-radius:15px 15px 15px 5px;font-size:14px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .balao {padding:10px;border-radius:15px 15px 15px 5px;font-size:14px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao[data-propria="true"] {border-radius:15px 15px 5px 15px;border-color:var(--mantine-primary-color-light-hover);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .balao[data-propria="true"] {border-radius:15px 15px 5px 15px;border-color:var(--mantine-primary-color-light-hover);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .balao[data-proposta="true"] {padding:0;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .balao[data-proposta="true"] {padding:0;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .compositor {padding:8px 0 0;gap:6px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .compositor {padding:8px 0 0;gap:6px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .filtros :global(.mantine-SegmentedControl-label) {min-height:38px;font-size:12px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .filtros :global(.mantine-SegmentedControl-label) {min-height:38px;font-size:12px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .ferramentas {max-width:100%;flex-wrap:wrap;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .ferramentas {max-width:100%;flex-wrap:wrap;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .identidade {min-width:0;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .identidade {min-width:0;}
 }
 
 /* 06.5.5.3 — melhor centralização visual dos filtros rápidos de conversa. */

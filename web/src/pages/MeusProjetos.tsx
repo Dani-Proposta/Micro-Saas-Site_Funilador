@@ -1,3 +1,5 @@
+import { ProgressoCartaoExpressivo } from "../components/expressivo/ProgressoExpressivo";
+import { useExpressivo } from "../lib/contextoAparencia";
 import { TransicaoConteudo, ProgressoModerno, NumeroModerno } from "../components/InteracaoModerna";
 import { CabecalhoModerno, CartaoRegistro, IconeModerno } from "../components/AcabamentoModerno";
 import classes from "../styles/Trabalho.module.css";
@@ -37,6 +39,7 @@ const statusProjeto = {
 };
 
 export function MeusProjetos() {
+    const expressivo=useExpressivo();
 
     const [projetos, setProjetos] = useState<Projeto[]>([]);
     const atualizarMarcos = useCallback((dados: ResumoMarcos) => setProjetos(anteriores => anteriores.map(p => p.id === dados.id ? {...p, progresso: dados.progresso, modoProgresso: dados.modoProgresso, atualizadaEm: dados.atualizadaEm, valorAcordado: dados.valorAcordado, prazoAcordado: dados.prazoAcordado, entregasPendentes: p.status === "cancelado" ? 0 : dados.marcos.filter(m => m.status === "aguardando_validacao").length} : p)), []);
@@ -125,12 +128,11 @@ export function MeusProjetos() {
             {!carregando && !erro && projetosVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
 
             {!carregando && !erro && !alvoNotificacao && projetosVisiveis.length > 0 && <TransicaoConteudo identidade={projetosVisiveis.map(p=>p.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
-                {projetosVisiveis.map(projeto=><CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos">
+                {projetosVisiveis.map(projeto=><CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos" estado={projeto.status}>
                     <div className={classes.cardTopo}><IconeModerno nome="projetos" tamanho={22}/><Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{projeto.titulo}</Text><Badge variant="light" color={statusProjeto[projeto.status].color}>{statusProjeto[projeto.status].label}</Badge></div>
                     <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{projeto.descricao}</Text>
                     <div className={classes.dados}><div><Text size="xs" c="dimmed">Valor acordado</Text><Text size="sm" fw={500}>{<NumeroModerno valor={projeto.valorAcordado} moeda/>}</Text></div><div><Text size="xs" c="dimmed">Prazo acordado</Text><Text size="sm" fw={500}>{formatarPrazo(projeto.prazoAcordado)}</Text></div></div>
-                    <Group justify="space-between"><Text size="xs" c="dimmed">Progresso</Text><Text size="xs">{projeto.progresso == null ? "Não definido" : <NumeroModerno valor={projeto.progresso} percentual/>}</Text></Group>
-                    {projeto.progresso != null && <ProgressoModerno valor={projeto.progresso}/>}
+                    {expressivo ? <ProgressoCartaoExpressivo valor={projeto.progresso}/> : <><Group justify="space-between"><Text size="xs" c="dimmed">Progresso</Text><Text size="xs">{projeto.progresso == null ? "Não definido" : <NumeroModerno valor={projeto.progresso} percentual/>}</Text></Group>{projeto.progresso != null && <ProgressoModerno valor={projeto.progresso}/>}</>}
                     <div className={classes.cardAcoes}>{projeto.entregasPendentes > 0 && <Button size="xs" color="yellow" variant="light" onClick={()=>abrirValidacao(projeto.id)}>Validar ({projeto.entregasPendentes})</Button>}<Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label={`Ver projeto ${projeto.titulo}`} size="xs" variant="light" onClick={()=>abrirProjeto(projeto.id)}><span>Ver projeto</span> <IconeModerno nome="abrir" tamanho={15}/></Button></div>
                 </CartaoRegistro>)}
             </TransicaoConteudo>}

@@ -216,11 +216,19 @@
 @media (max-width: 47.99em) {
     /* O drawer próprio substitui somente o navbar mobile do Moderno. */
     :global(html[data-funilador-estilo="moderno"]) .navbar { display: none; }
+    :global(html[data-funilador-expressivo-mobile="true"]) .navbar { display: none; }
     :global(html[data-funilador-estilo="moderno"]) .headerIdentity > :global(.mantine-Burger-root) {
         width: 44px; height: 44px; border-radius: 12px;
         background: var(--mantine-color-default-hover);
     }
+    :global(html[data-funilador-expressivo-mobile="true"]) .headerIdentity > :global(.mantine-Burger-root) {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: var(--mantine-color-default-hover);
+    }
     :global(html[data-funilador-estilo="moderno"]) :is(.account, .bell) {
+        width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    }
+    :global(html[data-funilador-expressivo-mobile="true"]) :is(.account, .bell) {
         width: 44px; height: 44px; min-width: 44px; min-height: 44px;
     }
 }

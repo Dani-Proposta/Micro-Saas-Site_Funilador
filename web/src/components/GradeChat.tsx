@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useElementSize, useMediaQuery } from "@mantine/hooks";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
-import { useAparencia } from "../lib/contextoAparencia";
+import { useAparencia, useExpressivoDesktop } from "../lib/contextoAparencia";
 import chat from "../styles/Chat.module.css";
 import classes from "../styles/Usabilidade.module.css";
 
@@ -17,8 +17,9 @@ type Props = {
 // A estrutura funcional é a mesma; apenas o desktop Moderno ganha painéis redimensionáveis.
 export function GradeChat(props: Props) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivoDesktop();
     const desktop = useMediaQuery("(min-width: 48em)", false, {getInitialValueInEffect: false});
-    if (aparencia.estilo !== "moderno" || !desktop) {
+    if ((aparencia.estilo !== "moderno" && !expressivo) || !desktop) {
         return <div className={`${classes.chatGrid} ${chat.grid}`}>{props.lista}{props.conversa}</div>;
     }
     return <GradeDesktop {...props}/>;

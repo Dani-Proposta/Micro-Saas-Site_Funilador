@@ -1,3 +1,6 @@
+import { EfeitosExpressivos } from "./expressivo/EfeitosExpressivos";
+import { AmbienteExpressivo } from "./expressivo/AmbienteExpressivo";
+import { usePreferenciasExpressivo } from "../lib/expressivo";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { MantineProvider, createTheme, Select, SegmentedControl } from "@mantine/core";
@@ -20,6 +23,8 @@ export function ProvedorAparencia({children}: {children: ReactNode}) {
     const identidade = useRef<string | null>(null);
     const escuroSistema = useMediaQuery("(prefers-color-scheme: dark)", true, {getInitialValueInEffect:false});
     const sistemaReduzido = useReducedMotion();
+    const desktop = useMediaQuery("(min-width:48em)",false,{getInitialValueInEffect:false});
+    const {valor:expressivo} = usePreferenciasExpressivo();
     const {pathname} = useLocation();
     // Rotas públicas têm identidade própria, mesmo se houver uma sessão ativa.
     const rota = pathname.toLowerCase().replace(/\/+$/, "");
@@ -44,14 +49,18 @@ export function ProvedorAparencia({children}: {children: ReactNode}) {
     }, [id]);
     useLayoutEffect(() => {
         const raiz = document.documentElement;
+        raiz.dataset.funiladorExpressivoDesktop = String(aparencia.estilo === "expressivo" && desktop);
+        raiz.dataset.funiladorExpressivoMobile = String(aparencia.estilo === "expressivo" && !desktop);
+        raiz.dataset.funiladorExNav = expressivo.navDesktop;
+        raiz.dataset.funiladorExNavMobile = expressivo.navMobile;
         raiz.dataset.funiladorPaleta = aparencia.paleta;
         raiz.dataset.funiladorEstilo = aparencia.estilo;
         raiz.dataset.funiladorDensidade = aparencia.densidade;
         raiz.dataset.funiladorMovimento = aparencia.movimento;
-        return () => {delete raiz.dataset.funiladorPaleta; delete raiz.dataset.funiladorEstilo; delete raiz.dataset.funiladorDensidade; delete raiz.dataset.funiladorMovimento;};
-    }, [aparencia.paleta, aparencia.estilo, aparencia.densidade, aparencia.movimento]);
+        return () => {delete raiz.dataset.funiladorExpressivoDesktop; delete raiz.dataset.funiladorExpressivoMobile; delete raiz.dataset.funiladorExNavMobile; delete raiz.dataset.funiladorExNav; delete raiz.dataset.funiladorPaleta; delete raiz.dataset.funiladorEstilo; delete raiz.dataset.funiladorDensidade; delete raiz.dataset.funiladorMovimento;};
+    }, [aparencia.paleta, aparencia.estilo, aparencia.densidade, aparencia.movimento, desktop, expressivo.navDesktop, expressivo.navMobile]);
     const esquema = aparencia.tema === "auto" ? (escuroSistema ? "dark" : "light") : aparencia.tema;
-    const modernoDesktop = aparencia.estilo === "moderno";
+    const modernoDesktop = aparencia.estilo === "moderno" || aparencia.estilo === "expressivo";
     const reduzir = sistemaReduzido || aparencia.movimento === "reduzido";
     const tema = useMemo(() => createTheme({
         ...theme,
@@ -66,5 +75,5 @@ export function ProvedorAparencia({children}: {children: ReactNode}) {
         ...(aparencia.densidade === "compacta" ? {spacing:{xs:"8px",sm:"10px",md:"12px",lg:"16px",xl:"24px"}} : aparencia.densidade === "confortavel" ? {spacing:{xs:"12px",sm:"15px",md:"20px",lg:"25px",xl:"36px"}} : {}),
     }), [aparencia.acento, aparencia.paleta, aparencia.estilo, aparencia.densidade, esquema, modernoDesktop, reduzir]);
     const contexto = useMemo(() => ({aparencia, aplicar}), [aparencia, aplicar]);
-    return <ContextoAparencia.Provider value={contexto}><MantineProvider theme={tema} forceColorScheme={esquema}><AmbienteModerno/><CentralToasts sessaoId={id}/>{children}</MantineProvider></ContextoAparencia.Provider>;
+    return <ContextoAparencia.Provider value={contexto}><MantineProvider theme={tema} forceColorScheme={esquema}><AmbienteModerno/><AmbienteExpressivo/><EfeitosExpressivos/><CentralToasts sessaoId={id}/>{children}</MantineProvider></ContextoAparencia.Provider>;
 }

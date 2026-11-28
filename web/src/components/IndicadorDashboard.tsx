@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
 import { NumeroModerno } from "./InteracaoModerna";
 import { Card, Group, Text } from "@mantine/core";
 import { IconePainel } from "./MenuConta";
@@ -10,6 +10,8 @@ import classes from "../styles/Dashboard.module.css";
 export function ContadorDashboard({valor,repeticao=0}: {valor: number | null; repeticao?:number}) {
     const {aparencia} = useAparencia();
 
+    const expressivo = useExpressivo();
+    if (expressivo) return <ContadorClassico key={repeticao} valor={valor}/>;
     if (aparencia.estilo === "moderno") {
         return <NumeroModerno valor={valor} repeticao={repeticao}/>;
     }
@@ -41,7 +43,7 @@ function ContadorClassico({valor}: {valor: number | null}) {
 
 type Props = {titulo: string; valor: number | null; icone: ComponentProps<typeof IconePainel>["nome"]; cor?: string; repeticao?:number; abrir: () => void};
 export function IndicadorDashboard({titulo, valor, icone, cor, repeticao, abrir}: Props) {
-    return <Card withBorder padding="sm" component="button" type="button" onClick={abrir} className={classes.indicador} aria-label={`${titulo}: ${valor ?? "indisponível"}. Abrir detalhes`}>
+    return <Card withBorder padding="sm" component="button" type="button" onClick={abrir} className={`${classes.indicador} ex-indicador`} aria-label={`${titulo}: ${valor ?? "indisponível"}. Abrir detalhes`}>
         <Group justify="space-between" wrap="nowrap" gap={6} className={classes.indicadorTopo}>
             <Text size="xs" c="dimmed" fw={500}>{titulo}</Text>
             <span className={classes.icone}><IconePainel nome={icone} tamanho={16}/></span>

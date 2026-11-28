@@ -1,3 +1,4 @@
+import { PreferenciasExpressivas } from "./expressivo/PreferenciasExpressivas";
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { Button, DEFAULT_THEME, Group, Radio, Stack, Text, UnstyledButton } from "@mantine/core";
@@ -59,6 +60,7 @@ export function EditorAparencia({inicial, salvando, salvar}: {inicial:Aparencia;
                 <div className="funilador-previa-botao">Novo projeto</div>
             </div><Text size="xs" c="dimmed" mt={4}>Dados ilustrativos. A aplicação inteira muda ao salvar.</Text>
         </div>
+        {rascunho.estilo === "expressivo" && <PreferenciasExpressivas/>}
         <div className="funilador-preferencia-rodape">
             <Text size="xs" c="dimmed" role="status" className="funilador-preferencia-status">{alterado ? "Alterações ainda não salvas" : "Nenhuma alteração pendente"}</Text>
             <div className="funilador-preferencia-acoes">

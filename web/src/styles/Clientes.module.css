@@ -66,41 +66,50 @@
 
 /* Moderno desktop — ficha e vínculos. */
 @media (min-width:48em) {
-  :global(html[data-funilador-estilo="moderno"]) .indicador { border-radius: 14px; border-color: var(--moderno-borda); padding: 14px; box-shadow: var(--moderno-sombra); transition: background-color 200ms,border-color 200ms; }
-  :global(html[data-funilador-estilo="moderno"]) .indicador:hover, :global(html[data-funilador-estilo="moderno"]) .indicador[data-ativo="true"] { border-color: var(--mantine-primary-color-5); background: var(--mantine-primary-color-light); }
-  :global(html[data-funilador-estilo="moderno"]) .tabelaCard { border-radius: 16px; box-shadow: var(--moderno-sombra); }
-  :global(html[data-funilador-estilo="moderno"]) .relacionado { padding-block: 12px 5px; }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador { border-radius: 14px; border-color: var(--moderno-borda); padding: 14px; box-shadow: var(--moderno-sombra); transition: background-color 200ms,border-color 200ms; }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador:hover, :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador[data-ativo="true"] { border-color: var(--mantine-primary-color-5); background: var(--mantine-primary-color-light); }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .tabelaCard { border-radius: 16px; box-shadow: var(--moderno-sombra); }
+  :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .relacionado { padding-block: 12px 5px; }
 }
 
 @media (min-width:48em) {
- :global(html[data-funilador-estilo="moderno"]) .indicador { padding:18px; border-radius:18px; background:var(--md-surface); gap:10px; }
- :global(html[data-funilador-estilo="moderno"]) .indicador[data-ativo="true"] { background:var(--mantine-primary-color-light); box-shadow:inset 0 0 0 1px var(--mantine-primary-color-light-hover); }
- :global(html[data-funilador-estilo="moderno"]) .indicador .numero { font-size:clamp(20px,2.4vw,30px); letter-spacing:-.04em; }
- :global(html[data-funilador-estilo="moderno"]) .filtros { padding:16px; border:1px solid var(--md-edge); background:var(--md-surface); border-radius:18px; }
- :global(html[data-funilador-estilo="moderno"]) .tabelaCard { border-radius:20px; background:var(--md-surface); overflow:hidden; }
- :global(html[data-funilador-estilo="moderno"]) .tabela td { padding-block:13px; }
- :global(html[data-funilador-estilo="moderno"]) .clienteLink { border-radius:10px; padding:5px; }
- :global(html[data-funilador-estilo="moderno"]) .clienteLink:hover { background:var(--mantine-primary-color-light); }
- :global(html[data-funilador-estilo="moderno"]) .fichaCabecalho { padding:9px; }
- :global(html[data-funilador-estilo="moderno"]) .fichaIdentidade :global(.mantine-Avatar-root) { border-radius:19px; }
- :global(html[data-funilador-estilo="moderno"]) .dados > div { padding:13px; background:var(--md-inset); border:1px solid var(--md-edge); border-radius:12px; }
- :global(html[data-funilador-estilo="moderno"]) .relacionado { padding:12px; border:1px solid var(--md-edge); border-radius:12px; background:var(--md-inset); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador { padding:18px; border-radius:18px; background:var(--md-surface); gap:10px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador[data-ativo="true"] { background:var(--mantine-primary-color-light); box-shadow:inset 0 0 0 1px var(--mantine-primary-color-light-hover); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador .numero { font-size:clamp(20px,2.4vw,30px); letter-spacing:-.04em; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .filtros { padding:16px; border:1px solid var(--md-edge); background:var(--md-surface); border-radius:18px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .tabelaCard { border-radius:20px; background:var(--md-surface); overflow:hidden; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .tabela td { padding-block:13px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .clienteLink { border-radius:10px; padding:5px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .clienteLink:hover { background:var(--mantine-primary-color-light); }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .fichaCabecalho { padding:9px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .fichaIdentidade :global(.mantine-Avatar-root) { border-radius:19px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .dados > div { padding:13px; background:var(--md-inset); border:1px solid var(--md-edge); border-radius:12px; }
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .relacionado { padding:12px; border:1px solid var(--md-edge); border-radius:12px; background:var(--md-inset); }
 }
 
 @media (max-width:47.99em) {
- :global(html[data-funilador-estilo="moderno"]) .indicadores {gap:7px;}
- :global(html[data-funilador-estilo="moderno"]) .indicador {padding:10px 7px;border-radius:14px;background:var(--md-surface);}
- :global(html[data-funilador-estilo="moderno"]) .indicador[data-ativo="true"] {background:var(--mantine-primary-color-light);border-color:var(--mantine-primary-color-5);}
- :global(html[data-funilador-estilo="moderno"]) .tabela tbody tr {padding:12px 10px;grid-template-columns:minmax(0,1fr) minmax(0,auto) 44px;}
- :global(html[data-funilador-estilo="moderno"]) .clienteLink {min-height:44px;}
- :global(html[data-funilador-estilo="moderno"]) .filtros {padding:12px;border-radius:16px;border:1px solid var(--md-edge);background:var(--md-surface);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicadores {gap:7px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicadores {gap:7px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:10px 7px;border-radius:14px;background:var(--md-surface);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador {padding:10px 7px;border-radius:14px;background:var(--md-surface);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador[data-ativo="true"] {background:var(--mantine-primary-color-light);border-color:var(--mantine-primary-color-5);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador[data-ativo="true"] {background:var(--mantine-primary-color-light);border-color:var(--mantine-primary-color-5);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .tabela tbody tr {padding:12px 10px;grid-template-columns:minmax(0,1fr) minmax(0,auto) 44px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .tabela tbody tr {padding:12px 10px;grid-template-columns:minmax(0,1fr) minmax(0,auto) 44px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .clienteLink {min-height:44px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .clienteLink {min-height:44px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .filtros {padding:12px;border-radius:16px;border:1px solid var(--md-edge);background:var(--md-surface);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .filtros {padding:12px;border-radius:16px;border:1px solid var(--md-edge);background:var(--md-surface);}
 }
 
 /* 06.5.5.3 — alinhamento dos indicadores da ficha do cliente. */
 .indicador > :first-child {min-height:2.4em; display:block;}
 .numero {display:block; line-height:1; margin-top:auto;}
 @media (max-width:47.99em) {
- :global(html[data-funilador-estilo="moderno"]) .indicador {justify-content:space-between; align-items:flex-start; min-height:96px;}
- :global(html[data-funilador-estilo="moderno"]) .indicador > :first-child {min-height:2.6em;}
- :global(html[data-funilador-estilo="moderno"]) .indicador .numero {font-size:clamp(22px,8vw,30px);}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador {justify-content:space-between; align-items:flex-start; min-height:96px;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador {justify-content:space-between; align-items:flex-start; min-height:96px;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador > :first-child {min-height:2.6em;}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador > :first-child {min-height:2.6em;}
+ :global(html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])) .indicador .numero {font-size:clamp(22px,8vw,30px);}
+ :global(html:is([data-funilador-expressivo-mobile="true"],[data-funilador-expressivo-desktop="true"])) .indicador .numero {font-size:clamp(22px,8vw,30px);}
 }

@@ -3,7 +3,7 @@ import { DateInput, MonthPickerInput } from "@mantine/dates";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "dayjs/locale/pt-br";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
 
 dayjs.extend(customParseFormat);
 
@@ -28,9 +28,10 @@ function hoje() { return new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao
 
 export function CampoData({label, value, onChange, description, disabled, required = false, minDate, maxDate}: Props) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
     const reduzir = useMovimentoReduzido();
 
-    const moderno = aparencia.estilo === "moderno";
+    const moderno = aparencia.estilo === "moderno" || expressivo;
     const [diaBase, setDiaBase] = useState(hoje);
     const atualizarHoje = () => setDiaBase(hoje());
     const permitida = (data: string) => (!minDate || data >= minDate) && (!maxDate || data <= maxDate);
@@ -77,9 +78,10 @@ export function CampoData({label, value, onChange, description, disabled, requir
 // Seletor mensal: o Mantine trabalha com datas completas, a API recebe YYYY-MM.
 export function CampoMes({label, value, onChange, maxDate, disabled}: {label: string; value: string; onChange: (valor: string) => void; maxDate?: string; disabled?: boolean}) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
     const reduzir = useMovimentoReduzido();
 
-    const moderno = aparencia.estilo === "moderno";
+    const moderno = aparencia.estilo === "moderno" || expressivo;
     const mesValido = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(value);
     return <MonthPickerInput
         label={label}

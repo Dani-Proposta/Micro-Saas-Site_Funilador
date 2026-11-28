@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { useExpressivo } from "../lib/contextoAparencia";
 import { useModerno } from "../hooks/useInteracaoModerna";
 import { useMovimentoReduzido } from "../lib/contextoAparencia";
 import { NumeroModerno, TransicaoConteudo } from "../components/InteracaoModerna";
@@ -17,6 +19,8 @@ import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 import { useRelogio } from "../hooks/useRelogio";
 import { formatarPrazo, formatarValor } from "../lib/comercial";
 import { caminhoMensagens, registrarOrigem } from "../lib/navegacaoContextual";
+
+const DispersaoPagamentos = lazy(()=>import("../components/expressivo/GraficosExpressivos").then(m=>({default:m.DispersaoPagamentos})));
 
 type Item = {id:string; marcoId:string; projetoId:string; clienteId:string; marco:string; projeto:string; cliente:string; data:string|null; valor:string; categoria:string; arquivado:boolean; cobrancaIniciada:boolean; bloqueiaProgresso:boolean; status:string; projetoStatus:string; saldoDispensado:boolean; anuladoEm:string|null; valorMarco:string|null; recebido:string; ultimoLembrete:string|null};
 type Opcao = {value:string; label:string};
@@ -44,6 +48,7 @@ export function Financeiro() {
     const agora = useRelogio();
     const hoje = hojeBR(agora);
     const modernoDesktop = useModerno();
+    const expressivo = useExpressivo();
     const reduzir = useMovimentoReduzido();
     const navigate = useNavigate();
     const location = useLocation();
@@ -181,6 +186,7 @@ export function Financeiro() {
             {erro && <Alert color="red">{erro}{dados && " · Última consulta disponível."}</Alert>}
             {!dados && !erro && !periodoInvalido && <Carregamento texto="Carregando registros..."/>}
             {dados && dados.itens.length===0 && <EstadoLista titulo="Nenhum registro nesta seleção" descricao="Ajuste os filtros ou o período para consultar outros lançamentos." acao="Limpar filtros" onAcao={()=>{setParams(new URLSearchParams());setErro(null);setErroExportacao(null);}}/>}
+            {expressivo && historico && dados && <Suspense fallback={<Text size="sm">Carregando dispersão...</Text>}><DispersaoPagamentos itens={dados.itens} pagina={pagina}/></Suspense>}
             {dados && <DistribuicaoFinanceira clientes={dados.porCliente} projetos={dados.porProjeto} total={dados.total} historico={historico} onSelecionar={filtrarGrupo}/>}
             {dados && dados.itens.length > 0 && <Text fw={600} size="sm">Lançamentos</Text>}
             <TransicaoConteudo identidade={resultado?.consulta ?? consulta} className={`${fin.registros} funilador-lista-registros`}>{dados?.itens.map(item => {
@@ -188,12 +194,12 @@ export function Financeiro() {
                 const podeLembrar = pendente && (item.cobrancaIniciada || item.bloqueiaProgresso || (item.data !== null && item.data <= hoje));
                 const lembreteRecente = !!item.ultimoLembrete && agora - new Date(item.ultimoLembrete).getTime() < 86400000;
                 return <CartaoRegistro key={item.id} className={fin.registro} tipo="financeiro"><Stack gap={6}>
-                    <Group justify="space-between" align="start" wrap="wrap"><Stack gap={2} className={fin.identidade}><Text fw={600}>{item.marco}</Text><Text size="xs" c="dimmed">{item.projeto} · {item.cliente}</Text><Text size="xs" c="dimmed">{historico ? "Recebido em" : "Vencimento"}: {formatarPrazo(item.data)}</Text></Stack><Text fw={700} td={item.anuladoEm ? "line-through" : undefined} c={item.anuladoEm ? "dimmed" : historico ? "green" : item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : undefined}>{formatarValor(item.valor)}</Text></Group>
+                    <Group className="ex-lancamento-topo" justify="space-between" align="start" wrap="wrap"><Stack gap={2} className={fin.identidade}><Text fw={600}>{item.marco}</Text><Text size="xs" c="dimmed">{item.projeto} · {item.cliente}</Text><Text size="xs" c="dimmed">{historico ? "Recebido em" : "Vencimento"}: {formatarPrazo(item.data)}</Text></Stack><Text fw={700} td={item.anuladoEm ? "line-through" : undefined} c={item.anuladoEm ? "dimmed" : historico ? "green" : item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : undefined}>{formatarValor(item.valor)}</Text></Group>
                     <Group gap={5}>{historico ? <Badge color={item.anuladoEm ? "gray" : "green"} variant="light">{item.anuladoEm ? "Anulado" : "Recebido"}</Badge> : <><Badge color={item.categoria === "atrasado" && Number(item.valor)>0 ? "red" : "gray"} variant="light">{Number(item.valor)===0 ? "Sem saldo exigível" : filtros.find(f=>f.value===item.categoria)?.label ?? item.categoria}</Badge><Badge color="gray" variant="outline">{item.cobrancaIniciada ? "Cobrança iniciada" : "Cobrança não iniciada"}</Badge>{item.saldoDispensado && <Badge color="gray">Saldo dispensado</Badge>}{item.bloqueiaProgresso && Number(item.valor)>0 && <Badge color="orange">Aguardando pagamento</Badge>}</>}{item.arquivado && <Badge color="gray">Arquivado</Badge>}{(item.status==="cancelado" || item.projetoStatus==="cancelado") && <Badge color="gray">Cancelado</Badge>}</Group>
                     {!historico && <Text size="xs" c="dimmed">Valor do marco: {formatarValor(item.valorMarco)} · Recebido: {formatarValor(item.recebido)}</Text>}
                     {!historico && item.ultimoLembrete && <Text size="xs" c="dimmed">Último lembrete: {new Date(item.ultimoLembrete).toLocaleString("pt-BR")}</Text>}
                     {item.anuladoEm && <Text size="xs" c="dimmed">Anulado em {new Date(item.anuladoEm).toLocaleString("pt-BR")}</Text>}
-                    <Group gap={5} justify="space-between" wrap="wrap">
+                    <Group className="ex-lancamento-acoes" gap={5} justify="space-between" wrap="wrap">
                         <Button className="funilador-abrir-cartao" size="compact-xs" variant="subtle" onClick={()=>abrir(item)}>Abrir marco</Button>
                         <Menu position="bottom-end" withinPortal shadow="md">
                             <Menu.Target><Button size="compact-xs" variant="default" aria-label={`Ações de ${item.marco}`}>Ações ⋮</Button></Menu.Target>

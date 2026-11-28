@@ -2,13 +2,13 @@
 .funilador-acesso, .funilador-acesso-formulario { display: contents; }
 .funilador-ambiente-moderno, .funilador-acesso-apresentacao { display: none; }
 @media (min-width: 48em) {
-  html[data-funilador-estilo="moderno"] {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) {
     --moderno-borda: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, var(--mantine-color-default-border));
     --moderno-sombra: 0 12px 32px -21px color-mix(in srgb, var(--mantine-color-text) 40%, transparent);
     --moderno-curva: cubic-bezier(.22,.75,.25,1);
   }
-  html[data-funilador-estilo="moderno"] body { isolation: isolate; }
-  html[data-funilador-estilo="moderno"] .funilador-ambiente-moderno {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) body { isolation: isolate; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-ambiente-moderno {
     display: block; position: fixed; inset: 0; overflow: hidden; z-index: -1;
     pointer-events: none; background: var(--mantine-color-body);
   }
@@ -16,120 +16,120 @@
   .funilador-ambiente-luz-a { top: -18%; right: -10%; background: radial-gradient(ellipse, color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent), transparent 70%); }
   .funilador-ambiente-luz-b { bottom: -24%; left: 9%; background: radial-gradient(ellipse, color-mix(in srgb, var(--mantine-primary-color-5) 12%, transparent), transparent 70%); }
   .funilador-ambiente-grade { position: absolute; inset: 0; background-image: linear-gradient(to right, color-mix(in srgb, var(--mantine-color-text) 4%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--mantine-color-text) 4%, transparent) 1px, transparent 1px); background-size: 42px 42px; mask-image: linear-gradient(135deg, transparent 5%, black 60%, transparent 95%); }
-  html[data-funilador-estilo="moderno"] .mantine-AppShell-main { background: transparent; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-AppShell-main { background: transparent; }
 
   /* Botões: mantém variantes, cores semânticas, tamanhos, loading e disabled nativos. */
-  html[data-funilador-estilo="moderno"] :is(.mantine-Button-root,.mantine-ActionIcon-root) {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Button-root,.mantine-ActionIcon-root) {
     border-radius: 10px; transition: background-color 200ms, border-color 200ms, box-shadow 220ms var(--moderno-curva), transform 160ms var(--moderno-curva), filter 180ms;
   }
-  html[data-funilador-estilo="moderno"] .mantine-Button-root[data-variant="filled"]:not(:disabled):not([data-disabled]):not([data-loading]) {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Button-root[data-variant="filled"]:not(:disabled):not([data-disabled]):not([data-loading]) {
     box-shadow: inset 0 1px 0 rgb(255 255 255 / .19), 0 5px 12px -7px var(--button-bg, var(--mantine-primary-color-filled));
     background-image: linear-gradient(180deg, rgb(255 255 255 / .10), transparent 65%);
   }
-  html[data-funilador-estilo="moderno"] .mantine-Button-root[data-variant="default"]:not(:disabled):not([data-disabled]) { box-shadow: 0 2px 5px -4px color-mix(in srgb, var(--mantine-color-text) 32%, transparent); }
-  html[data-funilador-estilo="moderno"] :is(.mantine-Button-root,.mantine-ActionIcon-root,.mantine-Pagination-control):focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: 3px; }
-  html[data-funilador-estilo="moderno"] :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):active { transform: scale(.965); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Button-root[data-variant="default"]:not(:disabled):not([data-disabled]) { box-shadow: 0 2px 5px -4px color-mix(in srgb, var(--mantine-color-text) 32%, transparent); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Button-root,.mantine-ActionIcon-root,.mantine-Pagination-control):focus-visible { outline: 2px solid var(--mantine-primary-color-light-color); outline-offset: 3px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):active { transform: scale(.965); }
 
   /* Inputs e seleção: a biblioteca continua responsável por valor, teclado e validação. */
-  html[data-funilador-estilo="moderno"] .mantine-Input-input:not([data-variant="unstyled"]):not(:disabled):not([data-disabled]) {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Input-input:not([data-variant="unstyled"]):not(:disabled):not([data-disabled]) {
     border-radius: 10px; transition: border-color 180ms, box-shadow 220ms, background-color 180ms;
   }
-  html[data-funilador-estilo="moderno"] .mantine-Input-input:not([data-variant="unstyled"]):not(:disabled):not([data-disabled]):not([data-error]):focus-within {
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Input-input:not([data-variant="unstyled"]):not(:disabled):not([data-disabled]):not([data-error]):focus-within {
     border-color: var(--mantine-primary-color-5); box-shadow: 0 0 0 3px var(--mantine-primary-color-light);
   }
-  html[data-funilador-estilo="moderno"] .mantine-Input-input[data-error] { border-color: var(--mantine-color-error); }
-  html[data-funilador-estilo="moderno"] .mantine-InputWrapper-label { font-weight: 600; }
-  html[data-funilador-estilo="moderno"] :is(.mantine-Combobox-dropdown,.mantine-Menu-dropdown,.mantine-Popover-dropdown,.mantine-Modal-content) { border-radius: 15px; border-color: var(--moderno-borda); box-shadow: var(--mantine-shadow-md); }
-  html[data-funilador-estilo="moderno"] :is(.mantine-Combobox-option,.mantine-Menu-item) { border-radius: 9px; }
-  html[data-funilador-estilo="moderno"] .mantine-Combobox-option { overflow-wrap: anywhere; }
-  html[data-funilador-estilo="moderno"] .mantine-Combobox-option[data-combobox-selected] { background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); }
-  html[data-funilador-estilo="moderno"] .mantine-Modal-header { border-radius: 15px 15px 0 0; border-bottom: 1px solid var(--mantine-color-default-border); }
-  html[data-funilador-estilo="moderno"] .mantine-Modal-title { font-weight: 700; letter-spacing: -.015em; }
-  html[data-funilador-estilo="moderno"] :is(.mantine-Checkbox-input,.mantine-Radio-radio,.mantine-Switch-track,.mantine-SegmentedControl-indicator) { transition: background-color 180ms, border-color 180ms, box-shadow 220ms, transform 180ms; }
-  html[data-funilador-estilo="moderno"] .mantine-Checkbox-input { border-radius: 6px; }
-  html[data-funilador-estilo="moderno"] .mantine-SegmentedControl-root { border-radius: 12px; }
-  html[data-funilador-estilo="moderno"] .mantine-SegmentedControl-indicator { border-radius: 9px; box-shadow: var(--mantine-shadow-xs); transition-property: transform, width, height, background-color, box-shadow; }
-  html[data-funilador-estilo="moderno"] .mantine-SegmentedControl-label { border-radius: 9px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Input-input[data-error] { border-color: var(--mantine-color-error); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-InputWrapper-label { font-weight: 600; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Combobox-dropdown,.mantine-Menu-dropdown,.mantine-Popover-dropdown,.mantine-Modal-content) { border-radius: 15px; border-color: var(--moderno-borda); box-shadow: var(--mantine-shadow-md); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Combobox-option,.mantine-Menu-item) { border-radius: 9px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Combobox-option { overflow-wrap: anywhere; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Combobox-option[data-combobox-selected] { background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Modal-header { border-radius: 15px 15px 0 0; border-bottom: 1px solid var(--mantine-color-default-border); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Modal-title { font-weight: 700; letter-spacing: -.015em; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Checkbox-input,.mantine-Radio-radio,.mantine-Switch-track,.mantine-SegmentedControl-indicator) { transition: background-color 180ms, border-color 180ms, box-shadow 220ms, transform 180ms; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Checkbox-input { border-radius: 6px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-SegmentedControl-root { border-radius: 12px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-SegmentedControl-indicator { border-radius: 9px; box-shadow: var(--mantine-shadow-xs); transition-property: transform, width, height, background-color, box-shadow; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-SegmentedControl-label { border-radius: 9px; }
 
   /* Calendários: Mantine Dates, com atalhos e seleção civil existentes. */
-  html[data-funilador-estilo="moderno"] .funilador-calendario--moderno { padding: 12px; border-radius: 16px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-calendario--moderno { padding: 12px; border-radius: 16px; }
   .funilador-calendario--moderno .funilador-calendario-atalhos { gap: 6px; }
   .funilador-calendario--moderno .funilador-calendario-atalho { border-radius: 8px; border: 1px solid var(--moderno-borda); background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); font-weight: 600; }
   .funilador-calendario--moderno :is(.mantine-DateInput-day,.mantine-DateInput-monthsListControl,.mantine-DateInput-yearsListControl,.mantine-MonthPickerInput-monthsListControl,.mantine-MonthPickerInput-yearsListControl) { border-radius: 9px; transition: background-color 160ms, color 160ms, box-shadow 180ms; }
   .funilador-calendario--moderno .mantine-DateInput-day[data-today]:not([data-selected]) { box-shadow: inset 0 0 0 1px var(--mantine-primary-color-filled); font-weight: 700; }
 
   /* Listas, filtros e registros — não altera ordenação, filtros ou seleção. */
-  html[data-funilador-estilo="moderno"] :is(.funilador-filtros,.funilador-financeiro-filtros,.funilador-estado-lista) { border-radius: 16px; }
-  html[data-funilador-estilo="moderno"] .funilador-convite-registro { border-radius: 15px; border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
-  html[data-funilador-estilo="moderno"] .funilador-filtros { border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
-  html[data-funilador-estilo="moderno"] .funilador-filtros-rodape { border-top: 1px solid var(--mantine-color-default-border); padding-top: 8px; }
-  html[data-funilador-estilo="moderno"] .funilador-lista-registros { gap: var(--mantine-spacing-sm); }
-  html[data-funilador-estilo="moderno"] .funilador-lista-registros > .mantine-Card-root { border-radius: 15px; box-shadow: var(--moderno-sombra); transition: border-color 200ms, box-shadow 220ms; }
-  html[data-funilador-estilo="moderno"] .funilador-estado-lista { border-style: dashed; color: var(--mantine-color-text); background: color-mix(in srgb, var(--mantine-color-default) 76%, transparent); }
-  html[data-funilador-estilo="moderno"] .funilador-estado-lista svg { color: var(--mantine-primary-color-light-color); }
-  html[data-funilador-estilo="moderno"] .mantine-Table-root { font-variant-numeric: tabular-nums; }
-  html[data-funilador-estilo="moderno"] .mantine-Table-th { background: var(--mantine-color-default-hover); font-size: var(--mantine-font-size-xs); font-weight: 700; letter-spacing: .01em; }
-  html[data-funilador-estilo="moderno"] .mantine-Table-tr { transition: background-color 150ms; }
-  html[data-funilador-estilo="moderno"] .funilador-tabela-clientes .mantine-Avatar-root { border-radius: 11px; border: 1px solid var(--moderno-borda); }
-  html[data-funilador-estilo="moderno"] .mantine-Pagination-control { border-radius: 9px; font-variant-numeric: tabular-nums; }
-  html[data-funilador-estilo="moderno"] .mantine-Pagination-control[data-active] { box-shadow: 0 4px 10px -6px var(--mantine-primary-color-filled); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.funilador-filtros,.funilador-financeiro-filtros,.funilador-estado-lista) { border-radius: 16px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-convite-registro { border-radius: 15px; border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-filtros { border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-filtros-rodape { border-top: 1px solid var(--mantine-color-default-border); padding-top: 8px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-lista-registros { gap: var(--mantine-spacing-sm); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-lista-registros > .mantine-Card-root { border-radius: 15px; box-shadow: var(--moderno-sombra); transition: border-color 200ms, box-shadow 220ms; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estado-lista { border-style: dashed; color: var(--mantine-color-text); background: color-mix(in srgb, var(--mantine-color-default) 76%, transparent); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estado-lista svg { color: var(--mantine-primary-color-light-color); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Table-root { font-variant-numeric: tabular-nums; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Table-th { background: var(--mantine-color-default-hover); font-size: var(--mantine-font-size-xs); font-weight: 700; letter-spacing: .01em; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Table-tr { transition: background-color 150ms; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-tabela-clientes .mantine-Avatar-root { border-radius: 11px; border: 1px solid var(--moderno-borda); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Pagination-control { border-radius: 9px; font-variant-numeric: tabular-nums; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Pagination-control[data-active] { box-shadow: 0 4px 10px -6px var(--mantine-primary-color-filled); }
 
   /* Preferências: recuperar as ações já existentes e dar contexto à prévia. */
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-preferencia-secao { padding: 12px; border: 1px solid var(--moderno-borda); border-radius: 14px; min-width: 0; }
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-estilo-opcao { padding: 8px 10px; border: 1px solid var(--mantine-color-default-border); border-radius: 10px; transition: background 180ms,border-color 180ms; }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-opcao .mantine-Radio-labelWrapper { flex: 1; min-width: 0; }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-rotulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-amostra { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 48px; height: 30px; padding: 4px; gap: 3px; flex-shrink: 0; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); border-radius: 5px; }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-amostra[data-estilo="moderno"] { border-radius: 8px; }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-amostra[data-estilo="expressivo"] { border-radius: 12px; background: var(--mantine-primary-color-light); }
-  html[data-funilador-estilo="moderno"] .funilador-estilo-opcao:has(input:checked) { border-color: var(--mantine-primary-color-5); background: var(--mantine-primary-color-light); }
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-paleta { border-radius: 10px; transition: transform 180ms,border-color 180ms,box-shadow 180ms; }
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-previa-identidade { display: block; }
-  html[data-funilador-estilo="moderno"] .funilador-previa-topo { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-  html[data-funilador-estilo="moderno"] .funilador-previa .funilador-previa-tag { display: inline-block; border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: 999px; padding: 3px 8px; font-size: 10px; }
-  html[data-funilador-estilo="moderno"] .funilador-previa .funilador-previa-registro { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1px solid color-mix(in srgb,currentColor 18%,transparent); border-radius: 10px; font-size: 11px; }
-  html[data-funilador-estilo="moderno"] .funilador-previa[data-estilo="moderno"] { background-image: radial-gradient(ellipse at top right,color-mix(in srgb,var(--previa-acento) 22%,transparent),transparent 75%); }
-  html[data-funilador-estilo="moderno"] .funilador-previa[data-estilo="moderno"] .funilador-previa-card { box-shadow: 0 5px 12px -8px color-mix(in srgb,var(--previa-acento) 70%,transparent); }
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-preferencia-status { display: block; margin-bottom: 8px; }
-  html[data-funilador-estilo="moderno"] .funilador-editor-aparencia .funilador-preferencia-descartar { display: inline-flex; }
-  html[data-funilador-estilo="moderno"] .funilador-preferencia-descartar .mantine-Button-inner { width: 100%; justify-content: center; }
-  html[data-funilador-estilo="moderno"] .funilador-preferencia-acoes { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-  html[data-funilador-estilo="moderno"] .funilador-preferencia-acoes > :first-child { grid-column: 1/-1; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-preferencia-secao { padding: 12px; border: 1px solid var(--moderno-borda); border-radius: 14px; min-width: 0; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-estilo-opcao { padding: 8px 10px; border: 1px solid var(--mantine-color-default-border); border-radius: 10px; transition: background 180ms,border-color 180ms; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-opcao .mantine-Radio-labelWrapper { flex: 1; min-width: 0; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-rotulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-amostra { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 48px; height: 30px; padding: 4px; gap: 3px; flex-shrink: 0; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); border-radius: 5px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-amostra[data-estilo="moderno"] { border-radius: 8px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-amostra[data-estilo="expressivo"] { border-radius: 12px; background: var(--mantine-primary-color-light); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-estilo-opcao:has(input:checked) { border-color: var(--mantine-primary-color-5); background: var(--mantine-primary-color-light); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-paleta { border-radius: 10px; transition: transform 180ms,border-color 180ms,box-shadow 180ms; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-previa-identidade { display: block; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-previa-topo { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-previa .funilador-previa-tag { display: inline-block; border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: 999px; padding: 3px 8px; font-size: 10px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-previa .funilador-previa-registro { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1px solid color-mix(in srgb,currentColor 18%,transparent); border-radius: 10px; font-size: 11px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-previa[data-estilo="moderno"] { background-image: radial-gradient(ellipse at top right,color-mix(in srgb,var(--previa-acento) 22%,transparent),transparent 75%); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-previa[data-estilo="moderno"] .funilador-previa-card { box-shadow: 0 5px 12px -8px color-mix(in srgb,var(--previa-acento) 70%,transparent); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-preferencia-status { display: block; margin-bottom: 8px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-editor-aparencia .funilador-preferencia-descartar { display: inline-flex; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-preferencia-descartar .mantine-Button-inner { width: 100%; justify-content: center; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-preferencia-acoes { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-preferencia-acoes > :first-child { grid-column: 1/-1; }
 
   /* Autenticação pública: uma moldura só; sem alterar formulários, rotas ou tokens. */
-  html[data-funilador-estilo="moderno"] .funilador-acesso { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); min-height: 100dvh; max-width: 1150px; margin-inline: auto; padding: clamp(24px,5vw,68px); gap: clamp(22px,4vw,52px); align-items: center; box-sizing: border-box; }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-apresentacao { display: flex; flex-direction: column; justify-content: space-between; gap: 30px; padding: clamp(24px,3vw,48px); min-height: 510px; min-width: 0; border-radius: 25px; border: 1px solid var(--moderno-borda); background: radial-gradient(ellipse at 80% 12%, var(--mantine-primary-color-light), transparent 65%), var(--mantine-color-default); box-shadow: var(--moderno-sombra); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); min-height: 100dvh; max-width: 1150px; margin-inline: auto; padding: clamp(24px,5vw,68px); gap: clamp(22px,4vw,52px); align-items: center; box-sizing: border-box; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-apresentacao { display: flex; flex-direction: column; justify-content: space-between; gap: 30px; padding: clamp(24px,3vw,48px); min-height: 510px; min-width: 0; border-radius: 25px; border: 1px solid var(--moderno-borda); background: radial-gradient(ellipse at 80% 12%, var(--mantine-primary-color-light), transparent 65%), var(--mantine-color-default); box-shadow: var(--moderno-sombra); }
   .funilador-acesso-intro { display: grid; gap: 16px; }
   .funilador-acesso-intro h1 { font-size: clamp(1.8rem,3vw,3rem); line-height: 1.12; letter-spacing: -.05em; }
   .funilador-acesso-recursos { display: grid; gap: 12px; }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-formulario { display: block; min-width: 0; }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-formulario > :is(.mantine-Paper-root,.mantine-Container-root) { max-width: 100% !important; width: 100%; margin: 0; padding-inline: 0; }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-formulario .mantine-Paper-root { padding: clamp(22px,3vw,38px); border-radius: 23px; border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-formulario .mantine-Button-root { min-height: 42px; }
-  html[data-funilador-estilo="moderno"] .funilador-acesso-formulario h2 { letter-spacing: -.035em; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-formulario { display: block; min-width: 0; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-formulario > :is(.mantine-Paper-root,.mantine-Container-root) { max-width: 100% !important; width: 100%; margin: 0; padding-inline: 0; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-formulario .mantine-Paper-root { padding: clamp(22px,3vw,38px); border-radius: 23px; border-color: var(--moderno-borda); box-shadow: var(--moderno-sombra); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-formulario .mantine-Button-root { min-height: 42px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-acesso-formulario h2 { letter-spacing: -.035em; }
 
   /* Toasts: cores semânticas do Mantine e fechamento existente. */
-  html[data-funilador-estilo="moderno"] .funilador-toast { border: 1px solid var(--moderno-borda); border-radius: 15px; background: var(--mantine-color-default); box-shadow: var(--mantine-shadow-md); padding: 14px; }
-  html[data-funilador-estilo="moderno"] .funilador-toast .mantine-Notification-icon { border-radius: 11px; width: 36px; height: 36px; }
-  html[data-funilador-estilo="moderno"] .funilador-toast .mantine-Notification-title { font-weight: 700; line-height: 1.4; }
-  html[data-funilador-estilo="moderno"] .funilador-toast .mantine-Notification-description { line-height: 1.5; }
-  html[data-funilador-estilo="moderno"] .funilador-toasts[data-layout="default"] :is(.funilador-toast-item,.funilador-toast) + :is(.funilador-toast-item,.funilador-toast) { margin-top: 10px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-toast { border: 1px solid var(--moderno-borda); border-radius: 15px; background: var(--mantine-color-default); box-shadow: var(--mantine-shadow-md); padding: 14px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-toast .mantine-Notification-icon { border-radius: 11px; width: 36px; height: 36px; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-toast .mantine-Notification-title { font-weight: 700; line-height: 1.4; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-toast .mantine-Notification-description { line-height: 1.5; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-toasts[data-layout="default"] :is(.funilador-toast-item,.funilador-toast) + :is(.funilador-toast-item,.funilador-toast) { margin-top: 10px; }
 }
 @media (min-width:48em) and (hover:hover) and (pointer:fine) {
-  html[data-funilador-estilo="moderno"] :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):hover { filter: brightness(1.04); }
-  html[data-funilador-estilo="moderno"] .funilador-lista-registros > .mantine-Card-root:hover { border-color: var(--mantine-primary-color-5); box-shadow: 0 9px 24px -17px var(--mantine-primary-color-filled); }
-  html[data-funilador-estilo="moderno"] .funilador-paleta:not(:disabled):hover { border-color: var(--mantine-primary-color-5); box-shadow: var(--moderno-sombra); }
-  html[data-funilador-estilo="moderno"] .funilador-calendario--moderno .funilador-calendario-atalho:not(:disabled):hover { background: var(--mantine-primary-color-light-hover); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):hover { filter: brightness(1.04); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-lista-registros > .mantine-Card-root:hover { border-color: var(--mantine-primary-color-5); box-shadow: 0 9px 24px -17px var(--mantine-primary-color-filled); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-paleta:not(:disabled):hover { border-color: var(--mantine-primary-color-5); box-shadow: var(--moderno-sombra); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .funilador-calendario--moderno .funilador-calendario-atalho:not(:disabled):hover { background: var(--mantine-primary-color-light-hover); }
 }
 @media (min-width:48em) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
-  html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"]) :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):hover:not(:active) { transform: translateY(-1px); }
-  html[data-funilador-estilo="moderno"]:not([data-funilador-movimento="reduzido"]) .funilador-paleta:not(:disabled):hover { transform: translateY(-2px); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"]) :is(.mantine-Button-root,.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not([data-loading]):not([aria-disabled="true"]):hover:not(:active) { transform: translateY(-1px); }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]):not([data-funilador-movimento="reduzido"]) .funilador-paleta:not(:disabled):hover { transform: translateY(-2px); }
 }
 @media (min-width:48em) {
-  html[data-funilador-estilo="moderno"][data-funilador-movimento="reduzido"] :is(.mantine-Button-root,.mantine-ActionIcon-root,.funilador-paleta) { transform: none !important; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"])[data-funilador-movimento="reduzido"] :is(.mantine-Button-root,.mantine-ActionIcon-root,.funilador-paleta) { transform: none !important; }
 }
 @media (min-width:48em) and (prefers-reduced-motion:reduce) {
-  html[data-funilador-estilo="moderno"] :is(.mantine-Button-root,.mantine-ActionIcon-root,.funilador-paleta) { transform: none !important; }
+  html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) :is(.mantine-Button-root,.mantine-ActionIcon-root,.funilador-paleta) { transform: none !important; }
 }
 
 @media (min-width:48em) {
@@ -137,7 +137,7 @@
  .funilador-ambiente-luz-b { background:radial-gradient(ellipse,color-mix(in srgb,var(--mantine-primary-color-5) 20%,transparent),transparent 72%); }
  .funilador-ambiente-luz-c { top:25%; left:26%; width:48vw; height:50vh; background:radial-gradient(ellipse,color-mix(in srgb,var(--mantine-primary-color-4) 14%,transparent),transparent 70%); }
  .funilador-ambiente-cursor { position:absolute; inset:0; }
- html[data-funilador-estilo="moderno"] .mantine-Combobox-option[data-combobox-selected] { box-shadow:inset 2px 0 var(--mantine-primary-color-filled); }
- html[data-funilador-estilo="moderno"] .mantine-Combobox-option[data-combobox-active] { background:var(--mantine-primary-color-light); }
+ html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Combobox-option[data-combobox-selected] { box-shadow:inset 2px 0 var(--mantine-primary-color-filled); }
+ html:is([data-funilador-estilo="moderno"],[data-funilador-expressivo-desktop="true"]) .mantine-Combobox-option[data-combobox-active] { background:var(--mantine-primary-color-light); }
 }
 

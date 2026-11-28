@@ -1,3 +1,4 @@
+import { NavegacaoExpressiva } from "./components/expressivo/NavegacaoExpressiva";
 import { useAnimacaoConteudo } from "./hooks/useInteracaoModerna";
 import { useState } from "react";
 import { Carregamento } from "./components/Carregamento";
@@ -11,7 +12,7 @@ import { Dashboard, Solicitacoes, Clientes, ClienteDetalhes, Login, Projetos, Pr
 import { RedefinirSenha } from "./pages/RedefinirSenha";
 import { Financeiro } from "./pages/Financeiro";
 import { authClient } from "./lib/auth-client";
-import { useAparencia } from "./lib/contextoAparencia";
+import { useAparencia, useExpressivoDesktop, useExpressivoMobile } from "./lib/contextoAparencia";
 import { MarcaPainel, MenuConta } from "./components/MenuConta";
 import { NavegacaoMobile, NavegacaoPainel } from "./components/NavegacaoPainel";
 import classes from "./styles/Estrutura.module.css";
@@ -24,6 +25,8 @@ function PainelAdmin() {
   const [opened, { toggle, close, open }] = useDisclosure(false);
   const {aparencia} = useAparencia();
   const moderno = aparencia.estilo === "moderno";
+  const expressivoDesktop = useExpressivoDesktop();
+    const expressivoMobile = useExpressivoMobile();
   const { data: sessao, isPending, error } = authClient.useSession();
   const local = useLocation();
     const mainRef = useAnimacaoConteudo(local.pathname);
@@ -89,14 +92,14 @@ function PainelAdmin() {
       navbar={{
         width: moderno ? 264 : 236,
         breakpoint: "sm",
-        collapsed: { mobile: moderno || !opened, desktop: foco },
+        collapsed: { mobile: moderno || expressivoMobile || !opened, desktop: foco || expressivoDesktop },
       }}>
 
       <AppShell.Header className={classes.header}>
         <div className={classes.headerInner}>
           <Group gap="xs" wrap="nowrap" className={classes.headerIdentity}>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened} aria-haspopup={moderno ? "dialog" : undefined}/>
-            <MarcaPainel lado="admin"/>
+            <MarcaPainel lado="admin"/><NavegacaoExpressiva lado="admin" naoLidas={mensagensNaoLidas} local="header" foco={foco}/>
           </Group>
           <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
             <CentralNotificacoes key={`notificacoes-${sessao.user.id}`} lado="admin"/>
@@ -109,6 +112,7 @@ function PainelAdmin() {
       </AppShell.Navbar>
       <NavegacaoMobile lado="admin" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened} abrir={open}/>
 
+      <NavegacaoExpressiva lado="admin" naoLidas={mensagensNaoLidas} local="dock" foco={foco}/>
       <AppShell.Main ref={mainRef} className={classes.main}>
         <Routes>
           <Route path="/" element={<Dashboard mensagensNaoLidas={mensagensNaoLidas}/> } />

@@ -1,6 +1,6 @@
 import { CartaoValor, NumeroModerno } from "./InteracaoModerna";
 import { motion } from "motion/react";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
 import { IconeModerno } from "./AcabamentoModerno";
 import { Button, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 import { formatarValor } from "../lib/comercial";
@@ -13,9 +13,10 @@ const formatarPercentual = (v:number) => v.toLocaleString("pt-BR",{maximumFracti
 
 export function SaudeRecebiveis({dados,onAgenda,onAtrasados,repeticao=0}:{dados:Dados;onAgenda:()=>void;onAtrasados:()=>void;repeticao?:number}) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
 
     const reduzir = useMovimentoReduzido();
-    const moderno = aparencia.estilo === "moderno";
+    const moderno = (aparencia.estilo === "moderno" || expressivo);
     const animar = moderno && !reduzir;
     const total = numero(dados.totalPendente);
     const atrasado = numero(dados.atrasado);

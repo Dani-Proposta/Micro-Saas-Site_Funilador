@@ -1,3 +1,4 @@
+import { NavegacaoExpressiva } from "../components/expressivo/NavegacaoExpressiva";
 import { useAnimacaoConteudo } from "../hooks/useInteracaoModerna";
 import { Carregamento } from "../components/Carregamento";
 
@@ -6,7 +7,7 @@ import { AppShell, Alert, Burger, Group, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Navigate, useLocation, useNavigate, Routes, Route } from "react-router";
 import { authClient } from "../lib/auth-client";
-import { useAparencia } from "../lib/contextoAparencia";
+import { useAparencia, useExpressivoDesktop, useExpressivoMobile } from "../lib/contextoAparencia";
 import { MarcaPainel, MenuConta } from "../components/MenuConta";
 import { NavegacaoMobile, NavegacaoPainel } from "../components/NavegacaoPainel";
 import classes from "../styles/Estrutura.module.css";
@@ -50,6 +51,8 @@ function PortalCliente() {
     const [opened, { toggle, close, open }] = useDisclosure(false);
     const {aparencia} = useAparencia();
     const moderno = aparencia.estilo === "moderno";
+  const expressivoDesktop = useExpressivoDesktop();
+    const expressivoMobile = useExpressivoMobile();
     const navigate = useNavigate();
     const local = useLocation();
     const mainRef = useAnimacaoConteudo(local.pathname);
@@ -111,13 +114,13 @@ function PortalCliente() {
     if (trocaObrigatoria) return <RedefinirSenha provisoria/>;
 
     return (
-        <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: moderno ? 264 : 236, breakpoint: "sm", collapsed: {mobile: moderno || !opened, desktop: foco}}}>
+        <AppShell className={classes.shell} header={{height: 60}} padding={{base:"xs", sm:"md"}} navbar={{width: moderno ? 264 : 236, breakpoint: "sm", collapsed: {mobile: moderno || expressivoMobile || !opened, desktop: foco || expressivoDesktop}}}>
 
             <AppShell.Header className={classes.header}>
                 <div className={classes.headerInner}>
                     <Group gap="xs" wrap="nowrap" className={classes.headerIdentity}>
                         <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menu de navegação" aria-expanded={opened} aria-haspopup={moderno ? "dialog" : undefined}/>
-                        <MarcaPainel lado="cliente"/>
+                        <MarcaPainel lado="cliente"/><NavegacaoExpressiva lado="cliente" naoLidas={mensagensNaoLidas} local="header" foco={foco}/>
                     </Group>
                     <Group gap="xs" wrap="nowrap" className={classes.headerActions}>
                         {cliente && <CentralNotificacoes lado="cliente"/>}
@@ -130,7 +133,8 @@ function PortalCliente() {
             </AppShell.Navbar>
             <NavegacaoMobile lado="cliente" naoLidas={mensagensNaoLidas} fechar={close} aberto={opened} abrir={open}/>
 
-            <AppShell.Main ref={mainRef} className={classes.main}>
+            <NavegacaoExpressiva lado="cliente" naoLidas={mensagensNaoLidas} local="dock" foco={foco}/>
+      <AppShell.Main ref={mainRef} className={classes.main}>
                 <Stack gap="md">
 
                     {erroSaida && <Alert color="red">{erroSaida}</Alert>}

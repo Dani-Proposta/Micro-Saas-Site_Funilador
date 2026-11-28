@@ -163,7 +163,7 @@ export function MinhasSolicitacoes() {
             {!carregando && !erro && solicitacoesVisiveis.length === 0 && <EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhuma solicitação encontrada"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há solicitações nesta seleção."} acao={!alvoNotificacao && filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>}
 
             {!carregando && !erro && solicitacoesVisiveis.length > 0 && <TransicaoConteudo identidade={solicitacoesVisiveis.map(s=>s.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
-                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes">
+                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes" estado={solicitacao.status}>
                     <div className={classes.cardTopo}><IconeModerno nome="solicitacoes" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
                             <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{solicitacao.titulo}</Text>

@@ -1,3 +1,5 @@
+import { CircularExpressivo, SloshExpressivo, TrilhoMarcos } from "./expressivo/ProgressoExpressivo";
+import { useExpressivo } from "../lib/contextoAparencia";
 import { useMediaQuery } from "@mantine/hooks";
 import { SheetMobile } from "./SheetMobile";
 import { useCallback, useRef, useState } from "react";
@@ -34,6 +36,7 @@ export function ProjetoDestaqueCliente({projetos,erro=false,onAtualizar,pendenci
 function DetalheDestaque({projeto,atencao,pendenciasCarregadas,erroPendencias,atualizarPendencias}: {projeto:ProjetoDestaque; atencao:ReturnType<typeof resumirPendenciasProjeto<Pendencia>>; pendenciasCarregadas:boolean; erroPendencias:string|null; atualizarPendencias:()=>void}) {
     const [mostrarPendencias,setMostrarPendencias] = useState(false);
     const navigate = useNavigate();
+    const expressivo = useExpressivo();
     const mobile = useMediaQuery("(max-width:47.99em)");
     const [detalheRapido,setDetalheRapido] = useState(false);
     const [resumo,setResumo] = useState<ResumoMarcos|null>(null);
@@ -76,7 +79,7 @@ function DetalheDestaque({projeto,atencao,pendenciasCarregadas,erroPendencias,at
             {atencao.itens.length > 3 && <Button variant="subtle" color={atencao.prioridade} onClick={()=>setMostrarPendencias(v=>!v)} aria-expanded={mostrarPendencias}>{mostrarPendencias ? "Mostrar menos" : `Ver mais ${atencao.itens.length-3} pendências`}</Button>}
             {atencao.parcial && <Text size="xs" c="dimmed">* A consulta geral está limitada a 100 registros por categoria. Pode haver outras pendências; consulte os detalhes do projeto.</Text>}
         </section>}
-        <div className="funilador-destaque-progresso"><Group justify="space-between"><Text fw={600}>Progresso do projeto</Text><Title order={2}>{progresso == null ? "—" : <NumeroModerno valor={progresso} percentual repeticao={repeticao}/>}</Title></Group>{progresso != null ? <ProgressoModerno valor={progresso} repeticao={repeticao}/> : <Text size="xs" c="dimmed">Progresso ainda não definido.</Text>}<Group gap={6}><IconCalendar size={16}/><Text size="sm" c="dimmed">Prazo: {formatarPrazo(resumo ? resumo.prazoAcordado : projeto.prazoAcordado)}</Text></Group></div>
+        <div className="funilador-destaque-progresso"><Group justify="space-between"><Text fw={600}>Progresso do projeto</Text>{!expressivo && <Title order={2}>{progresso == null ? "—" : <NumeroModerno valor={progresso} percentual repeticao={repeticao}/>}</Title>}</Group>{progresso != null ? expressivo ? <div className="ex-destaque-progresso-layout">{mobile?<SloshExpressivo valor={progresso} repeticao={repeticao}/>:<CircularExpressivo valor={progresso} repeticao={repeticao}/>}{resumo && <div className="ex-destaque-trilho"><Text size="sm" fw={600}>{marcos.length-restantes.length} de {marcos.length} marcos concluídos</Text><TrilhoMarcos marcos={resumo.marcos} repeticao={repeticao}/></div>}</div> : <ProgressoModerno valor={progresso} repeticao={repeticao}/> : <Text size="xs" c="dimmed">Progresso ainda não definido.</Text>}<Group gap={6}><IconCalendar size={16}/><Text size="sm" c="dimmed">Prazo: {formatarPrazo(resumo ? resumo.prazoAcordado : projeto.prazoAcordado)}</Text></Group></div>
         {erro && <Alert color="yellow">Não foi possível atualizar os marcos.{resumo && " Exibindo última consulta."}</Alert>}
         <SimpleGrid cols={{base:3,sm:3}}><div className="funilador-destaque-metrica"><IconChecks size={21}/><Text c="dimmed" size="xs">Marcos concluídos</Text><Title order={3}><NumeroModerno valor={resumo ? marcos.length-restantes.length : null} repeticao={repeticao}/></Title></div><div className="funilador-destaque-metrica"><Text c="dimmed" size="xs">Em produção</Text><Title order={3}><NumeroModerno valor={resumo ? emProducao.length : null} repeticao={repeticao}/></Title></div><div className="funilador-destaque-metrica"><Text c="dimmed" size="xs">Marcos restantes</Text><Title order={3}><NumeroModerno valor={resumo ? restantes.length : null} repeticao={repeticao}/></Title></div></SimpleGrid>
         {resumo && mobile && <Button variant="filled" color={atencao.prioridade === "red" ? "red" : atencao.prioridade === "yellow" ? "yellow" : undefined} fullWidth className="funilador-marcos-cta" leftSection={<IconChecks size={16}/>} onClick={()=>setDetalheRapido(true)}>Ver marcos restantes ({restantes.length})</Button>}

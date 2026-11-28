@@ -1,5 +1,5 @@
 import { SegmentedControl } from "@mantine/core";
-import { useAparencia } from "../lib/contextoAparencia";
+import { useAparencia, useExpressivo } from "../lib/contextoAparencia";
 import { IconMessageCircle, IconFolder, IconUser, IconSearch, IconArrowDown, IconChecks, IconFilePlus, IconEyeOff, IconEye, IconArchive, IconRestore, IconEdit, IconDotsVertical, IconPlus } from "@tabler/icons-react";
 import { useElementSize } from "@mantine/hooks";
 import chat from "../styles/Chat.module.css";
@@ -25,8 +25,9 @@ const caminhos = {
 const iconesModernos = {geral:IconMessageCircle, projeto:IconFolder, avulsa:IconMessageCircle, cliente:IconUser, busca:IconSearch, naoLida:IconArrowDown, lida:IconChecks, proposta:IconFilePlus, ocultar:IconEyeOff, exibir:IconEye, arquivo:IconArchive, restaurar:IconRestore, editar:IconEdit, menu:IconDotsVertical, adicionar:IconPlus};
 export function IconeChat({nome, tamanho = 16}: {nome: keyof typeof caminhos; tamanho?: number}) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
 
-    if (aparencia.estilo === "moderno") {
+    if ((aparencia.estilo === "moderno" || expressivo)) {
         const Icone = iconesModernos[nome];
         return <Icone size={tamanho} stroke={1.75} aria-hidden="true" className={chat.iconeChat}/>;
     }

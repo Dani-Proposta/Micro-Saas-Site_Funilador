@@ -1,3 +1,4 @@
+import { ConfirmacaoExpressiva } from "../components/expressivo/EfeitosExpressivos";
 import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
 import { TransicaoConteudo } from "../components/InteracaoModerna";
 import { useModerno } from "../hooks/useInteracaoModerna";
@@ -265,7 +266,7 @@ export function Convites() {
 
                     <Group justify="flex-end">
                         <Button variant="default" disabled={revogando} onClick={() => setConfirmarRevogacao(null)}>Voltar</Button>
-                        <Button color="red" loading={revogando} onClick={() => {if (confirmarRevogacao) void revogarConvite(confirmarRevogacao);}}>Confirmar revogação</Button>
+                        <ConfirmacaoExpressiva loading={revogando} confirmar={() => {if (confirmarRevogacao) void revogarConvite(confirmarRevogacao);}}>Confirmar revogação</ConfirmacaoExpressiva>
                     </Group>
                 </Stack>
             </Modal>
@@ -278,7 +279,7 @@ export function Convites() {
 
                     <Group justify="flex-end">
                         <Button variant="default" disabled={excluindo} onClick={() => setConfirmarExclusao(null)}>Cancelar</Button>
-                        <Button color="red" loading={excluindo} onClick={() => {if (confirmarExclusao) void excluirConvite(confirmarExclusao);}}>Excluir definitivamente</Button>
+                        <ConfirmacaoExpressiva loading={excluindo} confirmar={() => {if (confirmarExclusao) void excluirConvite(confirmarExclusao);}}>Excluir definitivamente</ConfirmacaoExpressiva>
                     </Group>
                 </Stack>
             </Modal>
@@ -289,7 +290,7 @@ export function Convites() {
             {!carregando && !erro && visiveis.length === 0 && <Text c="dimmed">Nenhum convite encontrado</Text>}
 
             {!carregando && !erro && <TransicaoConteudo identidade={visiveis.map(c=>c.id).join("|")} className={moderno ? "funilador-grade-convites" : "funilador-transicao-conteudo"}>{visiveis.map((convite) => (
-                <Card key={convite.id} withBorder padding="md" className="funilador-convite-registro">
+                <Card key={convite.id} withBorder padding="md" className="funilador-convite-registro" data-ex-estado={convite.estado}>
                     <Stack gap="xs">
 
                         <Group justify="space-between" align="start" className="funilador-convite-topo"><IconeModerno nome="convites" tamanho={22}/>
@@ -301,7 +302,7 @@ export function Convites() {
                                 <Text size="xs" c="dimmed">Criado em: {new Date(convite.criadoEm).toLocaleString("pt-BR")}</Text>
                                 <Text size="xs" c="dimmed">Expira em: {new Date(convite.expiraEm).toLocaleString("pt-BR")}</Text>
                             </Stack>
-                            <Badge color={coresEstado[convite.estado]}>{convite.estado}</Badge>
+                            <Badge color={coresEstado[convite.estado]}>{convite.estado.replaceAll("_"," ")}</Badge>
                         </Group>
 
 

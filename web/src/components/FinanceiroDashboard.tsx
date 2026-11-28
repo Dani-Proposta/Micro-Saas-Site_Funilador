@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { useExpressivo } from "../lib/contextoAparencia";
 import { CartaoValor, ComparativoMensal } from "./InteracaoModerna";
 import { IconeModerno } from "./AcabamentoModerno";
 import { Carregamento } from "./Carregamento";
@@ -16,6 +18,8 @@ import { useNavigate } from "react-router";
 import { formatarValor } from "../lib/comercial";
 import { useAtualizacaoPeriodica } from "../hooks/useAtualizacaoPeriodica";
 
+const ComposicaoExpressiva = lazy(()=>import("./expressivo/GraficosExpressivos").then(m=>({default:m.ComposicaoExpressiva})));
+
 type Resumo = {
     hoje: string; recebidoMes: string; aReceberMes: string; totalMes: string; futuro: string; atrasado: string; semData: string;
     totalPendente: string; aposPrevisao: string; naoDistribuido: string; excedente: string;
@@ -28,7 +32,8 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
     const navigate = useNavigate();
     const {aparencia} = useAparencia();
 
-    const moderno = aparencia.estilo === "moderno";
+    const expressivo = useExpressivo();
+    const moderno = aparencia.estilo === "moderno" || expressivo;
     const [consulta, setConsulta] = useState<{dados: Resumo; revisao: number} | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const dados = consulta?.dados;
@@ -91,7 +96,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
                         <Button size="compact-xs" variant="subtle" style={{alignSelf:"flex-start"}} onClick={() => selecionar(item.categoria)}>Consultar</Button>
                     </Card>)}
                 </div>
-                {moderno ? <GraficoFinanceiro className={visual.grafico} titulo="Previsão de recebimentos" subtitulo="Este mês + 5 meses" meses={dados.meses} previsao mesAtual={dados.hoje.slice(0,7)} onMes={m=>selecionarMes(m,true)} onRecebido={m=>selecionarMes(m,false)} controle={<Button size="compact-xs" variant="subtle" rightSection={<IconArrowUpRight size={15}/>} onClick={()=>navigate("/financeiro?categoria=recebidos")}>Recebimentos</Button>}/> : <Card withBorder padding="sm" className={visual.grafico}><Stack gap="xs">
+                {moderno ? <GraficoFinanceiro className={visual.grafico} titulo="Previsão de recebimentos" subtitulo="Este mês + 5 meses" meses={dados.meses} previsao mesAtual={dados.hoje.slice(0,7)} onMes={m=>selecionarMes(m,true)} onRecebido={m=>selecionarMes(m,false)} controle={expressivo ? undefined : <Button size="compact-xs" variant="subtle" rightSection={<IconArrowUpRight size={15}/>} onClick={()=>navigate("/financeiro?categoria=recebidos")}>Recebimentos</Button>}/> : <Card withBorder padding="sm" className={visual.grafico}><Stack gap="xs">
                     <Group justify="space-between" wrap="wrap" gap={4}><Text fw={600} size="sm">Previsão de recebimentos</Text><Text size="xs" c="dimmed">Este mês + 5 meses</Text></Group>
                     <Group gap={6} wrap="wrap" className={visual.legendaOriginal}><Badge color="teal" variant="light" size="sm">Recebido</Badge><Badge color="violet" variant="light" size="sm">Previsto</Badge></Group>
                     <div className={visual.legendaMinimalista}><span><i className={visual.recebido} aria-hidden="true"/>Recebido</span><span><i className={visual.previsto} aria-hidden="true"/>Previsto</span></div>
@@ -122,6 +127,7 @@ export function FinanceiroDashboard({completo = false, onSelecionar, revisao = 0
                     <GraficoFinanceiro titulo="Previsão de recebimentos" subtitulo="Este mês + 5 meses" meses={dados.meses} previsao mesAtual={dados.hoje.slice(0,7)} onMes={onSelecionar ? m=>selecionarMes(m,true) : undefined} onRecebido={onSelecionar ? m=>selecionarMes(m,false) : undefined}/>
                     <HistoricoFinanceiro meses={dados.historico} onMes={onSelecionar ? m=>selecionarMes(m,false) : undefined}/>
                 </div>
+                {expressivo && <Suspense fallback={<Text size="sm">Carregando composição...</Text>}><ComposicaoExpressiva dados={dados}/></Suspense>}
                 <SaudeRecebiveis repeticao={repeticao} dados={dados} onAgenda={()=>selecionar("agenda")} onAtrasados={()=>selecionar("atrasado")}/>
                 <Card withBorder padding="sm" className="funilador-financeiro-composicao"><Stack gap="sm">
                 <Text fw={600}>Composição e valores fora da previsão</Text>

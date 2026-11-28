@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, Group, Stack, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { Notifications } from "@mantine/notifications";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useAparencia, useMovimentoReduzido, useExpressivo } from "../lib/contextoAparencia";
 import { toast } from "../lib/toasts";
 
 // Laboratório local, opt-in pela URL e indisponível no build de produção.
@@ -32,20 +32,21 @@ function TesteToasts() {
 
 export function CentralToasts({sessaoId}: {sessaoId: string | null}) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
     const reduzir = useMovimentoReduzido();
     const mobile = useMediaQuery("(max-width: 48em)");
     // Remove mensagens temporárias quando a identidade da sessão muda.
     useEffect(() => {toast.limpar();}, [sessaoId]);
     return <>
         <Notifications
-            position={mobile ? (aparencia.estilo === "moderno" ? "top-center" : "bottom-center") : "bottom-right"}
+            position={mobile ? ((aparencia.estilo === "moderno" || expressivo) ? "top-center" : "bottom-center") : "bottom-right"}
             containerWidth={360}
             limit={3}
             classNames={{root:"funilador-toasts", notification:"funilador-toast-item"}}
             zIndex={1100}
             transitionDuration={reduzir ? 0 : aparencia.estilo === "minimalista" ? 120 : 250}
             pauseResetOnHover="notification"
-            allowDragDismiss={aparencia.estilo === "moderno" && !mobile}
+            allowDragDismiss={(aparencia.estilo === "moderno" && !mobile) || expressivo}
             allowScrollDismiss={false}
             notificationMaxHeight={360}
         />

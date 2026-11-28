@@ -1,3 +1,4 @@
+import { LinhaDeslizante } from "../components/expressivo/LinhaDeslizante";
 import chat from "../styles/Chat.module.css";
 import { FiltroConversas, IconeChat } from "../components/ElementosChat";
 import { ControleChat, type OpcoesChat } from "../components/ControleChat";
@@ -303,14 +304,13 @@ function CentralMensagens({foco, alternarFoco}: OpcoesChat) {
                                                     childrenOffset={12}
                                                 >
                                                     {cliente.conversas.map((conversa) => (
-                                                        <NavLink
-                                                            key={conversa.id}
+                                                        <LinhaDeslizante key={conversa.id} abrir={()=>{setConversaId(conversa.id);setExpandidos(anteriores=>anteriores.includes(cliente.clienteId)?anteriores:[...anteriores,cliente.clienteId]);}}><NavLink
                                                             label={<Group justify="space-between" wrap="nowrap" gap={4}><Text title={conversa.titulo} className={classes.chatTitulo} size="sm" fw={conversa.naoLidas ? 700 : 400}>{conversa.titulo}</Text>{!!conversa.naoLidas && <Badge color="red" size="sm">{conversa.naoLidas}</Badge>}</Group>}
                                                             leftSection={<IconeChat nome={conversa.tipo}/>}
                                                             description={conversa.reabertura?.status === "pendente" ? `${tipoConversa[conversa.tipo].label} · Reabertura solicitada` : tipoConversa[conversa.tipo].label}
                                                             active={conversaId === conversa.id}
                                                             onClick={() => {setConversaId(conversa.id); setExpandidos(anteriores => anteriores.includes(cliente.clienteId) ? anteriores : [...anteriores, cliente.clienteId]);}}
-                                                        />
+                                                        /></LinhaDeslizante>
                                                     ))}
                                                 </NavLink>
                                             </Box>

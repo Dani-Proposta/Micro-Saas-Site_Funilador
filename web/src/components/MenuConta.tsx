@@ -1,13 +1,15 @@
 import { toast } from "../lib/toasts";
-import { ActionIcon, Alert, Button, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Alert, Button, Drawer, Group, Menu, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
 import { useEffect, useState, useRef } from "react";
 import type { SubmitEvent } from "react";
-import { useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
+import { useExpressivo, useAparencia, useMovimentoReduzido } from "../lib/contextoAparencia";
 import { normalizarAparencia } from "../lib/aparencia";
 import type { Aparencia } from "../lib/aparencia";
 import { EditorAparencia } from "./EditorAparencia";
 import classes from "../styles/Estrutura.module.css";
 import { IconLayoutDashboard, IconUsers, IconClipboardList, IconFolder, IconWallet, IconMail, IconMessageCircle, IconUserCircle, IconPalette, IconLogout } from "@tabler/icons-react";
+import { usePreferenciasExpressivo } from "../lib/expressivo";
+import { useExpressivoMobile } from "../lib/contextoAparencia";
 import { useRelogio } from "../hooks/useRelogio";
 
 const caminhos = {
@@ -27,8 +29,9 @@ const caminhos = {
 const iconesModernos = {painel:IconLayoutDashboard, clientes:IconUsers, solicitacoes:IconClipboardList, projetos:IconFolder, financeiro:IconWallet, convites:IconMail, mensagens:IconMessageCircle, conta:IconUserCircle, tema:IconPalette, sair:IconLogout};
 export function IconePainel({nome, tamanho = 18}: {nome: keyof typeof caminhos; tamanho?: number}) {
     const {aparencia} = useAparencia();
+    const expressivo = useExpressivo();
 
-    if (aparencia.estilo === "moderno" && nome !== "marca") {
+    if ((aparencia.estilo === "moderno" || expressivo) && nome !== "marca") {
         const Icone = iconesModernos[nome];
         return <Icone size={tamanho} stroke={1.75} aria-hidden="true" style={{flexShrink:0}}/>;
     }
@@ -109,7 +112,10 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     const {aparencia, aplicar} = useAparencia();
     const agora = useRelogio();
     const minimalista = aparencia.estilo === "minimalista";
-    const moderno = aparencia.estilo === "moderno";
+    const expressivoMobile = useExpressivoMobile();
+    const {valor:preferenciasExpressivas}=usePreferenciasExpressivo();
+    const lateral=expressivoMobile && preferenciasExpressivas.navMobile === "staggered";
+    const moderno = aparencia.estilo === "moderno" || expressivoMobile;
     const reduzirMovimento = useMovimentoReduzido();
     const [aberta, setAberta] = useState(false);
     const [secao, setSecao] = useState<"menu" | "dados" | "preferencias" | "senha">("menu");
@@ -195,7 +201,7 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
     return <>
         <Menu shadow="md" width={232} position="bottom-end" withinPortal transitionProps={{transition:minimalista ? "fade" : "pop-top-right", duration:reduzirMovimento ? 0 : minimalista ? 120 : moderno ? 240 : 180}}>
             <Menu.Target><ActionIcon visibleFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" title="Conta e preferências"><IconePainel nome="conta"/></ActionIcon></Menu.Target>
-            <Menu.Dropdown className={classes.accountDropdown}>
+            <Menu.Dropdown className={`${classes.accountDropdown} ex-conta-ramificada`}>
                 <Menu.Label>{conta?.nome || nome || "Minha conta"}</Menu.Label>
                 <Menu.Item leftSection={<IconePainel nome="conta"/>} onClick={() => abrir("dados")}>Minha conta</Menu.Item>
                 <Menu.Divider/>
@@ -205,7 +211,8 @@ export function MenuConta({nome, sair, saindo = false, aoAbrir, aoAlterarNome}: 
             </Menu.Dropdown>
         </Menu>
         <ActionIcon hiddenFrom="sm" className={classes.account} variant="default" size="lg" radius="xl" aria-label="Conta e preferências" aria-haspopup="dialog" aria-expanded={aberta} onClick={() => abrir("menu")}><IconePainel nome="conta"/></ActionIcon>
-        <Modal opened={aberta} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:`${classes.accountDialog}${moderno && secao === "menu" ? " funilador-conta-menu-mobile" : ""}`, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
+        <Drawer opened={aberta && lateral && secao === "menu"} onClose={fechar} position="right" size="min(340px, 94vw)" title="Conta e preferências" classNames={{content:"ex-mobile-drawer",body:"ex-mobile-drawer-body"}} transitionProps={{transition:"slide-left",duration:reduzirMovimento?0:340}}><Stack gap="sm" className="funilador-conta-acoes"><Text fw={700}>{conta?.nome || nome || "Minha conta"}</Text><Button fullWidth leftSection={<IconePainel nome="conta"/>} onClick={()=>mudarSecao("dados")}>Minha conta</Button><Button fullWidth variant="light" leftSection={<IconePainel nome="tema"/>} onClick={()=>mudarSecao("preferencias")}>Preferências</Button><Button fullWidth color="red" variant="light" leftSection={<IconePainel nome="sair"/>} disabled={saindo} onClick={()=>{fechar();sair();}}>Sair</Button></Stack></Drawer>
+        <Modal opened={aberta && !(lateral && secao === "menu")} onClose={fechar} title={titulos[secao]} centered size={secao === "preferencias" ? "lg" : "sm"} classNames={{content:`${classes.accountDialog}${moderno && secao === "menu" ? " funilador-conta-menu-mobile" : ""}${secao === "dados" ? " ex-perfil-conta" : ""}`, body:classes.accountBody}} transitionProps={{transition:"fade", duration:reduzirMovimento ? 0 : 180}} closeOnClickOutside={!salvando && secao !== "senha"} closeOnEscape={!salvando && secao !== "senha"} withCloseButton={!salvando && secao !== "senha"}>
             {secao === "menu" ? <Stack gap="xs" className="funilador-conta-acoes">
                 <Text size="sm" fw={600} style={{overflowWrap:"anywhere"}}>{conta?.nome || nome || "Minha conta"}</Text>
                 <Button fullWidth variant="subtle" justify="flex-start" leftSection={<IconePainel nome="conta"/>} onClick={() => mudarSecao("dados")}>Minha conta</Button>

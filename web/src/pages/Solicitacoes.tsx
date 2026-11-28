@@ -223,7 +223,7 @@ export function Solicitacoes(){
     function acoesSolicitacao(solicitacao: Solicitacao) {
         if (solicitacao.status === "pendente") return <>
             <Button size="xs" color="red" variant="outline" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "recusada")}>Recusar</Button>
-            <Button size="xs" color="green" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "aprovada")}>Aprovar</Button>
+            <Button size="xs" className="ex-acao-especial" color="green" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "aprovada")}>Aprovar</Button>
         </>;
         if (solicitacao.status === "recusada") return <Button size="xs" variant="light" disabled={atualizandoId !== null} onClick={() => void atualizarStatus(solicitacao.id, "pendente")}>Reconsiderar</Button>;
         if (solicitacao.projetoId) return <Button size="xs" variant="light" onClick={() => navigate(`/projetos/${solicitacao.projetoId}`, {state: {voltarPara: local.pathname + local.search}})}>Ver projeto</Button>;
@@ -288,7 +288,7 @@ export function Solicitacoes(){
 
 
             {!carregando && !erro && solicitacoesVisiveis.length > 0 && <TransicaoConteudo identidade={solicitacoesVisiveis.map(s=>s.id).join("|")} className={`${classes.grade} funilador-lista-registros`}>
-                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes">
+                {solicitacoesVisiveis.map(solicitacao=><CartaoRegistro key={solicitacao.id} className={classes.card} tipo="solicitacoes" estado={solicitacao.status}>
                     <div className={classes.cardTopo}><IconeModerno nome="solicitacoes" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
                             <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{solicitacao.titulo}</Text>

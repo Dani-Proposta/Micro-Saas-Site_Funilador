@@ -16,6 +16,8 @@ import './styles/ModernoDetalhes.css';
 import './styles/ModernoMobile.css';
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router';
+import './styles/ExpressivoDesktop.css';
+import './styles/ExpressivoMobile.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

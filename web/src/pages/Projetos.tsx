@@ -1,3 +1,6 @@
+import { useExpressivo } from "../lib/contextoAparencia";
+import { ProgressoCartaoAdmin } from "../components/expressivo/ProgressoExpressivo";
+import { celebrarProjeto } from "../lib/celebrarProjeto";
 import { TransicaoConteudo } from "../components/InteracaoModerna";
 import { CabecalhoModerno, CartaoRegistro, IconeModerno, SegmentoModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
@@ -37,6 +40,7 @@ type Cliente = {
 type FiltroProjetos = "ativos" | "arquivados";
 
 export function Projetos() {
+    const expressivo=useExpressivo();
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
 
@@ -206,6 +210,7 @@ export function Projetos() {
                 projeto.id === dados.id ? { ...projeto, status: dados.status, atualizadaEm: dados.atualizadaEm } : projeto
             ));
             toast.mostrar("sucesso", {titulo:"Status atualizado", mensagem:"O status do projeto foi salvo."});
+            if (dados.status === "concluido" && projetos.find(p=>p.id===id)?.status !== "concluido") celebrarProjeto();
 
         } catch (erro) {
             console.error(erro);
@@ -243,7 +248,7 @@ export function Projetos() {
             {!carregando && erro && <Alert color="red">{erro}</Alert>}
             {!carregando && !erro && projetosVisiveis.length === 0 && (<EstadoLista titulo={filtrosAtivos ? "Nenhum resultado" : "Nenhum projeto encontrado"} descricao={filtrosAtivos ? "Tente ajustar a pesquisa ou os filtros." : "Não há projetos nesta seleção."} acao={filtrosAtivos ? "Limpar filtros" : undefined} onAcao={limparFiltros}/>)}
             {!carregando && !erro && projetosVisiveis.length > 0 && <TransicaoConteudo identidade={`${filtro}-${projetosVisiveis.map(p=>p.id).join("|")}`} className={`${classes.grade} funilador-lista-registros`}>
-                {projetosVisiveis.map(projeto => <CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos">
+                {projetosVisiveis.map(projeto => <CartaoRegistro key={projeto.id} className={classes.card} tipo="projetos" estado={filtro === "arquivados" ? "arquivado" : projeto.status}>
                     <div className={classes.cardTopo}><IconeModerno nome="projetos" tamanho={22}/>
                         <Stack gap={4} className={classes.minimo}>
                             <Text fw={650} className={`${classes.quebra} funilador-registro-titulo`}>{projeto.titulo}</Text>
@@ -253,6 +258,7 @@ export function Projetos() {
                     </div>
                     <Text size="sm" c="dimmed" lineClamp={2} className={`${classes.quebra} funilador-registro-descricao`}>{projeto.descricao}</Text>
                     <Text size="xs" c="dimmed"><IconeModerno nome="calendario" tamanho={14}/>Atualizado em {new Date(projeto.atualizadaEm).toLocaleDateString("pt-BR")}</Text>
+                    {expressivo && <ProgressoCartaoAdmin id={projeto.id} atualizadaEm={projeto.atualizadaEm}/>}
                     <div className={classes.cardAcoes}>
                         {filtro === "ativos" && <Select aria-label={`Status de ${projeto.titulo}`} size="xs" value={projeto.status} disabled={atualizandoId !== null} allowDeselect={false} data={statusProjetos} onChange={v=>{if(v==="planejado"||v==="em_andamento"||v==="concluido"||v==="cancelado") void alterarStatus(projeto.id,v);}}/>}
                         <Button className="funilador-abrir-cartao funilador-acao-compacta" aria-label="Ver detalhes" size="xs" variant="light" onClick={()=>navigate(`/projetos/${projeto.id}`, {state:{voltarPara:location.pathname+location.search}})}><span>Ver detalhes</span> <IconeModerno nome="abrir" tamanho={15}/></Button>

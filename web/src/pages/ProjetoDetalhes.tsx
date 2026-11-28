@@ -1,3 +1,5 @@
+import { useExpressivo } from "../lib/contextoAparencia";
+import { celebrarProjeto } from "../lib/celebrarProjeto";
 import { NumeroModerno } from "../components/InteracaoModerna";
 import { IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
@@ -44,6 +46,7 @@ const coresStatus: Record<Projeto["status"], string> = {
 };
 
 export function ProjetoDetalhes() {
+    const expressivo=useExpressivo();
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
@@ -214,6 +217,7 @@ export function ProjetoDetalhes() {
             if (!resposta.ok) throw new Error(dados.erro ?? "Não foi possível atualizar o status.");
             setProjeto(anterior => anterior && anterior.id === dados.id ? {...anterior, status: dados.status, atualizadaEm: dados.atualizadaEm} : anterior);
             toast.mostrar("sucesso", {titulo:"Status atualizado", mensagem:"O status do projeto foi salvo."});
+            if (dados.status === "concluido" && projeto.status !== "concluido") celebrarProjeto();
         } catch (e) {setErroStatus(e instanceof Error ? e.message : "Falha ao atualizar status.");}
         finally {setAlterandoStatus(false);}
     }
@@ -259,19 +263,31 @@ export function ProjetoDetalhes() {
                         </Group>
                 </Stack>
             </Modal>
-            <Group justify="space-between" align="start" className="funilador-projeto-hero">
+            <Group justify="space-between" align="start" className="funilador-projeto-hero" data-ex-estado={projeto.arquivadaEm ? "arquivado" : projeto.status}>
+                {expressivo && !projeto.arquivadaEm && projeto.status === "em_andamento" && projeto.progresso != null && Number.isFinite(projeto.progresso) && <span className="ex-hero-progress-fill" aria-hidden="true" style={{width:`${Math.max(0,Math.min(100,projeto.progresso))}%`}}><span/></span>}
                 <Stack gap="xs" style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <Button variant="subtle" size="xs" style={{alignSelf: "flex-start"}} onClick={() => navigate(voltarPara, {state: origemAnterior})}> ← {rotuloVoltar}</Button>
-                    <Group gap="sm" wrap="nowrap" className="funilador-projeto-identidade"><IconeModerno nome="projetos" tamanho={30}/><Stack gap={3} miw={0}><Text size="xs" className="funilador-sobretitulo">Projeto · {nomesStatus[projeto.status]}</Text><Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title></Stack></Group>
+                    <Group gap="sm" wrap="nowrap" className="funilador-projeto-identidade"><IconeModerno nome="projetos" tamanho={30}/><Stack gap={3} miw={0}><Text size="xs" className="funilador-sobretitulo">Projeto · {nomesStatus[projeto.status]}</Text><Title order={1} className={estrutura.heading} style={{ overflowWrap: "anywhere" }}>{projeto.titulo}</Title>{expressivo && <span className="ex-hero-progresso-label">{projeto.progresso == null ? "Progresso não definido" : <>Progresso · <strong><NumeroModerno valor={projeto.progresso} percentual/></strong></>}</span>}</Stack></Group>
                 </Stack>
 
+                {expressivo ? <div className="ex-projeto-controles">
                 <Group gap="xs" wrap="wrap" className="funilador-projeto-acoes">
+                    <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {...registrarOrigem(`/projetos/${projeto.id}`, location.state), projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
+                    {!projeto.arquivadaEm && (<Button size="xs" variant="light" onClick={abrirEdicao}>Editar</Button>)}
+                    {projeto.arquivadaEm ? (<Button size="xs" variant="light" color="green" loading={processandoArquivo} onClick={() => void alterarArquivamento("restaurar")}>Restaurar</Button>) : (<Button size="xs" variant="light" color="gray" disabled={alterandoStatus} onClick={() => {setErroArquivo(null); setConfirmarArquivamento(true);}}>Arquivar</Button>)}
+                </Group>
+                <Group gap="xs" wrap="wrap" className="ex-projeto-status" data-ex-estado={projeto.arquivadaEm ? "arquivado" : projeto.status}>
+                    {projeto.arquivadaEm && (<Badge color="gray">Arquivado</Badge>)}
+                    {projeto.arquivadaEm ? <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge> : <Select aria-label="Status do projeto" size="xs" w={150} allowDeselect={false} value={projeto.status} disabled={alterandoStatus || processandoArquivo || confirmarArquivamento} data={Object.entries(nomesStatus).map(([value, label]) => ({value, label}))} onChange={valor => {if (valor === "planejado" || valor === "em_andamento" || valor === "concluido" || valor === "cancelado") void alterarStatus(valor);}}/>}
+                </Group>
+                </div> : <Group gap="xs" wrap="wrap" className="funilador-projeto-acoes">
                     <Button size="xs" onClick={() => navigate(caminhoMensagens(projeto.clienteId, projeto.id), {state: {...registrarOrigem(`/projetos/${projeto.id}`, location.state), projetoArquivado: !!projeto.arquivadaEm}})}>Conversa do projeto</Button>
                     {projeto.arquivadaEm && (<Badge color="gray">Arquivado</Badge>)}
                     {projeto.arquivadaEm ? <Badge color={coresStatus[projeto.status]}>{nomesStatus[projeto.status]}</Badge> : <Select aria-label="Status do projeto" size="xs" w={150} allowDeselect={false} value={projeto.status} disabled={alterandoStatus || processandoArquivo || confirmarArquivamento} data={Object.entries(nomesStatus).map(([value, label]) => ({value, label}))} onChange={valor => {if (valor === "planejado" || valor === "em_andamento" || valor === "concluido" || valor === "cancelado") void alterarStatus(valor);}}/>}
                     {!projeto.arquivadaEm && (<Button size="xs" variant="light" onClick={abrirEdicao}>Editar</Button>)}
                     {projeto.arquivadaEm ? (<Button size="xs" variant="light" color="green" loading={processandoArquivo} onClick={() => void alterarArquivamento("restaurar")}>Restaurar</Button>) : (<Button size="xs" variant="light" color="gray" disabled={alterandoStatus} onClick={() => {setErroArquivo(null); setConfirmarArquivamento(true);}}>Arquivar</Button>)}
-                </Group>
+                </Group>}
+
             </Group>
 
             {erroStatus && <Alert color="red">{erroStatus}</Alert>}

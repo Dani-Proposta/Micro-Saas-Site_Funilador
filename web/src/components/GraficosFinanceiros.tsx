@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { useExpressivo } from "../lib/contextoAparencia";
 import { TransicaoConteudo } from "./InteracaoModerna";
 import { IconeModerno } from "./AcabamentoModerno";
 import { useState } from "react";
@@ -9,6 +11,8 @@ import { Button, Card, Group, SegmentedControl, Stack, Text, Tooltip } from "@ma
 import { formatarValor } from "../lib/comercial";
 import classes from "../styles/Financeiro.module.css";
 
+const SerieExpressiva = lazy(()=>import("./expressivo/GraficosExpressivos").then(m=>({default:m.SerieExpressiva})));
+const DistribuicaoExpressiva = lazy(()=>import("./expressivo/GraficosExpressivos").then(m=>({default:m.DistribuicaoExpressiva})));
 type MesFinanceiro = {mes:string; recebido:string; previsto?:string};
 export type GrupoFinanceiro = {id:string; nome:string; valor:string};
 const mesCurto = (mes:string) => `${mes.slice(5,7)}/${mes.slice(2,4)}`;
@@ -21,8 +25,10 @@ export function GraficoFinanceiro({titulo,subtitulo,meses,previsao=false,control
 
     const reduzir = useMovimentoReduzido();
     const moderno = aparencia.estilo === "moderno";
+    const expressivo = useExpressivo();
     const maior = Math.max(1,...meses.map(m=>numero(m.recebido)+(previsao ? numero(m.previsto) : 0)));
     const vazio = meses.every(m=>numero(m.recebido)+(previsao ? numero(m.previsto) : 0)===0);
+    if(expressivo)return <Suspense fallback={<Text size="sm">Carregando análise...</Text>}><SerieExpressiva className={className} titulo={titulo} meses={meses} previsao={previsao} controle={controle} onMes={onMes} onRecebido={onRecebido} mesAtual={mesAtual}/></Suspense>;
     return <Card withBorder padding="sm" className={`${classes.grafico} ${className ?? ""}`}><Stack gap="sm">
         <Group justify="space-between" align="start" gap={6}><Stack gap={2}><Text fw={600} className="funilador-grafico-titulo"><IconeModerno nome="grafico" tamanho={20}/>{titulo}</Text><Text size="xs" c="dimmed">{subtitulo}</Text></Stack>{controle}</Group>
         <Group gap="sm"><span className={classes.legenda}><i className={classes.recebido}/>Recebido</span>{previsao && <span className={classes.legenda}><i className={classes.previsto}/>A receber</span>}</Group>
@@ -67,10 +73,12 @@ export function HistoricoFinanceiro({meses,onMes}:{meses?:MesFinanceiro[]; onMes
 
 export function DistribuicaoFinanceira({clientes,projetos,total,historico,onSelecionar}:{clientes?:GrupoFinanceiro[]; projetos?:GrupoFinanceiro[]; total:string; historico:boolean; onSelecionar?:(tipo:"cliente"|"projeto",id:string)=>void}) {
     const [tipo,setTipo] = useState("cliente");
+    const expressivo = useExpressivo();
     const grupos = tipo === "cliente" ? clientes : projetos;
     const base = numero(total);
     return <Card withBorder padding="sm" className={`${classes.distribuicao} funilador-distribuicao`}><Stack gap="xs">
         <Group justify="space-between" align="start" gap={6}><Stack gap={2}><Text fw={600} size="sm">Distribuição da seleção</Text><Text size="xs" c="dimmed">{historico ? "Recebimentos sem anulados" : "Saldo dos registros selecionados"} · Todas as páginas</Text></Stack><SegmentedControl size="xs" value={tipo} onChange={setTipo} data={[{value:"cliente",label:"Clientes"},{value:"projeto",label:"Projetos"}]}/></Group>
+        {expressivo && grupos && <Suspense fallback={<Text size="sm">Carregando distribuição...</Text>}><DistribuicaoExpressiva key={tipo} tipo={tipo === "cliente" ? "cliente" : "projeto"} grupos={grupos} selecionar={onSelecionar ? id=>onSelecionar(tipo === "cliente" ? "cliente" : "projeto",id) : undefined}/></Suspense>}
         <TransicaoConteudo identidade={tipo}>{!grupos ? <Text size="xs" c="dimmed">Distribuição indisponível. Confira a versão da API.</Text> : grupos.length === 0 ? <Text size="xs" c="dimmed">Não há valores positivos para distribuir.</Text> : <>
             {grupos.map(g=><div key={g.id} className={classes.grupo}><Group justify="space-between" gap={4} wrap="wrap">{onSelecionar && g.id!=="outros" ? <button type="button" className={`${classes.nomeGrupo} ${classes.grupoBotao}`} onClick={()=>onSelecionar(tipo === "cliente" ? "cliente" : "projeto",g.id)}>{g.nome}</button> : <Text size="xs" fw={500} className={classes.nomeGrupo}>{g.nome}</Text>}<Text size="xs" className={classes.valor}>{formatarValor(g.valor)} · {percentual(numero(g.valor),base).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</Text></Group><div className={classes.barraGrupo} aria-hidden="true"><div style={{width:`${percentual(numero(g.valor),base)}%`}}/></div></div>)}
             {grupos.some(g=>g.id==="outros") && <Text size="xs" c="dimmed">Outros reúne todos os grupos fora dos oito maiores.</Text>}

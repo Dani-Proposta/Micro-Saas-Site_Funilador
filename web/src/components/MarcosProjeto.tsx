@@ -1,3 +1,5 @@
+import { useExpressivo } from "../lib/contextoAparencia";
+import { TrilhoMarcos } from "./expressivo/ProgressoExpressivo";
 import { ProgressoModerno, NumeroModerno } from "./InteracaoModerna";
 import { toast } from "../lib/toasts";
 import { CampoData } from "./CampoData";
@@ -61,6 +63,8 @@ function podeExcluir(marco: Marco) {
 //admin e cliente: acompanhar marcos
 export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValidacao = false, focoPagamento = false, focoMarco}: {projeto: Projeto; lado?: "admin" | "cliente"; onAtualizado?: (dados: ResumoMarcos) => void; focoValidacao?: boolean; focoPagamento?: boolean; focoMarco?: string}) {
     const admin = lado === "admin";
+    const expressivo=useExpressivo();
+    const consultarFechado=expressivo && !focoValidacao && !focoPagamento;
     const apenasValidacao = !admin && focoValidacao;
     const apenasPagamento = !admin && focoPagamento && !apenasValidacao;
     const foco = apenasValidacao || apenasPagamento;
@@ -84,6 +88,8 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
     const ativos = marcos.filter(m => m.status !== "cancelado");
     const concluidos = ativos.filter(m => m.status === "concluido").length;
     const progresso = resumo ? (ativos.length ? Math.round(100 * concluidos / ativos.length) : 0) : projeto.progresso;
+    const modoProgresso = resumo?.modoProgresso ?? projeto.modoProgresso;
+    const progressoExibido = modoProgresso === "manual" ? (resumo ? resumo.progresso : projeto.progresso) : progresso;
     const distribuido = Math.round(Number(resumo?.valorDistribuido ?? 0) * 100);
     const restante = projeto.valorAcordado === null ? null : Math.round(Number(projeto.valorAcordado) * 100) - distribuido;
     const ocupado = salvando || !!edicao || !!pagamento || !!cancelamento || !!limpeza;
@@ -109,7 +115,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
     const aguardando = !cancelado && marcos.some(m => m.status !== "cancelado" && m.bloqueiaProgresso && Number(m.saldo) > 0 && (m.cobrancaIniciada || m.status === "concluido"));
 
     useEffect(() => {
-        if (!aberto) return;
+        if (!aberto && !consultarFechado) return;
         const controller = new AbortController();
         const atual = versao.current;
         async function carregar() {
@@ -124,7 +130,7 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         }
         void carregar();
         return () => controller.abort();
-    }, [aberto, endpoint, revisao, onAtualizado]);
+    }, [aberto, consultarFechado, endpoint, revisao, onAtualizado]);
 
     const focoRealizado = useRef(false);
     useEffect(() => {
@@ -279,12 +285,13 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
         <Modal opened={!!limpeza} onClose={() => {if (!salvando) {setLimpeza(null); setErro(null);}}} title="Limpar marcos pendentes" centered closeOnClickOutside={!salvando} closeOnEscape={!salvando} withCloseButton={!salvando}>
             <Stack gap="sm"><Text size="sm">Excluir {limpeza?.length ?? 0} marcos pendentes não ocultos, sem cobrança ou histórico de pagamentos?</Text><Text size="sm" c="dimmed">Esta ação não pode ser desfeita</Text>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setLimpeza(null); setErro(null);}}>Voltar</Button><Button color="red" loading={salvando} onClick={() => void limparMarcos()}>Excluir</Button></Group></Stack>
         </Modal>
-        <Group justify="space-between" wrap="wrap"><Title order={4}>{apenasValidacao ? "Entregas para validar" : apenasPagamento ? "Pagamentos pendentes" : "Marcos"}</Title><Group gap="xs">{!foco && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setAberto(v => !v)}>{aberto ? "Recolher" : "Ver marcos"}</Button>}{aberto && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setRevisao(v => v + 1)}>Atualizar</Button>}{aberto && !somenteLeitura && !cancelado && <Button size="xs" disabled={!resumo || ocupado} onClick={() => {setEdicao(novaEdicao()); setErro(null);}}>+ Novo marco</Button>}</Group></Group>
-        {!foco && projeto.modoProgresso === "marcos" && <><Group justify="space-between"><Text size="sm" c="dimmed">{resumo ? `${concluidos} de ${ativos.length} concluídos` : "Progresso por marcos"}</Text><Text size="sm">{progresso == null ? "Não definido" : <NumeroModerno valor={progresso} percentual/>}</Text></Group>{progresso != null && <ProgressoModerno valor={progresso} cor="violet" rotulo="Progresso por marcos"/>}</>}
+        <Group justify="space-between" wrap="wrap"><Title order={4}>{apenasValidacao ? "Entregas para validar" : apenasPagamento ? "Pagamentos pendentes" : "Marcos"}</Title><Group gap="xs">{!foco && <Button size="xs" variant={expressivo?"light":"subtle"} disabled={ocupado} onClick={() => setAberto(v => !v)}>{aberto ? "Recolher" : "Ver marcos"}</Button>}{aberto && <Button size="xs" variant="subtle" disabled={ocupado} onClick={() => setRevisao(v => v + 1)}>Atualizar</Button>}{aberto && !somenteLeitura && !cancelado && <Button size="xs" disabled={!resumo || ocupado} onClick={() => {setEdicao(novaEdicao()); setErro(null);}}>+ Novo marco</Button>}</Group></Group>
+        {!foco && expressivo && <div className="ex-marcos-resumo"><Group justify="space-between" align="center" wrap="wrap"><Stack gap={4}><Text fw={700}>Progresso do projeto</Text><Text size="xs" c="dimmed">{modoProgresso === "manual" ? "Progresso definido manualmente" : "Calculado pelos marcos ativos"}{resumo ? ` · ${concluidos} de ${ativos.length} marcos concluídos` : ""}</Text></Stack><Title order={2}>{progressoExibido == null ? "—" : <NumeroModerno valor={progressoExibido} percentual repeticao={revisao}/>}</Title></Group>{resumo ? <TrilhoMarcos marcos={resumo.marcos} repeticao={revisao}/> : progressoExibido != null ? <ProgressoModerno valor={progressoExibido}/> : <Text size="xs" c="dimmed">Progresso ainda não definido.</Text>}</div>}
+        {!foco && !expressivo && projeto.modoProgresso === "marcos" && <><Group justify="space-between"><Text size="sm" c="dimmed">{resumo ? `${concluidos} de ${ativos.length} concluídos` : "Progresso por marcos"}</Text><Text size="sm">{progresso == null ? "Não definido" : <NumeroModerno valor={progresso} percentual/>}</Text></Group>{progresso != null && (<ProgressoModerno valor={progresso} cor="violet" rotulo="Progresso por marcos"/>)}</>}
         {aberto && <>
             {!resumo && !erro && <Carregamento tipo="detalhes" quantidade={2} texto="Carregando marcos..."/>}
             {erro && !edicao && !pagamento && !cancelamento && !limpeza && !validacao && <Alert color="red">{erro}</Alert>}
-            {!foco && resumo && projeto.modoProgresso === "manual" && <Text size="sm" c="dimmed">{concluidos} de {ativos.length} concluídos</Text>}
+            {!foco && !expressivo && resumo && projeto.modoProgresso === "manual" && <Text size="sm" c="dimmed">{concluidos} de {ativos.length} concluídos</Text>}
             {apenasPagamento && resumo && <Card withBorder padding="sm"><Text c="dimmed" size="sm">Total a pagar nesta seleção</Text><Text fw={700} size="xl">{formatarValor((pagamentosPendentes.reduce((n,m)=>n+Math.round(Number(m.saldo)*100),0)/100).toFixed(2))}</Text></Card>}
             {!foco && resumo && <Card withBorder padding="sm"><Stack gap="xs">
                 <SimpleGrid cols={{base: 1, xs: 2, lg: admin ? 4 : 2}}>
@@ -304,12 +311,12 @@ export function MarcosProjeto({projeto, lado = "admin", onAtualizado, focoValida
             </Group>}
             {resumo && !visiveis.length && <Text size="sm" c="dimmed">{apenasValidacao ? "Nenhuma entrega aguardando validação" : apenasPagamento ? "Nenhum pagamento pendente" : marcos.length ? "Nenhum marco neste filtro" : "Nenhum marco cadastrado"}</Text>}
             {edicao && !edicao.id && !somenteLeitura && editor}
-            {visiveis.map(marco => <Card id={`marco-${marco.id}`} key={marco.id} withBorder padding="sm" className={classes.marco} style={focoMarco === marco.id ? {borderColor:"var(--mantine-primary-color-filled)"} : undefined}><Stack gap="xs">
+            {visiveis.map(marco => <Card id={`marco-${marco.id}`} key={marco.id} withBorder padding="sm" className={`${classes.marco} ex-marco`} data-ex-estado={marco.status} style={focoMarco === marco.id ? {borderColor:"var(--mantine-primary-color-filled)"} : undefined}><Stack gap="xs">
                 <Group justify="space-between" align="flex-start"><Group gap="xs" wrap="nowrap" style={{minWidth: 0, flex: 1}}>{!somenteLeitura && !cancelado && marco.status !== "cancelado" && <Checkbox aria-label={`Concluir ${marco.titulo}`} checked={marco.status === "concluido"} disabled={ocupado} onChange={e => void concluirMarco(marco, e.currentTarget.checked)}/>}<Text fw={600} style={{overflowWrap: "anywhere", minWidth: 0}}>{marco.titulo}</Text></Group><Badge color={cores[marco.status]}>{statusMarcos.find(s => s.value === marco.status)?.label}</Badge></Group>
                 {marco.descricao && <Text size="sm" style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{marco.descricao}</Text>}
                 {apenasPagamento ? <><Group justify="space-between"><Text size="sm" c="dimmed">Saldo a pagar</Text><Text fw={700} size="lg" c={marco.vencimento && marco.vencimento < hoje ? "red" : undefined}>{formatarValor(marco.saldo)}</Text></Group><Text size="sm">Vencimento: {formatarPrazo(marco.vencimento)}</Text><Text size="sm" c="dimmed">Valor do marco: {formatarValor(marco.valor)} · Já pago: {formatarValor(marco.recebido)}</Text>{marco.bloqueiaProgresso && !cancelado && marco.status !== "cancelado" && <Text size="sm" c="orange">Aguardando pagamento para prosseguir</Text>}</> : apenasValidacao ? <Text size="sm" c="dimmed">Entrega: {formatarPrazo(marco.prazoEntrega)}</Text> : <SimpleGrid className={classes.marcoDados} cols={{base: 1, xs: 2, md: 3}}><Text size="sm">Entrega: {formatarPrazo(marco.prazoEntrega)}</Text><Text size="sm">Valor: {formatarValor(marco.valor)}</Text><Text size="sm">{admin ? "Recebido" : "Pago"}: {formatarValor(marco.recebido)}</Text><Text size="sm">Saldo: {formatarValor(marco.saldo)}</Text><Text size="sm">Vencimento: {formatarPrazo(marco.vencimento)}</Text><Text size="sm" fw={500}>{statusPagamento(marco, cancelado)}</Text></SimpleGrid>}
                 {!foco && marco.pagamentos.length > 0 && <><Divider/><Button size="xs" variant="subtle" onClick={() => setHistoricos(old => old.includes(marco.id) ? old.filter(id => id !== marco.id) : [...old, marco.id])}>{historicos.includes(marco.id) ? "Recolher histórico" : `Ver histórico (${marco.pagamentos.length})`}</Button>{historicos.includes(marco.id) && marco.pagamentos.map(p => <Group key={p.id} justify="space-between" wrap="wrap"><Stack gap={2}><Text size="xs" td={p.anuladoEm ? "line-through" : undefined}>{formatarPrazo(p.recebidoEm)} · {formatarValor(p.valor)}</Text>{p.anuladoEm && <Text size="xs" c="dimmed">Anulado em {new Date(p.anuladoEm).toLocaleString("pt-BR")}</Text>}</Stack>{!somenteLeitura && !p.anuladoEm && <Button size="xs" color="red" variant="subtle" disabled={ocupado} onClick={() => void anularPagamento(marco, p)}>Desfazer</Button>}</Group>)}</>}
-                {!admin && !apenasPagamento && !cancelado && !projeto.arquivadaEm && marco.status === "aguardando_validacao" && <Button size="xs" color="green" variant="light" disabled={salvando} onClick={() => {setErro(null); setValidacao(marco);}}>Validar entrega</Button>}
+                {!admin && !apenasPagamento && !cancelado && !projeto.arquivadaEm && marco.status === "aguardando_validacao" && <Button size="xs" className="ex-acao-especial" color="green" variant="light" disabled={salvando} onClick={() => {setErro(null); setValidacao(marco);}}>Validar entrega</Button>}
                 {!somenteLeitura && <Group justify="flex-end"><Menu shadow="md" position="bottom-end"><Menu.Target><Button size="xs" variant="light" disabled={ocupado} aria-label={`Opções de ${marco.titulo}`}>⋮</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => {setEdicao(novaEdicao(marco)); setErro(null);}}>Editar</Menu.Item><Menu.Item onClick={() => void enviar(`${endpoint}/${marco.id}/visibilidade`, "PATCH", {oculto: !marco.oculto}, marco.oculto ? "Marco exibido" : "Marco ocultado")}>{marco.oculto ? "Exibir na lista" : "Ocultar da lista"}</Menu.Item><Menu.Item color="orange" onClick={() => cancelarMarco(marco)}>{marco.status === "cancelado" ? "Revisar cobrança" : "Cancelar marco"}</Menu.Item><Menu.Item color="red" disabled={!podeExcluir(marco)} onClick={() => void excluirMarco(marco)}>Excluir marco</Menu.Item>{!podeExcluir(marco) && <Menu.Label>{marco.pagamentos.length ? "Possui histórico de pagamentos" : marco.acordado ? "Marco acordado" : marco.validado ? "Possui validação do cliente" : marco.cobrancaIniciada ? "Cobrança iniciada" : "Marco não está pendente"}</Menu.Label>}</Menu.Dropdown></Menu>{Number(marco.saldo) > 0 && (!cancelado || ["concluido", "cancelado", "aguardando_validacao"].includes(marco.status) || marco.cobrancaIniciada) && <Button size="xs" variant="light" color="green" disabled={ocupado} onClick={() => abrirPagamento(marco)}>Registrar pagamento</Button>}</Group>}
                 {edicao?.id === marco.id && !somenteLeitura && editor}
                 {pagamento?.marcoId === marco.id && !somenteLeitura && <Stack gap="xs"><Divider/><TextInput label="Valor recebido" aria-label="Valor recebido (R$)" leftSection={<span className="funilador-moeda" aria-hidden="true">R$</span>} leftSectionWidth={36} leftSectionPointerEvents="none" inputMode="decimal" maxLength={13} value={pagamento.valor} onChange={e => {const valor = e.currentTarget.value; setPagamento(p => p ? {...p, valor} : p);}} disabled={salvando}/><CampoData label="Data do recebimento" value={pagamento.recebidoEm} onChange={recebidoEm => setPagamento(p => p ? {...p, recebidoEm} : p)} disabled={salvando}/>{erro && <Alert color="red">{erro}</Alert>}<Group justify="flex-end"><Button variant="default" disabled={salvando} onClick={() => {setPagamento(null); setErro(null);}}>Cancelar</Button><Button loading={salvando} disabled={!pagamento.valor.trim() || !pagamento.recebidoEm} onClick={() => void registrarPagamento()}>Registrar</Button></Group></Stack>}

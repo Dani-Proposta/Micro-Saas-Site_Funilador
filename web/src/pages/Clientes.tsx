@@ -1,3 +1,4 @@
+import { useExpressivo } from "../lib/contextoAparencia";
 import { NumeroModerno, TransicaoConteudo } from "../components/InteracaoModerna";
 import { CabecalhoModerno, IconeModerno } from "../components/AcabamentoModerno";
 import { toast } from "../lib/toasts";
@@ -18,6 +19,7 @@ const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u
 const iniciais = (nome: string) => nome.trim().split(/\s+/).slice(0, 2).map(p => Array.from(p)[0] ?? "").join("").toLocaleUpperCase("pt-BR");
 
 export function Clientes() {
+    const expressivo = useExpressivo();
     const navigate = useNavigate();
     const location = useLocation();
     const [params, setParams] = useSearchParams();
@@ -101,7 +103,7 @@ export function Clientes() {
             </Stack></form>
         </Modal>
         {carregando && clientes.length===0 ? <Carregamento tipo="lista" quantidade={3}/> : erro ? <Alert color="red">{erro}<Button size="xs" variant="subtle" onClick={()=>setVersao(v=>v+1)}>Tentar novamente</Button></Alert> : <>
-            <div className={classes.indicadores}>{indicadores.map(i=><button key={i.id} type="button" className={classes.indicador} data-ativo={filtro===i.id} aria-pressed={filtro===i.id} onClick={()=>filtroUrl("acesso",i.id)}><Group gap={6} wrap="nowrap"><IconeModerno nome="clientes" tamanho={20}/><Text size="xs" c="dimmed">{i.label}</Text></Group><Text fw={700} size="xl" className={classes.numero}>{<NumeroModerno valor={i.valor} repeticao={repeticao}/>}</Text></button>)}</div>
+            <div className={classes.indicadores}>{indicadores.map(i=><button key={i.id} type="button" className={`${classes.indicador}${expressivo?" ex-cliente-filtro":""}`} data-ativo={filtro===i.id} aria-pressed={filtro===i.id} onClick={()=>filtroUrl("acesso",i.id)}><Group gap={6} wrap="nowrap"><IconeModerno nome="clientes" tamanho={20}/><Text size="xs" c="dimmed">{i.label}</Text></Group><Text fw={700} size="xl" className={classes.numero}>{<NumeroModerno valor={i.valor} repeticao={repeticao}/>}</Text>{expressivo&&<span className="ex-filtro-acao">{filtro===i.id?"Filtro ativo":"Filtrar"} <IconeModerno nome="abrir" tamanho={14}/></span>}</button>)}</div>
             <div className={`${classes.filtros} funilador-clientes-filtros`}>
                 <CampoBusca placeholder="Nome ou e-mail" value={busca} onChange={v=>{setBusca(v);if(params.has("pagina"))filtroUrl("pagina","1");}}/>
                 <Select label="Acesso" allowDeselect={false} value={filtro} onChange={v=>filtroUrl("acesso",v??"todos")} data={[{value:"todos",label:"Todos"},{value:"vinculado",label:"Com acesso"},{value:"sem_conta",label:"Sem conta"}]}/>
@@ -109,7 +111,12 @@ export function Clientes() {
             </div>
             <TransicaoConteudo identidade={`${filtro}-${ordem}-${pagina}`}><Card withBorder padding={0} className={`${classes.tabelaCard} funilador-tabela-clientes`}>
                 <Group justify="space-between" p="sm" className={classes.cabecalhoTabela}><Text size="sm" fw={600}>{filtrados.length} de {clientes.length} clientes</Text><Group gap="xs">{(busca.trim() || filtro !== "todos" || ordem !== "nome") && <Button size="compact-xs" variant="subtle" onClick={()=>{setBusca("");setParams({}, {replace:true});}}>Limpar filtros</Button>}<Button size="compact-xs" variant="subtle" className="funilador-atualizar" leftSection={<IconeModerno nome="atualizar"/>} loading={carregando} onClick={()=>setVersao(v=>v+1)}>Atualizar</Button></Group></Group>
-                {filtrados.length===0 ? <Stack align="center" p="xl" gap="xs"><IconePainel nome="clientes" tamanho={26}/><Text size="sm" c="dimmed">{clientes.length ? "Nenhum cliente corresponde aos filtros." : "Nenhum cliente cadastrado."}</Text><Button variant="light" size="xs" onClick={()=>clientes.length ? (setBusca(""), setParams({}, {replace:true})) : abrir()}>{clientes.length ? "Limpar filtros" : "Cadastrar cliente"}</Button></Stack> : <Table className={classes.tabela} verticalSpacing="xs" horizontalSpacing="sm">
+                {filtrados.length===0 ? <Stack align="center" p="xl" gap="xs"><IconePainel nome="clientes" tamanho={26}/><Text size="sm" c="dimmed">{clientes.length ? "Nenhum cliente corresponde aos filtros." : "Nenhum cliente cadastrado."}</Text><Button variant="light" size="xs" onClick={()=>clientes.length ? (setBusca(""), setParams({}, {replace:true})) : abrir()}>{clientes.length ? "Limpar filtros" : "Cadastrar cliente"}</Button></Stack> : expressivo ? <div className="ex-clientes-grade">{filtrados.slice((pagina-1)*porPagina,pagina*porPagina).map(c=><Card key={c.id} withBorder className="ex-cliente-card" data-acesso={c.usuarioId ? "vinculado" : "sem_conta"}>
+                    <Group justify="space-between" align="start" wrap="nowrap"><Avatar size="lg" radius="xl" color={c.usuarioId ? "teal" : "grape"}>{iniciais(c.nome)}</Avatar><Badge variant="light" color={c.usuarioId ? "teal" : "gray"}>{c.usuarioId ? "Vinculado" : "Sem conta"}</Badge></Group>
+                    <button type="button" className="ex-cliente-identidade" onClick={()=>detalhes(c)}><Text fw={750} size="lg" className={classes.quebra}>{c.nome}</Text><Text size="xs" c="dimmed" className={classes.quebra}>{c.email ?? "Sem e-mail de contato"}</Text></button>
+                    <div className="ex-cliente-metrica"><Text size="xs" c="dimmed">Projetos ativos</Text><Text fw={800} size="xl"><NumeroModerno valor={c.projetosAtivos ?? 0} repeticao={repeticao}/></Text></div>
+                    <Group gap="xs" wrap="wrap" className="ex-cliente-acoes"><Button size="xs" onClick={()=>detalhes(c)}>Ver ficha ↗</Button><Button size="xs" variant="light" onClick={()=>navigate(caminhoMensagens(c.id),{state:origem()})}>Mensagem</Button><Menu position="bottom-end" withinPortal><Menu.Target><ActionIcon variant="light" aria-label={`Mais ações de ${c.nome}`}>⋯</ActionIcon></Menu.Target><Menu.Dropdown><Menu.Item onClick={()=>abrir(c)}>Editar cadastro</Menu.Item><Menu.Item onClick={()=>detalhes(c,"acesso")}>Gerenciar acesso</Menu.Item></Menu.Dropdown></Menu></Group>
+                </Card>)}</div> : <Table className={classes.tabela} verticalSpacing="xs" horizontalSpacing="sm">
                     <Table.Thead><Table.Tr><Table.Th>Cliente</Table.Th><Table.Th>Acesso</Table.Th><Table.Th>Projetos ativos</Table.Th><Table.Th><span className={classes.srOnly}>Ações</span></Table.Th></Table.Tr></Table.Thead>
                     <Table.Tbody>{filtrados.slice((pagina-1)*porPagina,pagina*porPagina).map(c=><Table.Tr key={c.id}>
                         <Table.Td className={classes.identidade}><button type="button" className={classes.clienteLink} onClick={()=>detalhes(c)}><Avatar radius="xl" size="sm" color="grape">{iniciais(c.nome)}</Avatar><span className={classes.clienteTexto}><Text component="span" fw={600} size="sm" className={classes.quebra}>{c.nome}</Text><Text component="span" size="xs" c="dimmed" className={classes.quebra}>{c.email ?? "Sem e-mail de contato"}</Text></span></button></Table.Td>
@@ -122,7 +129,7 @@ export function Clientes() {
                 </Table>}
                 {paginas>1 && <Group justify="center" p="sm"><Pagination size="sm" total={paginas} value={pagina} onChange={v=>filtroUrl("pagina",String(v))} siblings={0}/></Group>}
             </Card></TransicaoConteudo>
-            <Text size="xs" c="dimmed">Projetos ativos: planejados ou em andamento, sem arquivamento.</Text>
+            {!expressivo && <Text size="xs" c="dimmed">Projetos ativos: planejados ou em andamento, sem arquivamento.</Text>}
         </>}
     </Stack>;
 }

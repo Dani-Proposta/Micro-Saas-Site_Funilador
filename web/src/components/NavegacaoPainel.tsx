@@ -196,7 +196,7 @@ export function AbasNavegacao({className, children, mobileGrade=false, ...props}
         abas.push({elemento, label, href: value});
     }
 
-    if (aparencia.estilo === "moderno" && mobile && mobileGrade) {
+    if ((aparencia.estilo === "moderno" || aparencia.estilo === "expressivo") && mobile && mobileGrade) {
         return <Tabs.List {...props} className={`funilador-abas-cliente-mobile ${className ?? ""}`}>{children}</Tabs.List>;
     }
     if (aparencia.estilo !== "moderno" || contexto.orientation === "vertical" || props.grow || !abas.length || abas.length !== elementos.length) {
