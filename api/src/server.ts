@@ -1,5 +1,8 @@
 //precisa pra se quer existir
 import express from "express";
+import { existsSync } from "node:fs";
+import { extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { PoolClient } from "pg";
 
@@ -40,7 +43,7 @@ app.use("/api", (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {next(); return;}
     const origem = req.get("origin");
     const origens = Array.isArray(auth.options.trustedOrigins) ? auth.options.trustedOrigins : [];
-    const permitidas = [auth.options.baseURL, ...origens, process.env.BETTER_AUTH_URL]
+    const permitidas = [auth.options.baseURL, ...origens, ...(process.env.NODE_ENV === "production" ? [] : [process.env.BETTER_AUTH_URL])]
         .filter((v): v is string => typeof v === "string")
         .map(v => new URL(v).origin);
     if (!origem || !permitidas.includes(origem) || req.get("sec-fetch-site") === "cross-site") {
@@ -794,7 +797,7 @@ function exigirJsonAcesso(req: Request) {
     if (!req.is("application/json")) throw new ErroConversa(415, "Envie dados em JSON");
     const origem = req.get("origin");
     const origens = Array.isArray(auth.options.trustedOrigins) ? auth.options.trustedOrigins : [];
-    const permitidas = [auth.options.baseURL, ...origens, process.env.BETTER_AUTH_URL].filter((v): v is string => typeof v === "string").map(v => new URL(v).origin);
+    const permitidas = [auth.options.baseURL, ...origens, ...(process.env.NODE_ENV === "production" ? [] : [process.env.BETTER_AUTH_URL])].filter((v): v is string => typeof v === "string").map(v => new URL(v).origin);
     if (req.get("sec-fetch-site") === "cross-site" || (origem && !permitidas.includes(origem))) throw new ErroConversa(403, "Origem não autorizada");
 }
 
@@ -3526,8 +3529,43 @@ app.use("/api", (erro: unknown, _req: Request, res: Response, next: NextFunction
     res.status(500).json({erro: "Não foi possível concluir a operação"});
 });
 
-//acesso a API
-app.listen(3001, () => {
-    console.log("api disponivel na porta: http://localhost:3001");
+// O container serve o build estático do Vite e a API na mesma origem.
+const producao = process.env.NODE_ENV === "production";
+if (producao) {
+    const frontend = fileURLToPath(new URL("../../web/dist/", import.meta.url));
+    const index = join(frontend, "index.html");
+    if (!existsSync(index)) throw new Error("Build do frontend não encontrado");
+
+    // Verificação de vida do processo, sem acordar o banco de dados.
+    app.get("/healthz", (_req, res) => {
+        res.set("Cache-Control", "no-store").status(200).json({status: "ok"});
+    });
+    // Rotas inexistentes da API não podem receber o HTML da SPA.
+    app.use("/api", (_req, res) => {res.status(404).json({erro: "Rota indisponível"});});
+    app.use(express.static(frontend, {
+        index: false,
+        setHeaders(res) {
+            // Em especial, não manter index.html ou sw.js desatualizados.
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("X-Content-Type-Options", "nosniff");
+        },
+    }));
+    app.get(/.*/, (req, res, next) => {
+        if (extname(req.path) || /^\/(?:assets|brand)(?:\/|$)/i.test(req.path) || !req.accepts("html")) {
+            next(); return;
+        }
+        res.set("Cache-Control", "no-cache");
+        res.set("X-Content-Type-Options", "nosniff");
+        res.sendFile(index);
+    });
+}
+
+const porta = Number(process.env.PORT ?? (producao ? "3000" : "3001"));
+if (!Number.isInteger(porta) || porta < 1 || porta > 65535) throw new Error("PORT inválida");
+// Preservar a escuta local anterior, e expor o container na rede interna.
+const aoIniciar = () => {
+    console.log(`API disponível na porta ${porta}`);
     iniciarProcessamentoPush();
-});
+};
+if (producao) app.listen(porta, "0.0.0.0", aoIniciar);
+else app.listen(porta, aoIniciar);

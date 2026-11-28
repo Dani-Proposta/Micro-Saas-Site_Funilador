@@ -1,0 +1,19 @@
+# Não enviar credenciais ao contexto de build, nem mesmo se forem locais.
+.git
+**/.git
+.env*
+**/.env*
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/*.log
+**/*.logs
+**/*.tsbuildinfo
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.zip
+.vscode
+**/.vscode
